@@ -1,6 +1,6 @@
 # Digital Menu & Ordering — CLAUDE.md
 
-**Operating loop.** Pull the next story from `07-epic-map.md` → load the context-package docs it references → implement the one vertical slice → verify against its acceptance criteria → stop.
+**Operating loop.** Pull the next story from `07-epic-map.md` → mark it `Building` in `BUILD_STATUS.md` → load the context-package docs it references → implement the one vertical slice → verify against its acceptance criteria → mark it `Done` in `BUILD_STATUS.md` (or `Blocked` with a note if stuck) → stop.
 
 **Context-package index.**
 - Intent & constraints (mode, hypothesis, kill criteria) → `01-intent-and-constraints.md`
@@ -11,6 +11,15 @@
 - Engineering principles (universal, never edited) → `06a-engineering-principles.md`
 - Engineering decisions (this system's stack/contract choices) → `06b-engineering-decisions.md`
 - Epic map & stories → `07-epic-map.md`
+- Build status / story board → `BUILD_STATUS.md`
+- Bug / issue tracker → `ISSUES.md`
+
+**Maintaining BUILD_STATUS.md.** This file is not optional bookkeeping — it is how session 40 knows what session 1 already built. Update it in the same turn as the code change, not after the fact:
+- Story status changes the moment work starts/stops (`Backlog → Building → Done`, or `Blocked` with a one-line reason).
+- Checklist boxes and the deployment section get checked off as they become true.
+- The gotchas log gets a line whenever something non-obvious in this codebase costs real debugging time.
+
+**Maintaining ISSUES.md.** Any bug or unexpected behaviour found — whether you caused it, found it while building something else, or the user reports it — gets logged before or alongside the fix, not skipped because it was quick to fix. Closed issues stay in the file (moved to a Resolved section), not deleted — they're a record of what already bit this project once.
 
 **Stop rules (ask before doing).**
 - Touching anything in `02-domain-model.md`'s invariants or state machines — these are one-way doors.
