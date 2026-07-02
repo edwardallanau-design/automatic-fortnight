@@ -19,6 +19,7 @@ function statusFor(error: DomainError): number {
 
 function codeFor(error: DomainError): string {
   return error.name
+    .replace(/Error$/, '')
     .replace(/([a-z])([A-Z])/g, '$1_$2')
     .toUpperCase()
 }

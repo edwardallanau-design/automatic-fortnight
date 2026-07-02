@@ -11,14 +11,14 @@ describe('handleApiError', () => {
     const res = handleApiError(new ValidationError('bad input'))
     expect(res.status).toBe(400)
     const body = await res.json()
-    expect(body).toEqual({ error: 'VALIDATION_ERROR', message: 'bad input' })
+    expect(body).toEqual({ error: 'VALIDATION', message: 'bad input' })
   })
 
   it('maps InvalidCredentialError to 401', async () => {
     const res = handleApiError(new InvalidCredentialError('no match'))
     expect(res.status).toBe(401)
     const body = await res.json()
-    expect(body).toEqual({ error: 'INVALID_CREDENTIAL_ERROR', message: 'no match' })
+    expect(body).toEqual({ error: 'INVALID_CREDENTIAL', message: 'no match' })
   })
 
   it('maps NotFoundError to 404', async () => {
