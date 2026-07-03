@@ -16,3 +16,9 @@ model Credential {
   role         Role   @unique
   passwordHash String
 }
+
+model Table {
+  id        String   @id @default(uuid())
+  number    Int      @unique
+  createdAt DateTime @default(now())
+}

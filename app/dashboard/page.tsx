@@ -11,6 +11,7 @@ export default async function DashboardPage() {
       {role === 'admin' && (
         <nav>
           <Link href="/admin/menu">Menu Management</Link>
+          <Link href="/admin/tables">Table Setup</Link>
         </nav>
       )}
     </main>
