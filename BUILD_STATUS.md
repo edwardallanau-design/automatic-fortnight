@@ -27,7 +27,7 @@ Recommended build order: 1 → 2 → 3 → 4 → 5 → 7 → 8 → 6 (see `07-ep
 | # | Story | Status | Notes |
 |---|---|---|---|
 | 1 | Staff/Admin login | Done | |
-| 2 | Table setup & QR identification | Backlog | |
+| 2 | Table setup & QR identification | Building | Tasks 1-6 done (tableService, qrCode, authGuard.requireApiRole, POST /api/tables, admin table setup page); Task 7 (customer order-URL landing) remaining. |
 | 3 | Menu management (Admin) | Backlog | |
 | 4 | Customer menu view | Backlog | |
 | 5 | Cart & order submission | Backlog | |
