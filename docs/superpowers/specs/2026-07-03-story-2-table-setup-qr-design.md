@@ -27,33 +27,28 @@ Per `02-domain-model.md`, Table is a simple reference value ("no lifecycle of it
    - `id` (uuid, pk), `number` (Int, unique), `createdAt` (DateTime, default now).
    - New migration, additive only — does not touch the existing `Credential` model.
 
-2. **`lib/tableRepository.ts` (persistence layer).**
-   - `createTable(number: number): Promise<Table>`
-   - `findTableById(id: string): Promise<Table | null>`
-   - `listTables(): Promise<Table[]>`
-   - Queries only — no branching business logic, per `04-architecture.md`.
-
-3. **`lib/tableService.ts` (logic layer).**
-   - `createTable(number: number): Promise<Table>` — calls the repository; on a Prisma unique-constraint violation (duplicate `number`), throws `ConflictError` (→ `409`).
+2. **`lib/tableService.ts` (logic layer, calls Prisma directly).**
+   - `createTable(number: number): Promise<Table>` — calls `prisma.table.create`; on a Prisma unique-constraint violation (duplicate `number`, code `P2002`), throws `ConflictError` (→ `409`).
+   - No separate repository module: `tableService` calls `prisma` directly, matching the established pattern from Story 1's `authService` rather than the aspirational separate-repository-layer description in `04-architecture.md` (implementation-time simplification, decided during planning).
    - `getTableOrThrow(id: string): Promise<Table>` — throws `NotFoundError` (→ `404`) if `id` is missing/malformed or no row matches.
    - `listTables(): Promise<Table[]>` — passthrough for the admin page.
 
-4. **`app/api/tables/route.ts` (boundary).**
-   - `POST` — body `{ number: number }`. `requireRole('admin')`. Missing/non-numeric `number` → `400 ValidationError`. Duplicate → `409` via `tableService.createTable`. Success → `201` + created table.
-   - `GET` — `requireRole('admin')`. Returns `200` + array of all tables (always an array, per `05-api-conventions.md`).
+3. **`app/api/tables/route.ts` (boundary).**
+   - `POST` — body `{ number: number }`. `requireApiRole('admin')`. Missing/non-integer `number` → `400 ValidationError`. Duplicate → `409` via `tableService.createTable`. Success → `201` + created table.
+   - No `GET /api/tables` route: the admin page is a Server Component and calls `tableService.listTables()` directly, so a dedicated read endpoint would be an unused indirection (implementation-time simplification over the original design, decided during planning).
 
-5. **`lib/qrCode.ts`.**
+4. **`lib/qrCode.ts`.**
    - `generateQrDataUrl(url: string): Promise<string>` — thin wrapper around the `qrcode` package's `toDataURL`, returning a `data:image/png;base64,...` string.
    - No persistence; called at render time only.
 
-6. **`app/admin/tables/page.tsx`.**
+5. **`app/admin/tables/page.tsx`.**
    - Server component, `requireRole('admin')` at the top (same pattern as `app/dashboard/page.tsx`).
    - Renders a create-table form (number input) and a list of existing tables.
    - For each table, computes the `/order?table=<id>` URL (absolute, using the request's origin) and renders its QR via `generateQrDataUrl`, plus the raw URL as text (for manual printing/debugging).
    - Create form posts via `apiClient.post('/api/tables', { number })`; on `409`, shows an inline "table number already exists" error; on success, refreshes the list.
    - Linked from `app/dashboard/page.tsx`'s existing admin nav block, alongside the "Menu Management" link.
 
-7. **`app/order/page.tsx`.**
+6. **`app/order/page.tsx`.**
    - No auth guard (customer-facing, unauthenticated by design per `06b` §8).
    - Reads `table` search param. Missing or not resolvable via `tableService.getTableOrThrow` → renders a plain error message ("This table link isn't valid. Please ask staff for help."), no crash, no throw escaping to a Next.js error boundary.
    - Valid → renders `Table {number} — menu coming soon` placeholder. Story 4 replaces this rendering with the real menu; the id-resolution/error-handling shell built here is reused as-is.
@@ -84,7 +79,8 @@ Customer scans QR:
 |---|---|---|
 | `POST /api/tables` missing/non-numeric `number` | API route (shape validation) | `400 VALIDATION` |
 | `POST /api/tables` duplicate `number` | `tableService.createTable` → `ConflictError` | `409 CONFLICT` |
-| `POST`/`GET /api/tables` without admin session | `requireRole('admin')` guard | Redirect to `/login` (page-level pattern) — N/A for API routes in this story since only the admin page calls them, guard behavior otherwise matches Story 1's `requireRole` |
+| `POST /api/tables` without admin session | `requireApiRole('admin')` guard | `403 FORBIDDEN` (throws instead of redirecting, since `redirect()` doesn't work inside Route Handlers) |
+| `/admin/tables` without admin session | `requireRole('admin')` guard | Redirect to `/login` (page-level pattern, same as Story 1) |
 | `/order?table=` missing or invalid/nonexistent id | `tableService.getTableOrThrow` → `NotFoundError`, caught in the page component | Rendered error state, `200` (no thrown error escapes to Next.js's default error boundary) |
 
 All API-route failures route through the existing shared `handleApiError()` wrapper — no new error-handling pattern introduced.
