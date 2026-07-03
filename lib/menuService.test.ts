@@ -1,0 +1,111 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { Prisma } from '@prisma/client'
+import { createMenuItem, updateMenuItem, archiveMenuItem, listMenuItems } from './menuService'
+import { NotFoundError } from './errors'
+import { prisma } from './prisma'
+
+vi.mock('./prisma', () => ({
+  prisma: {
+    menuItem: {
+      create: vi.fn(),
+      update: vi.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+  },
+}))
+
+describe('menuService.createMenuItem', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('creates a menu item with name and price', async () => {
+    const created = { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() }
+    vi.mocked(prisma.menuItem.create).mockResolvedValue(created as never)
+
+    const result = await createMenuItem('Burger', new Prisma.Decimal('12.50'))
+
+    expect(result).toEqual(created)
+    expect(prisma.menuItem.create).toHaveBeenCalledWith({
+      data: { name: 'Burger', price: new Prisma.Decimal('12.50') },
+    })
+  })
+})
+
+describe('menuService.updateMenuItem', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('updates provided fields and returns the updated item', async () => {
+    const updated = { id: 'm1', name: 'Cheeseburger', price: new Prisma.Decimal('13.00'), available: true, archived: false, createdAt: new Date() }
+    vi.mocked(prisma.menuItem.update).mockResolvedValue(updated as never)
+
+    const result = await updateMenuItem('m1', { name: 'Cheeseburger', price: new Prisma.Decimal('13.00') })
+
+    expect(result).toEqual(updated)
+    expect(prisma.menuItem.update).toHaveBeenCalledWith({
+      where: { id: 'm1' },
+      data: { name: 'Cheeseburger', price: new Prisma.Decimal('13.00') },
+    })
+  })
+
+  it('throws NotFoundError when the item does not exist', async () => {
+    vi.mocked(prisma.menuItem.update).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Record not found', {
+        code: 'P2025',
+        clientVersion: '7.8.0',
+      }) as never,
+    )
+
+    await expect(updateMenuItem('missing', { available: false })).rejects.toThrow(NotFoundError)
+  })
+})
+
+describe('menuService.archiveMenuItem', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('sets archived to true', async () => {
+    vi.mocked(prisma.menuItem.update).mockResolvedValue({} as never)
+
+    await archiveMenuItem('m1')
+
+    expect(prisma.menuItem.update).toHaveBeenCalledWith({
+      where: { id: 'm1' },
+      data: { archived: true },
+    })
+  })
+
+  it('throws NotFoundError when the item does not exist', async () => {
+    vi.mocked(prisma.menuItem.update).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Record not found', {
+        code: 'P2025',
+        clientVersion: '7.8.0',
+      }) as never,
+    )
+
+    await expect(archiveMenuItem('missing')).rejects.toThrow(NotFoundError)
+  })
+})
+
+describe('menuService.listMenuItems', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns only non-archived items ordered by name', async () => {
+    const items = [{ id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() }]
+    vi.mocked(prisma.menuItem.findMany).mockResolvedValue(items as never)
+
+    const result = await listMenuItems()
+
+    expect(result).toEqual(items)
+    expect(prisma.menuItem.findMany).toHaveBeenCalledWith({
+      where: { archived: false },
+      orderBy: { name: 'asc' },
+    })
+  })
+})
