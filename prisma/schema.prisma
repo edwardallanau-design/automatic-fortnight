@@ -22,3 +22,12 @@ model Table {
   number    Int      @unique
   createdAt DateTime @default(now())
 }
+
+model MenuItem {
+  id        String   @id @default(uuid())
+  name      String
+  price     Decimal  @db.Decimal(10, 2)
+  available Boolean  @default(true)
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
