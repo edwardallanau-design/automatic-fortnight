@@ -28,7 +28,7 @@ Recommended build order: 1 → 2 → 3 → 4 → 5 → 7 → 8 → 6 (see `07-ep
 |---|---|---|---|
 | 1 | Staff/Admin login | Done | |
 | 2 | Table setup & QR identification | Done | |
-| 3 | Menu management (Admin) | Building | |
+| 3 | Menu management (Admin) | Done | |
 | 4 | Customer menu view | Backlog | |
 | 5 | Cart & order submission | Backlog | |
 | 7 | Staff dashboard: view Pending orders (polling) | Backlog | |
