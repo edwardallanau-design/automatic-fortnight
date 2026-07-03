@@ -36,7 +36,7 @@ describe('apiClient.post', () => {
   it('ApiError is an instance of Error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
-      json: async () => ({ error: 'VALIDATION_ERROR', message: 'bad input' }),
+      json: async () => ({ error: 'VALIDATION', message: 'bad input' }),
     }))
 
     try {

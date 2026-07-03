@@ -16,10 +16,14 @@ export function signSession(role: Role): string {
   return jwt.sign({ role }, getSecret(), { expiresIn: SESSION_MAX_AGE_SECONDS })
 }
 
+function isRole(value: unknown): value is Role {
+  return value === 'staff' || value === 'admin'
+}
+
 export function verifySession(token: string): { role: Role } | null {
   try {
     const decoded = jwt.verify(token, getSecret())
-    if (typeof decoded === 'object' && decoded !== null && 'role' in decoded) {
+    if (typeof decoded === 'object' && decoded !== null && isRole((decoded as { role?: unknown }).role)) {
       return { role: (decoded as { role: Role }).role }
     }
     return null

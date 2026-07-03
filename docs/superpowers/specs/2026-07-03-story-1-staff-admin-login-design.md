@@ -80,7 +80,7 @@ Per ADR-003, there is no per-employee account system — two shared role credent
 
 | Scenario | Layer that detects it | Result |
 |---|---|---|
-| Missing `password` in request body | API route (shape validation) | `400 { error: VALIDATION_ERROR }` |
+| Missing `password` in request body | API route (shape validation) | `400 { error: VALIDATION }` |
 | Password matches no credential | `authService.login` → `InvalidCredentialError` | `401 { error: INVALID_CREDENTIAL }`, no cookie set |
 | No/invalid/expired session cookie on `/dashboard` | `requireRole` guard | Redirect to `/login` |
 | No/invalid session cookie on a protected API route (future stories) | `requireRole` guard | `401` |
