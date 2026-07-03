@@ -54,4 +54,4 @@ Status values: `Backlog` · `Building` · `Blocked` · `Done`
 
 ## Gotchas log
 
-*(grows as real build surprises show up — empty for now.)*
+- **Vitest 4 mock hoisting.** `vi.mock('mod', () => ({ fn: someOuterConstFn }))` throws `Cannot access '...' before initialization` if `someOuterConstFn` is a plain top-level `const` declared below the `vi.mock` call — `vi.mock` factories are hoisted above all other top-level code. Fix: declare the mock functions via `vi.hoisted(() => ({...}))` and destructure from that. Hit this in `lib/authGuard.test.ts` (Task 7).
