@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       throw new ValidationError('price is required and must be a positive number')
     }
 
-    const item = await createMenuItem(body.name, new Prisma.Decimal(body.price))
+    const item = await createMenuItem(body.name.trim(), new Prisma.Decimal(body.price))
     return NextResponse.json(item, { status: 201 })
   } catch (error) {
     return handleApiError(error)

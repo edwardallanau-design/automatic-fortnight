@@ -20,7 +20,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       if (typeof body.name !== 'string' || body.name.trim() === '') {
         throw new ValidationError('name must be a non-empty string')
       }
-      data.name = body.name
+      data.name = body.name.trim()
     }
     if (body.price !== undefined) {
       if (typeof body.price !== 'number' || !(body.price > 0)) {

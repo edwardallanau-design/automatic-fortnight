@@ -96,4 +96,21 @@ describe('POST /api/menu-items', () => {
     expect(res.status).toBe(403)
     expect(createMenuItem).not.toHaveBeenCalled()
   })
+
+  it('trims whitespace from name before passing to createMenuItem', async () => {
+    const created = { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() }
+    vi.mocked(createMenuItem).mockResolvedValue(created as never)
+
+    const res = await POST(makePostRequest({ name: '  Burger  ', price: 12.5 }))
+
+    expect(res.status).toBe(201)
+    expect(createMenuItem).toHaveBeenCalledWith('Burger', expect.any(Prisma.Decimal))
+  })
+
+  it('rejects whitespace-only names', async () => {
+    const res = await POST(makePostRequest({ name: '   ', price: 12.5 }))
+
+    expect(res.status).toBe(400)
+    expect(createMenuItem).not.toHaveBeenCalled()
+  })
 })

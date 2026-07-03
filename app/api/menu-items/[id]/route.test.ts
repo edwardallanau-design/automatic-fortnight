@@ -70,6 +70,23 @@ describe('PATCH /api/menu-items/[id]', () => {
     expect(res.status).toBe(403)
     expect(updateMenuItem).not.toHaveBeenCalled()
   })
+
+  it('trims whitespace from name before passing to updateMenuItem', async () => {
+    const updated = { id: 'm1', name: 'Cheeseburger', price: new Prisma.Decimal('13.00'), available: true, archived: false, createdAt: new Date() }
+    vi.mocked(updateMenuItem).mockResolvedValue(updated as never)
+
+    const res = await PATCH(makePatchRequest({ name: '  Cheeseburger  ' }), makeContext('m1'))
+
+    expect(res.status).toBe(200)
+    expect(updateMenuItem).toHaveBeenCalledWith('m1', { name: 'Cheeseburger' })
+  })
+
+  it('rejects whitespace-only names in PATCH', async () => {
+    const res = await PATCH(makePatchRequest({ name: '   ' }), makeContext('m1'))
+
+    expect(res.status).toBe(400)
+    expect(updateMenuItem).not.toHaveBeenCalled()
+  })
 })
 
 describe('DELETE /api/menu-items/[id]', () => {
