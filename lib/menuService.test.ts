@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
-import { createMenuItem, updateMenuItem, archiveMenuItem, listMenuItems } from './menuService'
+import { createMenuItem, updateMenuItem, archiveMenuItem, listMenuItems, findMenuItemsByIds } from './menuService'
 import { NotFoundError } from './errors'
 import { prisma } from './prisma'
 
@@ -106,6 +106,24 @@ describe('menuService.listMenuItems', () => {
     expect(prisma.menuItem.findMany).toHaveBeenCalledWith({
       where: { archived: false },
       orderBy: { name: 'asc' },
+    })
+  })
+})
+
+describe('menuService.findMenuItemsByIds', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns menu items matching the given ids', async () => {
+    const items = [{ id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() }]
+    vi.mocked(prisma.menuItem.findMany).mockResolvedValue(items as never)
+
+    const result = await findMenuItemsByIds(['m1'])
+
+    expect(result).toEqual(items)
+    expect(prisma.menuItem.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['m1'] } },
     })
   })
 })

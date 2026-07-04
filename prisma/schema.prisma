@@ -21,13 +21,49 @@ model Table {
   id        String   @id @default(uuid())
   number    Int      @unique
   createdAt DateTime @default(now())
+  orders    Order[]
 }
 
 model MenuItem {
-  id        String   @id @default(uuid())
-  name      String
-  price     Decimal  @db.Decimal(10, 2)
-  available Boolean  @default(true)
-  archived  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id         String      @id @default(uuid())
+  name       String
+  price      Decimal     @db.Decimal(10, 2)
+  available  Boolean     @default(true)
+  archived   Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  orderItems OrderItem[]
+}
+
+enum FulfillmentStatus {
+  Pending
+  Confirmed
+  Cancelled
+}
+
+enum PaymentStatus {
+  Unpaid
+  Paid
+}
+
+model Order {
+  id                String            @id @default(uuid())
+  orderNumber       Int               @unique @default(autoincrement())
+  tableId           String
+  table             Table             @relation(fields: [tableId], references: [id])
+  fulfillmentStatus FulfillmentStatus @default(Pending)
+  paymentStatus     PaymentStatus     @default(Unpaid)
+  createdAt         DateTime          @default(now())
+  confirmedAt       DateTime?
+  items             OrderItem[]
+}
+
+model OrderItem {
+  id            String   @id @default(uuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id])
+  menuItemId    String
+  menuItem      MenuItem @relation(fields: [menuItemId], references: [id])
+  nameSnapshot  String
+  priceSnapshot Decimal  @db.Decimal(10, 2)
+  quantity      Int
 }
