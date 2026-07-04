@@ -54,4 +54,18 @@ async function del(path: string): Promise<void> {
   }
 }
 
-export const apiClient = { post, patch, del }
+async function get<T>(path: string): Promise<T> {
+  const response = await fetch(path, {
+    credentials: 'include',
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new ApiError(data.error, data.message)
+  }
+
+  return data as T
+}
+
+export const apiClient = { get, post, patch, del }

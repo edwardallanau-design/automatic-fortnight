@@ -48,6 +48,31 @@ describe('apiClient.post', () => {
   })
 })
 
+describe('apiClient.get', () => {
+  it('returns parsed JSON on success', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ([{ id: 'o1' }]),
+    }))
+
+    const result = await apiClient.get('/api/orders?status=pending')
+    expect(result).toEqual([{ id: 'o1' }])
+    expect(fetch).toHaveBeenCalledWith('/api/orders?status=pending', {
+      credentials: 'include',
+    })
+  })
+
+  it('throws ApiError with code/message on failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'FORBIDDEN', message: 'Insufficient role for this action' }),
+    }))
+
+    await expect(apiClient.get('/api/orders?status=pending'))
+      .rejects.toMatchObject({ code: 'FORBIDDEN', message: 'Insufficient role for this action' })
+  })
+})
+
 describe('apiClient.patch', () => {
   it('returns parsed JSON on success', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
