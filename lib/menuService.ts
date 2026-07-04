@@ -38,3 +38,7 @@ export async function listMenuItems(): Promise<MenuItem[]> {
     orderBy: { name: 'asc' },
   })
 }
+
+export async function findMenuItemsByIds(ids: string[]): Promise<MenuItem[]> {
+  return prisma.menuItem.findMany({ where: { id: { in: ids } } })
+}
