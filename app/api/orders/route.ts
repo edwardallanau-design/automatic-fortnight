@@ -1,7 +1,37 @@
 import { NextResponse } from 'next/server'
-import { createOrder } from '@/lib/orderService'
+import type { FulfillmentStatus } from '@prisma/client'
+import { createOrder, listOrders } from '@/lib/orderService'
+import { requireApiRole } from '@/lib/authGuard'
 import { handleApiError } from '@/lib/handleApiError'
 import { ValidationError } from '@/lib/errors'
+
+const STATUS_PARAM_MAP: Record<string, FulfillmentStatus> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  cancelled: 'Cancelled',
+}
+
+export async function GET(request: Request) {
+  try {
+    await requireApiRole('staff')
+
+    const { searchParams } = new URL(request.url)
+    const statusParam = searchParams.get('status')
+
+    let status: FulfillmentStatus | undefined
+    if (statusParam !== null) {
+      status = STATUS_PARAM_MAP[statusParam]
+      if (!status) {
+        throw new ValidationError(`Invalid status: ${statusParam}`)
+      }
+    }
+
+    const orders = await listOrders({ status })
+    return NextResponse.json(orders, { status: 200 })
+  } catch (error) {
+    return handleApiError(error)
+  }
+}
 
 export async function POST(request: Request) {
   try {

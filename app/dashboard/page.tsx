@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { requireRole } from '@/lib/authGuard'
+import { PendingOrdersDashboard } from './PendingOrdersDashboard'
 
 export default async function DashboardPage() {
   const { role } = await requireRole('staff')
@@ -14,6 +15,7 @@ export default async function DashboardPage() {
           <Link href="/admin/tables">Table Setup</Link>
         </nav>
       )}
+      <PendingOrdersDashboard />
     </main>
   )
 }

@@ -1,18 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { POST } from './route'
-import { NotFoundError, ConflictError } from '@/lib/errors'
+import { GET, POST } from './route'
+import { NotFoundError, ConflictError, ForbiddenError } from '@/lib/errors'
 
 vi.mock('@/lib/orderService', () => ({
   createOrder: vi.fn(),
+  listOrders: vi.fn(),
 }))
 
-import { createOrder } from '@/lib/orderService'
+vi.mock('@/lib/authGuard', () => ({
+  requireApiRole: vi.fn(),
+}))
+
+import { createOrder, listOrders } from '@/lib/orderService'
+import { requireApiRole } from '@/lib/authGuard'
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/orders', {
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+function makeGetRequest(query = ''): Request {
+  return new Request(`http://localhost/api/orders${query}`)
 }
 
 describe('POST /api/orders', () => {
@@ -76,5 +86,60 @@ describe('POST /api/orders', () => {
     expect(res.status).toBe(409)
     const body = await res.json()
     expect(body.error).toBe('CONFLICT')
+  })
+})
+
+describe('GET /api/orders', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff' })
+  })
+
+  it('returns 200 with the filtered list for status=pending', async () => {
+    const orders = [{ id: 'o1', orderNumber: 1, fulfillmentStatus: 'Pending', table: { number: 4 }, items: [] }]
+    vi.mocked(listOrders).mockResolvedValue(orders as never)
+
+    const res = await GET(makeGetRequest('?status=pending'))
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toHaveLength(1)
+    expect(body[0].orderNumber).toBe(1)
+    expect(listOrders).toHaveBeenCalledWith({ status: 'Pending' })
+  })
+
+  it('returns 200 with an unfiltered call when no status is given', async () => {
+    vi.mocked(listOrders).mockResolvedValue([] as never)
+
+    const res = await GET(makeGetRequest())
+
+    expect(res.status).toBe(200)
+    expect(listOrders).toHaveBeenCalledWith({ status: undefined })
+  })
+
+  it('returns 400 for an invalid status value', async () => {
+    const res = await GET(makeGetRequest('?status=bogus'))
+
+    expect(res.status).toBe(400)
+    expect(listOrders).not.toHaveBeenCalled()
+  })
+
+  it('returns 403 when the caller is not staff or admin', async () => {
+    vi.mocked(requireApiRole).mockRejectedValue(new ForbiddenError('Insufficient role for this action'))
+
+    const res = await GET(makeGetRequest('?status=pending'))
+
+    expect(res.status).toBe(403)
+    expect(listOrders).not.toHaveBeenCalled()
+  })
+
+  it('returns an empty array (not 404) when there are no matching orders', async () => {
+    vi.mocked(listOrders).mockResolvedValue([] as never)
+
+    const res = await GET(makeGetRequest('?status=pending'))
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toEqual([])
   })
 })
