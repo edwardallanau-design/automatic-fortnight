@@ -2,12 +2,16 @@ import type { Order, OrderItem } from '@prisma/client'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
-import { NotFoundError, ConflictError } from './errors'
+import { NotFoundError, ConflictError, ValidationError } from './errors'
 
 export type CartItemInput = { menuItemId: string; quantity: number }
 export type OrderWithItems = Order & { items: OrderItem[] }
 
 export async function createOrder(tableId: string, items: CartItemInput[]): Promise<OrderWithItems> {
+  if (items.length === 0) {
+    throw new ValidationError('Cart must contain at least one item')
+  }
+
   await getTableOrThrow(tableId)
 
   const menuItems = await findMenuItemsByIds(items.map((item) => item.menuItemId))

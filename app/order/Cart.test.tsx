@@ -69,6 +69,27 @@ describe('Cart', () => {
     })
   })
 
+  it('ignores a second submit click while the first is still in flight', async () => {
+    let resolvePost!: (value: { orderNumber: number; items: never[] }) => void
+    vi.mocked(apiClient.post).mockReturnValue(
+      new Promise((resolve) => {
+        resolvePost = resolve
+      }),
+    )
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    const submit = screen.getByRole('button', { name: 'Submit order' })
+    await user.click(submit)
+    await user.click(submit)
+
+    resolvePost({ orderNumber: 47, items: [] })
+    await screen.findByText('Order #47 confirmed')
+
+    expect(apiClient.post).toHaveBeenCalledTimes(1)
+  })
+
   it('shows an inline error and keeps the cart intact on submit failure', async () => {
     vi.mocked(apiClient.post).mockRejectedValue(new ApiError('MENU_ITEM_SOLD_OUT', 'Burger is no longer available'))
     const user = userEvent.setup()

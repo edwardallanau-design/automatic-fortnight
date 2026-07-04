@@ -55,6 +55,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   }
 
   async function handleSubmit() {
+    if (submitting) return
     setError(null)
     setSubmitting(true)
     try {

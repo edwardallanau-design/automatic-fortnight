@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
 import { createOrder } from './orderService'
-import { NotFoundError, ConflictError } from './errors'
+import { NotFoundError, ConflictError, ValidationError } from './errors'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
@@ -26,6 +26,12 @@ describe('orderService.createOrder', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getTableOrThrow).mockResolvedValue({ id: 't1', number: 5, createdAt: new Date() } as never)
+  })
+
+  it('throws ValidationError when items is empty', async () => {
+    await expect(createOrder('t1', [])).rejects.toThrow(ValidationError)
+    expect(getTableOrThrow).not.toHaveBeenCalled()
+    expect(prisma.order.create).not.toHaveBeenCalled()
   })
 
   it('throws NotFoundError when the table does not exist', async () => {
