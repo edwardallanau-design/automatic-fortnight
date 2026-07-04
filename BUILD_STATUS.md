@@ -32,7 +32,7 @@ Recommended build order: 1 → 2 → 3 → 4 → 5 → 7 → 8 → 6 (see `07-ep
 | 4 | Customer menu view | Done | |
 | 5 | Cart & order submission | Done | |
 | 7 | Staff dashboard: view Pending orders (polling) | Done | |
-| 8 | Staff confirms order and marks payment | Backlog | |
+| 8 | Staff confirms order and marks payment | Done | |
 | 6 | Customer edits/cancels a Pending order | Backlog | |
 
 Status values: `Backlog` · `Building` · `Blocked` · `Done`
