@@ -109,37 +109,39 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
         ))}
       </ul>
 
-      <section aria-label="Your order">
+      <section aria-label="Your order" className="cart-summary">
         <h2>Your order</h2>
         {lines.length === 0 ? (
           <p>Your cart is empty.</p>
         ) : (
-          <ul>
+          <ul className="cart-summary__lines">
             {lines.map((line) => (
-              <li key={line.menuItemId}>
-                <span>{line.name}</span>
+              <li key={line.menuItemId} className="cart-summary__line">
+                <span className="cart-summary__line-name">{line.name}</span>
                 <button
                   type="button"
+                  className="cart-summary__stepper"
                   aria-label={`Decrease ${line.name} quantity`}
                   onClick={() => adjustQuantity(line.menuItemId, -1)}
                 >
                   -
                 </button>
-                <span>{line.quantity}</span>
+                <span className="cart-summary__line-qty">{line.quantity}</span>
                 <button
                   type="button"
+                  className="cart-summary__stepper"
                   aria-label={`Increase ${line.name} quantity`}
                   onClick={() => adjustQuantity(line.menuItemId, 1)}
                 >
                   +
                 </button>
-                <span>${(Number(line.price) * line.quantity).toFixed(2)}</span>
+                <span className="cart-summary__line-price">${(Number(line.price) * line.quantity).toFixed(2)}</span>
               </li>
             ))}
           </ul>
         )}
         {error && <p role="alert">{error}</p>}
-        <button type="button" onClick={handleSubmit} disabled={lines.length === 0 || submitting}>
+        <button type="button" className="cart-summary__submit" onClick={handleSubmit} disabled={lines.length === 0 || submitting}>
           Submit order
         </button>
       </section>
