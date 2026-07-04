@@ -10,7 +10,7 @@ Log every bug or unexpected behaviour here — while building, during manual tes
 
 | ID | Summary | Found in | Severity | Status |
 |---|---|---|---|---|
-| _(none yet)_ | | | | |
+| ISSUE-5 | Staff Dashboard's "Menu Management" nav link points to `/admin/menu`, but the actual route is `/admin/menu-items` — clicking it 404s | Story 7 planning, noticed while wiring `PendingOrdersDashboard` into `app/dashboard/page.tsx` | Major | Open |
 
 Severity: `Critical` (blocks core loop / data integrity) · `Major` (breaks a story's AC) · `Minor` (edge case, cosmetic)
 
