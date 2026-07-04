@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
-import { createOrder } from './orderService'
+import { createOrder, listOrders } from './orderService'
 import { NotFoundError, ConflictError, ValidationError } from './errors'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
@@ -10,6 +10,7 @@ vi.mock('./prisma', () => ({
   prisma: {
     order: {
       create: vi.fn(),
+      findMany: vi.fn(),
     },
   },
 }))
@@ -94,6 +95,50 @@ describe('orderService.createOrder', () => {
         },
       },
       include: { items: true },
+    })
+  })
+})
+
+describe('orderService.listOrders', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('queries with a status filter, ordered oldest-first, including items and table', async () => {
+    const orders = [
+      {
+        id: 'o1',
+        orderNumber: 1,
+        tableId: 't1',
+        fulfillmentStatus: 'Pending',
+        paymentStatus: 'Unpaid',
+        createdAt: new Date('2026-07-04T12:00:00.000Z'),
+        confirmedAt: null,
+        items: [],
+        table: { id: 't1', number: 4, createdAt: new Date() },
+      },
+    ]
+    vi.mocked(prisma.order.findMany).mockResolvedValue(orders as never)
+
+    const result = await listOrders({ status: 'Pending' })
+
+    expect(result).toEqual(orders)
+    expect(prisma.order.findMany).toHaveBeenCalledWith({
+      where: { fulfillmentStatus: 'Pending' },
+      include: { items: true, table: true },
+      orderBy: { createdAt: 'asc' },
+    })
+  })
+
+  it('omits the where filter when no status is given', async () => {
+    vi.mocked(prisma.order.findMany).mockResolvedValue([] as never)
+
+    await listOrders()
+
+    expect(prisma.order.findMany).toHaveBeenCalledWith({
+      where: {},
+      include: { items: true, table: true },
+      orderBy: { createdAt: 'asc' },
     })
   })
 })

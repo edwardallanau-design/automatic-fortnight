@@ -1,4 +1,4 @@
-import type { Order, OrderItem } from '@prisma/client'
+import type { Order, OrderItem, Table, FulfillmentStatus } from '@prisma/client'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
@@ -43,5 +43,15 @@ export async function createOrder(tableId: string, items: CartItemInput[]): Prom
       },
     },
     include: { items: true },
+  })
+}
+
+export type OrderWithItemsAndTable = Order & { items: OrderItem[]; table: Table }
+
+export async function listOrders(options: { status?: FulfillmentStatus } = {}): Promise<OrderWithItemsAndTable[]> {
+  return prisma.order.findMany({
+    where: options.status ? { fulfillmentStatus: options.status } : {},
+    include: { items: true, table: true },
+    orderBy: { createdAt: 'asc' },
   })
 }
