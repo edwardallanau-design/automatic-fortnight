@@ -77,10 +77,16 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
   }
 
   async function handleSetPaymentStatus(orderId: string, paymentStatus: 'Paid' | 'Unpaid') {
-    const updated = await apiClient.patch<PendingOrder>(`/api/orders/${orderId}/pay`, { paymentStatus })
-    setOrders((current) =>
-      current.map((order) => (order.id === orderId ? { ...order, paymentStatus: updated.paymentStatus } : order)),
-    )
+    setRowState((current) => ({ ...current, [orderId]: { submitting: true, error: null } }))
+    try {
+      const updated = await apiClient.patch<PendingOrder>(`/api/orders/${orderId}/pay`, { paymentStatus })
+      setOrders((current) =>
+        current.map((order) => (order.id === orderId ? { ...order, paymentStatus: updated.paymentStatus } : order)),
+      )
+      setRowState((current) => ({ ...current, [orderId]: { submitting: false, error: null } }))
+    } catch (err) {
+      setRowState((current) => ({ ...current, [orderId]: { submitting: false, error: errorMessage(err) } }))
+    }
   }
 
   if (orders.length === 0) {
@@ -107,11 +113,11 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
               Confirm
             </button>
             {order.paymentStatus === 'Unpaid' ? (
-              <button type="button" onClick={() => handleSetPaymentStatus(order.id, 'Paid')}>
+              <button type="button" disabled={submitting} onClick={() => handleSetPaymentStatus(order.id, 'Paid')}>
                 Mark Paid
               </button>
             ) : role === 'admin' ? (
-              <button type="button" onClick={() => handleSetPaymentStatus(order.id, 'Unpaid')}>
+              <button type="button" disabled={submitting} onClick={() => handleSetPaymentStatus(order.id, 'Unpaid')}>
                 Mark Unpaid
               </button>
             ) : (

@@ -232,4 +232,57 @@ describe('PendingOrdersDashboard', () => {
     expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/pay', { paymentStatus: 'Unpaid' })
     expect(screen.getByRole('button', { name: 'Mark Paid' })).toBeInTheDocument()
   })
+
+  it('shows an inline error and re-enables the button when marking Paid fails', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue([orderA])
+    vi.mocked(apiClient.patch).mockRejectedValue(new ApiError('NOT_FOUND', 'Order not found'))
+    render(<PendingOrdersDashboard role="staff" />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Mark Paid' }))
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Order not found')
+    expect(screen.getByRole('button', { name: 'Mark Paid' })).not.toBeDisabled()
+  })
+
+  it('disables the Mark Paid button while the request is in flight and clears a prior error on success', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue([orderA])
+    let rejectFirst: (err: unknown) => void = () => {}
+    vi.mocked(apiClient.patch).mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectFirst = reject
+      }),
+    )
+    render(<PendingOrdersDashboard role="staff" />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Paid' }))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(screen.getByRole('button', { name: 'Mark Paid' })).toBeDisabled()
+
+    await act(async () => {
+      rejectFirst(new ApiError('NOT_FOUND', 'Order not found'))
+      await Promise.resolve()
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('Order not found')
+
+    vi.mocked(apiClient.patch).mockResolvedValueOnce({ ...orderA, paymentStatus: 'Paid' })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Mark Paid' }))
+      await Promise.resolve()
+    })
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Paid')).toBeInTheDocument()
+  })
 })
