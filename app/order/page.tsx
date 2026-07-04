@@ -1,6 +1,7 @@
 import { getTableOrThrow } from '@/lib/tableService'
 import { listMenuItems } from '@/lib/menuService'
 import { NotFoundError } from '@/lib/errors'
+import { Cart } from './Cart'
 
 export default async function OrderPage({
   searchParams,
@@ -27,16 +28,15 @@ export default async function OrderPage({
         {items.length === 0 ? (
           <p>No items available right now.</p>
         ) : (
-          <ul className="menu-list">
-            {items.map((item) => (
-              <li key={item.id} className="menu-list__item">
-                <button type="button" className="menu-item-button" disabled={!item.available}>
-                  <span className="menu-item-button__name">{item.name}</span>
-                  <span className="menu-item-button__price">${item.price.toString()}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <Cart
+            tableId={table.id}
+            items={items.map((item) => ({
+              id: item.id,
+              name: item.name,
+              price: item.price.toString(),
+              available: item.available,
+            }))}
+          />
         )}
       </main>
     )
