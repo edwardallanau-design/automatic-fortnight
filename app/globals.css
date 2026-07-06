@@ -388,7 +388,7 @@ a {
 
 .cart-toast {
   position: fixed;
-  top: 1rem;
+  top: 7.5rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
@@ -398,8 +398,9 @@ a {
   max-width: calc(100% - 2rem);
   padding: 0.75rem 1rem;
   border-radius: 10px;
-  background: var(--espresso);
-  color: var(--crema);
+  background: var(--paper);
+  color: var(--espresso);
+  border: 1px solid var(--clay-faint);
   font-family: var(--font-body), Arial, sans-serif;
   font-size: 0.9rem;
   box-shadow: 0 8px 24px var(--clay-faint);
@@ -408,7 +409,7 @@ a {
 .cart-toast__undo {
   border: none;
   background: none;
-  color: var(--copper-bright);
+  color: var(--copper);
   font-weight: 700;
   text-decoration: underline;
   cursor: pointer;
