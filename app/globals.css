@@ -384,6 +384,38 @@ a {
   margin-bottom: 0.5rem;
 }
 
+/* Add-to-cart toast */
+
+.cart-toast {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  max-width: calc(100% - 2rem);
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: var(--espresso);
+  color: var(--crema);
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.9rem;
+  box-shadow: 0 8px 24px var(--clay-faint);
+}
+
+.cart-toast__undo {
+  border: none;
+  background: none;
+  color: var(--copper-bright);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0 0.25rem;
+}
+
 /* Ticket-stub order confirmation */
 
 .ticket {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
 
@@ -45,6 +45,21 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [cartExpanded, setCartExpanded] = useState(false)
+  const [toast, setToast] = useState<{ menuItemId: string; name: string } | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    }
+  }, [])
+
+  function showToast(menuItemId: string, name: string) {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToast({ menuItemId, name })
+    toastTimerRef.current = setTimeout(() => setToast(null), 4000)
+  }
+
   const router = useRouter()
 
   function addItem(item: MenuItemProps) {
@@ -57,6 +72,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
       }
       return [...prev, { menuItemId: item.id, name: item.name, price: item.price, quantity: 1 }]
     })
+    showToast(item.id, item.name)
   }
 
   function adjustQuantity(menuItemId: string, delta: number) {
@@ -89,6 +105,11 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
 
   return (
     <>
+      {toast && (
+        <div className="cart-toast" role="status">
+          <span>Added {toast.name} to cart</span>
+        </div>
+      )}
       <div className="menu-categories">
         {categories.map((category) => (
           <div key={category.label} className="menu-category">

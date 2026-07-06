@@ -108,4 +108,26 @@ describe('Cart', () => {
     const order = screen.getByRole('region', { name: 'Your order' })
     expect(within(order).getByText('Burger')).toBeInTheDocument()
   })
+
+  it('shows a toast confirming the item was added', async () => {
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('Added Burger to cart')
+  })
+
+  it('replaces the toast when a different item is added', async () => {
+    const threeItems = [...items, { id: 'm3', name: 'Shake', price: '5.00', available: true }]
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={threeItems} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: /Shake/ }))
+
+    const toasts = screen.getAllByRole('status')
+    expect(toasts).toHaveLength(1)
+    expect(toasts[0]).toHaveTextContent('Added Shake to cart')
+  })
 })
