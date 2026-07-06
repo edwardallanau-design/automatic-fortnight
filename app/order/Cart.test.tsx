@@ -63,6 +63,17 @@ describe('Cart', () => {
     expect(buttons[1]).toHaveStyle({ '--stagger-delay': '30ms' })
   })
 
+  it('continues the stagger delay across a category boundary instead of resetting it', () => {
+    const twoCategoryItems = [
+      { id: 'm1', name: 'Latte', price: '4.50', available: true }, // matches Espresso Drinks
+      { id: 'm2', name: 'Croissant', price: '3.00', available: true }, // matches Pastries
+    ]
+    const { container } = render(<Cart tableId="t1" items={twoCategoryItems} />)
+    const buttons = container.querySelectorAll('.menu-item-button')
+    expect(buttons[0]).toHaveStyle({ '--stagger-delay': '0ms' })
+    expect(buttons[1]).toHaveStyle({ '--stagger-delay': '30ms' })
+  })
+
   it('keeps the order panel collapsed by default even when the cart is empty', () => {
     const { container } = render(<Cart tableId="t1" items={items} />)
     expect(container.querySelector('.cart-summary')).toHaveClass('cart-summary--collapsed')
