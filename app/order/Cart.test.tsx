@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { Cart } from './Cart'
 import { apiClient, ApiError } from '@/lib/apiClient'
 
+const push = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}))
+
 vi.mock('@/lib/apiClient', async () => {
   const actual = await vi.importActual<typeof import('@/lib/apiClient')>('@/lib/apiClient')
   return {
@@ -51,10 +56,11 @@ describe('Cart', () => {
     expect(screen.getByRole('button', { name: 'Submit order' })).toBeDisabled()
   })
 
-  it('shows an order confirmation after a successful submit', async () => {
+  it('redirects to the order page after a successful submit', async () => {
     vi.mocked(apiClient.post).mockResolvedValue({
+      id: 'o1',
       orderNumber: 47,
-      items: [{ nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
+      items: [{ id: 'oi1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
     })
     const user = userEvent.setup()
     render(<Cart tableId="t1" items={items} />)
@@ -62,7 +68,7 @@ describe('Cart', () => {
     await user.click(screen.getByRole('button', { name: /Burger/ }))
     await user.click(screen.getByRole('button', { name: 'Submit order' }))
 
-    expect(await screen.findByText('Order #47 confirmed')).toBeInTheDocument()
+    await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/order/o1'))
     expect(apiClient.post).toHaveBeenCalledWith('/api/orders', {
       tableId: 't1',
       items: [{ menuItemId: 'm1', quantity: 1 }],
@@ -70,7 +76,7 @@ describe('Cart', () => {
   })
 
   it('ignores a second submit click while the first is still in flight', async () => {
-    let resolvePost!: (value: { orderNumber: number; items: never[] }) => void
+    let resolvePost!: (value: { id: string; orderNumber: number; items: never[] }) => void
     vi.mocked(apiClient.post).mockReturnValue(
       new Promise((resolve) => {
         resolvePost = resolve
@@ -84,8 +90,8 @@ describe('Cart', () => {
     await user.click(submit)
     await user.click(submit)
 
-    resolvePost({ orderNumber: 47, items: [] })
-    await screen.findByText('Order #47 confirmed')
+    resolvePost({ id: 'o1', orderNumber: 47, items: [] })
+    await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/order/o1'))
 
     expect(apiClient.post).toHaveBeenCalledTimes(1)
   })

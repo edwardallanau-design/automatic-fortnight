@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
 
 type MenuItemProps = {
@@ -15,17 +16,6 @@ type CartLine = {
   name: string
   price: string
   quantity: number
-}
-
-type OrderConfirmationItem = {
-  nameSnapshot: string
-  priceSnapshot: string
-  quantity: number
-}
-
-type OrderConfirmation = {
-  orderNumber: number
-  items: OrderConfirmationItem[]
 }
 
 const CATEGORIES: { label: string; match: RegExp }[] = [
@@ -54,8 +44,8 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   const [lines, setLines] = useState<CartLine[]>([])
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null)
   const [cartExpanded, setCartExpanded] = useState(false)
+  const router = useRouter()
 
   function addItem(item: MenuItemProps) {
     setLines((prev) => {
@@ -82,48 +72,15 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
     setError(null)
     setSubmitting(true)
     try {
-      const order = await apiClient.post<OrderConfirmation>('/api/orders', {
+      const order = await apiClient.post<{ id: string }>('/api/orders', {
         tableId,
         items: lines.map((line) => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
       })
-      setConfirmation(order)
+      router.push(`/order/${order.id}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
-    } finally {
       setSubmitting(false)
     }
-  }
-
-  if (confirmation) {
-    const total = confirmation.items.reduce(
-      (sum, item) => sum + Number(item.priceSnapshot) * item.quantity,
-      0,
-    )
-    return (
-      <section aria-label="Order confirmation" className="ticket">
-        <div className="ticket__stub">
-          <span className="ticket__label">Your ticket</span>
-          <h2 className="ticket__number">Order #{confirmation.orderNumber} confirmed</h2>
-          <ul className="ticket__lines">
-            {confirmation.items.map((item, index) => (
-              <li key={index} className="ticket__line">
-                <span>
-                  {item.nameSnapshot} x{item.quantity}
-                </span>
-                <span className="ticket__line-price">
-                  ${(Number(item.priceSnapshot) * item.quantity).toFixed(2)}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="ticket__total">
-            <span>Total</span>
-            <span className="ticket__total-price">${total.toFixed(2)}</span>
-          </div>
-          <p className="ticket__note">Ask staff if you need to change anything.</p>
-        </div>
-      </section>
-    )
   }
 
   const categories = categorize(items)
