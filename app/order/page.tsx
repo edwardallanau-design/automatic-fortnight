@@ -12,8 +12,10 @@ export default async function OrderPage({
 
   if (!tableId) {
     return (
-      <main>
-        <p role="alert">This table link isn&apos;t valid. Please ask staff for help.</p>
+      <main className="order-page">
+        <p role="alert" className="order-page__error">
+          This table link isn&apos;t valid. Please ask staff for help.
+        </p>
       </main>
     )
   }
@@ -23,10 +25,13 @@ export default async function OrderPage({
     const items = await listMenuItems()
 
     return (
-      <main>
-        <h1>Table {table.number}</h1>
+      <main className="order-page">
+        <header className="order-header">
+          <span className="order-header__eyebrow">Now serving</span>
+          <h1 className="order-header__title">Table {table.number}</h1>
+        </header>
         {items.length === 0 ? (
-          <p>No items available right now.</p>
+          <p className="order-page__empty">No items available right now.</p>
         ) : (
           <Cart
             tableId={table.id}
@@ -43,8 +48,10 @@ export default async function OrderPage({
   } catch (error) {
     if (error instanceof NotFoundError) {
       return (
-        <main>
-          <p role="alert">This table link isn&apos;t valid. Please ask staff for help.</p>
+        <main className="order-page">
+          <p role="alert" className="order-page__error">
+            This table link isn&apos;t valid. Please ask staff for help.
+          </p>
         </main>
       )
     }
