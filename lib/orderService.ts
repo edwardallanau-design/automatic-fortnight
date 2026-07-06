@@ -134,3 +134,14 @@ export async function removeOrderItem(orderId: string, orderItemId: string): Pro
     include: { items: true },
   }) as Promise<OrderWithItems>
 }
+
+export async function getOrderById(orderId: string): Promise<OrderWithItemsAndTable> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true, table: true },
+  })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  return order
+}

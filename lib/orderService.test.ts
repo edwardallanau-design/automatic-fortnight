@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
-import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder, removeOrderItem } from './orderService'
+import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder, removeOrderItem, getOrderById } from './orderService'
 import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from './errors'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
@@ -338,5 +338,36 @@ describe('orderService.removeOrderItem', () => {
 
     expect(prisma.orderItem.delete).toHaveBeenCalledWith({ where: { id: 'oi1' } })
     expect(result).toEqual(reloaded)
+  })
+})
+
+describe('orderService.getOrderById', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('throws NotFoundError when the order does not exist', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(null)
+
+    await expect(getOrderById('missing')).rejects.toThrow(NotFoundError)
+  })
+
+  it('returns the order with items and table', async () => {
+    const order = {
+      id: 'o1',
+      orderNumber: 7,
+      fulfillmentStatus: 'Pending',
+      items: [{ id: 'oi1', orderId: 'o1' }],
+      table: { id: 't1', number: 4, createdAt: new Date() },
+    }
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(order as never)
+
+    const result = await getOrderById('o1')
+
+    expect(result).toEqual(order)
+    expect(prisma.order.findUnique).toHaveBeenCalledWith({
+      where: { id: 'o1' },
+      include: { items: true, table: true },
+    })
   })
 })
