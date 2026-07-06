@@ -89,44 +89,84 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
     }
   }
 
-  if (orders.length === 0) {
-    return <p>No pending orders</p>
-  }
-
   return (
-    <ul aria-label="Pending orders">
-      {orders.map((order) => {
-        const { submitting, error } = rowState[order.id] ?? EMPTY_ROW_STATE
-        return (
-          <li key={order.id} aria-label={`Order ${order.orderNumber}`}>
-            <span>Table {order.table.number}</span>
-            <span>#{order.orderNumber}</span>
-            <span>{formatTimeAgo(order.createdAt)}</span>
-            <ul>
-              {order.items.map((item) => (
-                <li key={item.id}>
-                  {item.quantity}x {item.nameSnapshot}
-                </li>
-              ))}
-            </ul>
-            <button type="button" disabled={submitting} onClick={() => handleConfirm(order)}>
-              Confirm
-            </button>
-            {order.paymentStatus === 'Unpaid' ? (
-              <button type="button" disabled={submitting} onClick={() => handleSetPaymentStatus(order.id, 'Paid')}>
-                Mark Paid
-              </button>
-            ) : role === 'admin' ? (
-              <button type="button" disabled={submitting} onClick={() => handleSetPaymentStatus(order.id, 'Unpaid')}>
-                Mark Unpaid
-              </button>
-            ) : (
-              <span>Paid</span>
-            )}
-            {error && <p role="alert">{error}</p>}
-          </li>
-        )
-      })}
-    </ul>
+    <div className="order-rail">
+      <div className="order-rail__status">
+        <span className="order-rail__pulse" aria-hidden="true" />
+        <span>Live — refreshes every few seconds</span>
+      </div>
+
+      {orders.length === 0 ? (
+        <div className="order-rail__empty">
+          <span className="order-rail__empty-eyebrow">All caught up</span>
+          <p>No pending orders</p>
+        </div>
+      ) : (
+        <ul aria-label="Pending orders" className="order-grid">
+          {orders.map((order) => {
+            const { submitting, error } = rowState[order.id] ?? EMPTY_ROW_STATE
+            const isPaid = order.paymentStatus === 'Paid'
+            return (
+              <li
+                key={order.id}
+                aria-label={`Order ${order.orderNumber}`}
+                className={`order-card${isPaid ? '' : ' order-card--unpaid'}`}
+              >
+                <div className="order-card__head">
+                  <span className="order-card__table">Table {order.table.number}</span>
+                  <span className="order-card__number">#{order.orderNumber}</span>
+                </div>
+                <span className="order-card__time">{formatTimeAgo(order.createdAt)}</span>
+
+                <ul className="order-card__items">
+                  {order.items.map((item) => (
+                    <li key={item.id} className="order-card__item">
+                      {item.quantity}x {item.nameSnapshot}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="order-card__actions">
+                  <button
+                    type="button"
+                    className="order-card__confirm"
+                    disabled={submitting}
+                    onClick={() => handleConfirm(order)}
+                  >
+                    Confirm
+                  </button>
+                  {order.paymentStatus === 'Unpaid' ? (
+                    <button
+                      type="button"
+                      className="order-card__pay"
+                      disabled={submitting}
+                      onClick={() => handleSetPaymentStatus(order.id, 'Paid')}
+                    >
+                      Mark Paid
+                    </button>
+                  ) : role === 'admin' ? (
+                    <button
+                      type="button"
+                      className="order-card__pay order-card__pay--revert"
+                      disabled={submitting}
+                      onClick={() => handleSetPaymentStatus(order.id, 'Unpaid')}
+                    >
+                      Mark Unpaid
+                    </button>
+                  ) : (
+                    <span className="order-card__paid-badge">Paid</span>
+                  )}
+                </div>
+                {error && (
+                  <p role="alert" className="order-card__error">
+                    {error}
+                  </p>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
   )
 }

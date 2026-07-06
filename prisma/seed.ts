@@ -8,9 +8,17 @@ loadEnv({ path: '.env.local' })
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
 
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`${name} environment variable is not set (see .env.example)`)
+  }
+  return value
+}
+
 const SEED_CREDENTIALS = [
-  { role: 'staff' as const, password: 'staff-temp-pw' },
-  { role: 'admin' as const, password: 'admin-temp-pw' },
+  { role: 'staff' as const, password: requireEnv('SEED_STAFF_PASSWORD') },
+  { role: 'admin' as const, password: requireEnv('SEED_ADMIN_PASSWORD') },
 ]
 
 const SEED_TABLES = [1, 2, 3]
