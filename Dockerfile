@@ -42,6 +42,7 @@ COPY --from=build /app/public ./public
 
 # prisma schema/migrations/seed + full node_modules (for migrate/seed/tsx/bcrypt)
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
 
