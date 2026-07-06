@@ -92,3 +92,56 @@ export async function setPaymentStatus(
     include: { items: true },
   })
 }
+
+export async function cancelOrder(orderId: string): Promise<OrderWithItems> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  if (order.fulfillmentStatus !== 'Pending') {
+    throw new ConflictError(`Order is ${order.fulfillmentStatus}, not Pending`)
+  }
+
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { fulfillmentStatus: 'Cancelled' },
+    include: { items: true },
+  })
+}
+
+export async function removeOrderItem(orderId: string, orderItemId: string): Promise<OrderWithItems> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  if (order.fulfillmentStatus !== 'Pending') {
+    throw new ConflictError(`Order is ${order.fulfillmentStatus}, not Pending`)
+  }
+  if (!order.items.some((item) => item.id === orderItemId)) {
+    throw new NotFoundError('Order item not found')
+  }
+  if (order.items.length === 1) {
+    throw new ConflictError('Cannot remove the last item; cancel the order instead')
+  }
+
+  await prisma.orderItem.delete({ where: { id: orderItemId } })
+
+  return prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  }) as Promise<OrderWithItems>
+}
+
+export async function getOrderById(orderId: string): Promise<OrderWithItemsAndTable> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true, table: true },
+  })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  return order
+}

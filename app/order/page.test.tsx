@@ -5,6 +5,10 @@ import { getTableOrThrow } from '@/lib/tableService'
 import { listMenuItems } from '@/lib/menuService'
 import { NotFoundError } from '@/lib/errors'
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
 vi.mock('@/lib/tableService', () => ({
   getTableOrThrow: vi.fn(),
 }))

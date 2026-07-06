@@ -115,5 +115,6 @@ Stories:
 - **Payment integration** — in-app payment, if pay-at-counter proves to be friction in practice.
 - **Multi-venue / multi-tenant support** — only if a second restaurant client materializes (see `03-tenancy-model.md`).
 - **Discounts/promotions** — deliberately scrapped for MVP; revisit post-validation.
+- **Resume order by re-scanning the QR** — recover a lost order link by looking up the table's active Pending order; needs a decision on whether a table may hold >1 concurrent Pending order (new invariant). Deferred from Story 6.
 
 **Rough sequence / dependencies.** Auth (1) and Table setup (2) are prerequisites for everything else. Menu management (3) must exist before the customer menu view (4) has data to show. Order submission (5) depends on 2+3+4. Customer edit/cancel (6) and the staff dashboard (7) both depend on 5. Staff confirm/pay (8) depends on 7. Recommended build order: 1 → 2 → 3 → 4 → 5 → 7 → 8 → 6 (6 last since it's the lowest-risk story to the core loop, and validating confirm/pay end-to-end matters more early).

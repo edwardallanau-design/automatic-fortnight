@@ -36,6 +36,35 @@ describe('handleApiError', () => {
     expect(res.status).toBe(403)
   })
 
+  it('maps ConflictError to the CONFLICT code', async () => {
+    const res = handleApiError(new ConflictError('conflict'))
+    const body = await res.json()
+    expect(body).toEqual({ error: 'CONFLICT', message: 'conflict' })
+  })
+
+  it('maps NotFoundError to the NOT_FOUND code', async () => {
+    const res = handleApiError(new NotFoundError('missing'))
+    const body = await res.json()
+    expect(body).toEqual({ error: 'NOT_FOUND', message: 'missing' })
+  })
+
+  it('maps ForbiddenError to the FORBIDDEN code', async () => {
+    const res = handleApiError(new ForbiddenError('forbidden'))
+    const body = await res.json()
+    expect(body).toEqual({ error: 'FORBIDDEN', message: 'forbidden' })
+  })
+
+  it('still resolves the correct code when the class name is mangled (simulates production minification)', async () => {
+    const error = new ConflictError('conflict')
+    Object.defineProperty(error, 'name', { value: 'a' })
+
+    const res = handleApiError(error)
+
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body).toEqual({ error: 'CONFLICT', message: 'conflict' })
+  })
+
   it('maps unknown errors to 500 without leaking details', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const res = handleApiError(new Error('raw db error: connection string leaked'))
