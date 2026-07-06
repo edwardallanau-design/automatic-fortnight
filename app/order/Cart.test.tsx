@@ -138,6 +138,21 @@ describe('Cart', () => {
     expect(within(order).getByText('Burger')).toBeInTheDocument()
   })
 
+  it('clears the error when the customer backs out of a failed review instead of retrying', async () => {
+    vi.mocked(apiClient.post).mockRejectedValue(new ApiError('MENU_ITEM_SOLD_OUT', 'Burger is no longer available'))
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Submit order' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm Order' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Burger is no longer available')
+
+    await user.click(screen.getByRole('button', { name: 'Back to menu' }))
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('shows a toast confirming the item was added', async () => {
     const user = userEvent.setup()
     render(<Cart tableId="t1" items={items} />)

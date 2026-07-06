@@ -224,7 +224,10 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
           submitting={submitting}
           onConfirm={handleSubmit}
           onClose={() => {
-            if (!submitting) setReviewOpen(false)
+            if (!submitting) {
+              setReviewOpen(false)
+              setError(null)
+            }
           }}
         />
       )}
