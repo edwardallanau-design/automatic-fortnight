@@ -416,6 +416,116 @@ a {
   padding: 0 0.25rem;
 }
 
+/* Order review modal */
+
+.review-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  background: color-mix(in srgb, var(--espresso) 60%, transparent);
+}
+
+.review-modal {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--paper);
+  color: var(--espresso);
+  border-radius: 16px 16px 0 0;
+  padding: 1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 24px var(--clay-faint);
+}
+
+.review-modal__title {
+  font-family: var(--font-display), Georgia, serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+}
+
+.review-modal__lines {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.review-modal__line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.95rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--clay-faint);
+}
+
+.review-modal__line-price {
+  font-family: var(--font-mono), monospace;
+  white-space: nowrap;
+}
+
+.review-modal__total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--clay-faint);
+  font-weight: 600;
+  font-family: var(--font-mono), monospace;
+  margin-bottom: 1rem;
+}
+
+.review-modal__error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.review-modal__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.review-modal__back,
+.review-modal__confirm {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 10px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.review-modal__back {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  color: var(--espresso);
+}
+
+.review-modal__confirm {
+  border: none;
+  background: var(--copper);
+  color: var(--paper);
+}
+
+.review-modal__back:disabled,
+.review-modal__confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.review-modal__back:focus-visible,
+.review-modal__confirm:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
 /* Ticket-stub order confirmation */
 
 .ticket {
