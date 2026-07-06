@@ -25,6 +25,7 @@ const items = [
 describe('Cart', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sessionStorage.clear()
   })
 
   it('adds an item to the cart when its menu button is tapped', async () => {
@@ -54,6 +55,46 @@ describe('Cart', () => {
   it('disables submit while the cart is empty', () => {
     render(<Cart tableId="t1" items={items} />)
     expect(screen.getByRole('button', { name: 'Submit order' })).toBeDisabled()
+  })
+
+  it('restores a previously saved cart for this table on mount', () => {
+    sessionStorage.setItem(
+      'cart:t1',
+      JSON.stringify([{ menuItemId: 'm1', name: 'Burger', price: '12.50', quantity: 2 }]),
+    )
+    render(<Cart tableId="t1" items={items} />)
+
+    const order = screen.getByRole('region', { name: 'Your order' })
+    expect(within(order).getByText('Burger')).toBeInTheDocument()
+    expect(within(order).getByText('2')).toBeInTheDocument()
+  })
+
+  it('saves the cart to sessionStorage under a table-specific key as it changes', async () => {
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+
+    const saved = JSON.parse(sessionStorage.getItem('cart:t1')!)
+    expect(saved).toEqual([{ menuItemId: 'm1', name: 'Burger', price: '12.50', quantity: 1 }])
+  })
+
+  it('does not restore a cart saved under a different table id', () => {
+    sessionStorage.setItem(
+      'cart:t2',
+      JSON.stringify([{ menuItemId: 'm1', name: 'Burger', price: '12.50', quantity: 1 }]),
+    )
+    render(<Cart tableId="t1" items={items} />)
+
+    const order = screen.getByRole('region', { name: 'Your order' })
+    expect(within(order).queryByText('Burger')).not.toBeInTheDocument()
+  })
+
+  it('starts with an empty cart if the saved data is corrupted', () => {
+    sessionStorage.setItem('cart:t1', 'not valid json{{{')
+    render(<Cart tableId="t1" items={items} />)
+
+    expect(screen.getByText('Your cart is empty')).toBeInTheDocument()
   })
 
   it('applies an increasing stagger delay to menu items in order', () => {

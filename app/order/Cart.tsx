@@ -46,6 +46,10 @@ function categorize(items: MenuItemProps[]) {
     .map((label) => ({ label, items: groups.get(label)! }))
 }
 
+function cartStorageKey(tableId: string) {
+  return `cart:${tableId}`
+}
+
 export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps[] }) {
   const [lines, setLines] = useState<CartLine[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -69,6 +73,23 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
       removingLineTimersRef.current.forEach((timer) => clearTimeout(timer))
     }
   }, [])
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(cartStorageKey(tableId))
+      if (saved) {
+        setLines(JSON.parse(saved))
+      }
+    } catch {
+      // Corrupted or inaccessible storage — start with an empty cart, no error shown.
+    }
+    // Runs once on mount only: tableId does not change for a mounted Cart instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    sessionStorage.setItem(cartStorageKey(tableId), JSON.stringify(lines))
+  }, [lines, tableId])
 
   function openReview() {
     if (reviewCloseTimerRef.current) clearTimeout(reviewCloseTimerRef.current)
