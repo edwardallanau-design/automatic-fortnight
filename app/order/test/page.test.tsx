@@ -44,13 +44,17 @@ describe('TestTablePage', () => {
     expect(link2).toHaveAttribute('href', '/order?table=t2')
   })
 
-  it('shows an empty-state message when there are no tables', async () => {
+  it('shows an empty-state message with a link to table setup when there are no tables', async () => {
     vi.stubEnv('NODE_ENV', 'test')
     vi.mocked(listTables).mockResolvedValue([])
 
     const ui = await TestTablePage()
     render(ui)
 
-    expect(screen.getByText('No tables have been created yet.')).toBeInTheDocument()
+    expect(screen.getByText(/No tables yet\./)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Table setup' })).toHaveAttribute(
+      'href',
+      '/admin/tables',
+    )
   })
 })
