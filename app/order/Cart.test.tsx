@@ -330,4 +330,23 @@ describe('Cart', () => {
     await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/order/o1'))
     expect(sessionStorage.getItem('cart:t1')).toBeNull()
   })
+
+  it('does not crash when sessionStorage.setItem throws on cart changes', async () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage unavailable')
+    })
+    try {
+      const user = userEvent.setup()
+      render(<Cart tableId="t1" items={items} />)
+
+      await user.click(screen.getByRole('button', { name: /Burger/ }))
+
+      // Component should still be interactive and show the item despite storage failure
+      const order = screen.getByRole('region', { name: 'Your order' })
+      expect(within(order).getByText('Burger')).toBeInTheDocument()
+      expect(within(order).getByText('1')).toBeInTheDocument()
+    } finally {
+      spy.mockRestore()
+    }
+  })
 })

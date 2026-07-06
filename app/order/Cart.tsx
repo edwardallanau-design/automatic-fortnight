@@ -88,7 +88,11 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   }, [])
 
   useEffect(() => {
-    sessionStorage.setItem(cartStorageKey(tableId), JSON.stringify(lines))
+    try {
+      sessionStorage.setItem(cartStorageKey(tableId), JSON.stringify(lines))
+    } catch {
+      // Corrupted or inaccessible storage — silently ignore the failure.
+    }
   }, [lines, tableId])
 
   function openReview() {
