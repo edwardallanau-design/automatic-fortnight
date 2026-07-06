@@ -30,6 +30,7 @@ const OTHER_CATEGORY = 'More'
 const TOAST_AUTO_DISMISS_MS = 4000
 const TOAST_EXIT_MS = 200
 const REVIEW_EXIT_MS = 200
+const LINE_EXIT_MS = 200
 
 function categorize(items: MenuItemProps[]) {
   const groups = new Map<string, MenuItemProps[]>()
@@ -57,12 +58,15 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewClosing, setReviewClosing] = useState(false)
   const reviewCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [removingLineIds, setRemovingLineIds] = useState<Set<string>>(new Set())
+  const removingLineTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
       if (toastExitTimerRef.current) clearTimeout(toastExitTimerRef.current)
       if (reviewCloseTimerRef.current) clearTimeout(reviewCloseTimerRef.current)
+      removingLineTimersRef.current.forEach((timer) => clearTimeout(timer))
     }
   }, [])
 
@@ -98,7 +102,12 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
 
   function undoToast() {
     if (!toast) return
-    adjustQuantity(toast.menuItemId, -1)
+    const line = lines.find((l) => l.menuItemId === toast.menuItemId)
+    if (line?.quantity === 1) {
+      removeLineWithAnimation(toast.menuItemId)
+    } else {
+      adjustQuantity(toast.menuItemId, -1)
+    }
     dismissToast()
   }
 
@@ -123,6 +132,28 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
         .map((line) => (line.menuItemId === menuItemId ? { ...line, quantity: line.quantity + delta } : line))
         .filter((line) => line.quantity > 0),
     )
+  }
+
+  function removeLineWithAnimation(menuItemId: string) {
+    setRemovingLineIds((prev) => new Set(prev).add(menuItemId))
+    const timer = setTimeout(() => {
+      adjustQuantity(menuItemId, -1)
+      setRemovingLineIds((prev) => {
+        const next = new Set(prev)
+        next.delete(menuItemId)
+        return next
+      })
+      removingLineTimersRef.current.delete(menuItemId)
+    }, LINE_EXIT_MS)
+    removingLineTimersRef.current.set(menuItemId, timer)
+  }
+
+  function handleDecrease(line: CartLine) {
+    if (line.quantity === 1) {
+      removeLineWithAnimation(line.menuItemId)
+    } else {
+      adjustQuantity(line.menuItemId, -1)
+    }
   }
 
   async function handleSubmit() {
@@ -221,13 +252,17 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
         <div className={`cart-summary${!cartExpanded ? ' cart-summary--collapsed' : ''}`}>
           <ul className="cart-summary__lines">
             {lines.map((line) => (
-              <li key={line.menuItemId} className="cart-summary__line">
+              <li
+                key={line.menuItemId}
+                className={`cart-summary__line${removingLineIds.has(line.menuItemId) ? ' cart-summary__line--removing' : ''}`}
+              >
                 <span className="cart-summary__line-name">{line.name}</span>
                 <button
                   type="button"
                   className="cart-summary__stepper"
                   aria-label={`Decrease ${line.name} quantity`}
-                  onClick={() => adjustQuantity(line.menuItemId, -1)}
+                  onClick={() => handleDecrease(line)}
+                  disabled={removingLineIds.has(line.menuItemId)}
                 >
                   -
                 </button>
@@ -237,6 +272,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
                   className="cart-summary__stepper"
                   aria-label={`Increase ${line.name} quantity`}
                   onClick={() => adjustQuantity(line.menuItemId, 1)}
+                  disabled={removingLineIds.has(line.menuItemId)}
                 >
                   +
                 </button>

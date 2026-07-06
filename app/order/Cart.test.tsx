@@ -48,7 +48,7 @@ describe('Cart', () => {
 
     await user.click(screen.getByRole('button', { name: 'Decrease Burger quantity' }))
     await user.click(screen.getByRole('button', { name: 'Decrease Burger quantity' }))
-    expect(within(order).queryByText('Burger')).not.toBeInTheDocument()
+    await waitFor(() => expect(within(order).queryByText('Burger')).not.toBeInTheDocument())
   })
 
   it('disables submit while the cart is empty', () => {
@@ -232,7 +232,18 @@ describe('Cart', () => {
     await user.click(screen.getByRole('button', { name: 'Undo' }))
 
     const order = screen.getByRole('region', { name: 'Your order' })
-    expect(within(order).queryByText('Burger')).not.toBeInTheDocument()
+    await waitFor(() => expect(within(order).queryByText('Burger')).not.toBeInTheDocument())
+  })
+
+  it('marks a line as removing during its exit animation before actually removing it', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Decrease Burger quantity' }))
+
+    expect(container.querySelector('.cart-summary__line--removing')).toBeInTheDocument()
+    await waitFor(() => expect(container.querySelector('.cart-summary__line--removing')).not.toBeInTheDocument())
   })
 
   it('auto-dismisses the toast after 4 seconds', async () => {
