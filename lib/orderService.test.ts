@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
-import { createOrder, listOrders, confirmOrder, setPaymentStatus } from './orderService'
+import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder } from './orderService'
 import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from './errors'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
@@ -232,6 +232,48 @@ describe('orderService.setPaymentStatus', () => {
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { id: 'o1' },
       data: { paymentStatus: 'Unpaid' },
+      include: { items: true },
+    })
+  })
+})
+
+describe('orderService.cancelOrder', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('throws NotFoundError when the order does not exist', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(null)
+
+    await expect(cancelOrder('missing')).rejects.toThrow(NotFoundError)
+    expect(prisma.order.update).not.toHaveBeenCalled()
+  })
+
+  it('throws ConflictError when the order is already Confirmed', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Confirmed' } as never)
+
+    await expect(cancelOrder('o1')).rejects.toThrow(ConflictError)
+    expect(prisma.order.update).not.toHaveBeenCalled()
+  })
+
+  it('throws ConflictError when the order is already Cancelled', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Cancelled' } as never)
+
+    await expect(cancelOrder('o1')).rejects.toThrow(ConflictError)
+    expect(prisma.order.update).not.toHaveBeenCalled()
+  })
+
+  it('sets fulfillmentStatus to Cancelled for a Pending order', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Pending' } as never)
+    const updated = { id: 'o1', fulfillmentStatus: 'Cancelled', items: [] }
+    vi.mocked(prisma.order.update).mockResolvedValue(updated as never)
+
+    const result = await cancelOrder('o1')
+
+    expect(result).toEqual(updated)
+    expect(prisma.order.update).toHaveBeenCalledWith({
+      where: { id: 'o1' },
+      data: { fulfillmentStatus: 'Cancelled' },
       include: { items: true },
     })
   })

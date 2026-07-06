@@ -92,3 +92,19 @@ export async function setPaymentStatus(
     include: { items: true },
   })
 }
+
+export async function cancelOrder(orderId: string): Promise<OrderWithItems> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  if (order.fulfillmentStatus !== 'Pending') {
+    throw new ConflictError(`Order is ${order.fulfillmentStatus}, not Pending`)
+  }
+
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { fulfillmentStatus: 'Cancelled' },
+    include: { items: true },
+  })
+}
