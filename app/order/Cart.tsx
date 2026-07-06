@@ -27,6 +27,9 @@ const CATEGORIES: { label: string; match: RegExp }[] = [
 ]
 const OTHER_CATEGORY = 'More'
 
+const TOAST_AUTO_DISMISS_MS = 4000
+const TOAST_EXIT_MS = 200
+
 function categorize(items: MenuItemProps[]) {
   const groups = new Map<string, MenuItemProps[]>()
   for (const item of items) {
@@ -47,26 +50,39 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   const [submitting, setSubmitting] = useState(false)
   const [cartExpanded, setCartExpanded] = useState(false)
   const [toast, setToast] = useState<{ menuItemId: string; name: string } | null>(null)
+  const [toastExiting, setToastExiting] = useState(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toastExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
 
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+      if (toastExitTimerRef.current) clearTimeout(toastExitTimerRef.current)
     }
   }, [])
 
   function showToast(menuItemId: string, name: string) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    if (toastExitTimerRef.current) clearTimeout(toastExitTimerRef.current)
+    setToastExiting(false)
     setToast({ menuItemId, name })
-    toastTimerRef.current = setTimeout(() => setToast(null), 4000)
+    toastTimerRef.current = setTimeout(() => dismissToast(), TOAST_AUTO_DISMISS_MS)
+  }
+
+  function dismissToast() {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToastExiting(true)
+    toastExitTimerRef.current = setTimeout(() => {
+      setToast(null)
+      setToastExiting(false)
+    }, TOAST_EXIT_MS)
   }
 
   function undoToast() {
     if (!toast) return
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     adjustQuantity(toast.menuItemId, -1)
-    setToast(null)
+    dismissToast()
   }
 
   const router = useRouter()
@@ -115,10 +131,13 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   return (
     <>
       {toast && (
-        <div className="cart-toast" role="status">
+        <div className={`cart-toast${toastExiting ? ' cart-toast--exiting' : ''}`} role="status">
           <span>Added {toast.name} to cart</span>
           <button type="button" className="cart-toast__undo" onClick={undoToast}>
             Undo
+          </button>
+          <button type="button" className="cart-toast__close" aria-label="Dismiss" onClick={dismissToast}>
+            ×
           </button>
         </div>
       )}

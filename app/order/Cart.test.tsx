@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within, act, fireEvent } from '@testing-library/react'
+import { render, screen, within, act, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Cart } from './Cart'
 import { apiClient, ApiError } from '@/lib/apiClient'
@@ -203,7 +203,7 @@ describe('Cart', () => {
 
     const order = screen.getByRole('region', { name: 'Your order' })
     expect(within(order).getByText('2')).toBeInTheDocument()
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
   })
 
   it('removes the line entirely if Undo is tapped right after the first add', async () => {
@@ -225,10 +225,22 @@ describe('Cart', () => {
     expect(screen.getByRole('status')).toBeInTheDocument()
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(4000)
+      await vi.advanceTimersByTimeAsync(4200)
     })
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     vi.useRealTimers()
+  })
+
+  it('the × button dismisses the toast without undoing the add', async () => {
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+    const order = screen.getByRole('region', { name: 'Your order' })
+    expect(within(order).getByText('Burger')).toBeInTheDocument()
   })
 })
