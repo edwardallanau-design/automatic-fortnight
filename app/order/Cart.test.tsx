@@ -56,6 +56,13 @@ describe('Cart', () => {
     expect(screen.getByRole('button', { name: 'Submit order' })).toBeDisabled()
   })
 
+  it('applies an increasing stagger delay to menu items in order', () => {
+    const { container } = render(<Cart tableId="t1" items={items} />)
+    const buttons = container.querySelectorAll('.menu-item-button')
+    expect(buttons[0]).toHaveStyle({ '--stagger-delay': '0ms' })
+    expect(buttons[1]).toHaveStyle({ '--stagger-delay': '30ms' })
+  })
+
   it('keeps the order panel collapsed by default even when the cart is empty', () => {
     const { container } = render(<Cart tableId="t1" items={items} />)
     expect(container.querySelector('.cart-summary')).toHaveClass('cart-summary--collapsed')

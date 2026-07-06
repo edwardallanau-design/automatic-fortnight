@@ -167,6 +167,8 @@ a {
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.1s ease;
+  animation: menu-item-arrive 0.25s ease-out backwards;
+  animation-delay: var(--stagger-delay, 0ms);
 }
 
 .menu-item-button:hover:not(:disabled) {
@@ -215,6 +217,23 @@ a {
 
 .menu-item-button:disabled .menu-item-button__price {
   color: var(--clay);
+}
+
+@keyframes menu-item-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-item-button {
+    animation: none;
+  }
 }
 
 /* Cart rail — persistent bottom bar that expands */

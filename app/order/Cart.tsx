@@ -159,29 +159,37 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
         </div>
       )}
       <div className="menu-categories">
-        {categories.map((category) => (
-          <div key={category.label} className="menu-category">
-            <h2 className="menu-category__title">{category.label}</h2>
-            <ul className="menu-list">
-              {category.items.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className="menu-item-button"
-                    disabled={!item.available}
-                    onClick={() => addItem(item)}
-                  >
-                    <span>
-                      <span className="menu-item-button__name">{item.name}</span>
-                      {!item.available && <span className="menu-item-button__sold-out">Sold out</span>}
-                    </span>
-                    <span className="menu-item-button__price">${item.price}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {(() => {
+          let staggerIndex = 0
+          return categories.map((category) => (
+            <div key={category.label} className="menu-category">
+              <h2 className="menu-category__title">{category.label}</h2>
+              <ul className="menu-list">
+                {category.items.map((item) => {
+                  const staggerDelay = `${Math.min(staggerIndex * 30, 300)}ms`
+                  staggerIndex += 1
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        className="menu-item-button"
+                        style={{ '--stagger-delay': staggerDelay } as React.CSSProperties}
+                        disabled={!item.available}
+                        onClick={() => addItem(item)}
+                      >
+                        <span>
+                          <span className="menu-item-button__name">{item.name}</span>
+                          {!item.available && <span className="menu-item-button__sold-out">Sold out</span>}
+                        </span>
+                        <span className="menu-item-button__price">${item.price}</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))
+        })()}
       </div>
 
       <section aria-label="Your order" className="cart-rail">
