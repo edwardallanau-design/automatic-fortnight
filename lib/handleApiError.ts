@@ -18,10 +18,12 @@ function statusFor(error: DomainError): number {
 }
 
 function codeFor(error: DomainError): string {
-  return error.name
-    .replace(/Error$/, '')
-    .replace(/([a-z])([A-Z])/g, '$1_$2')
-    .toUpperCase()
+  if (error instanceof ValidationError) return 'VALIDATION'
+  if (error instanceof InvalidCredentialError) return 'INVALID_CREDENTIAL'
+  if (error instanceof ForbiddenError) return 'FORBIDDEN'
+  if (error instanceof NotFoundError) return 'NOT_FOUND'
+  if (error instanceof ConflictError) return 'CONFLICT'
+  return 'DOMAIN_ERROR'
 }
 
 export function handleApiError(error: unknown): NextResponse {
