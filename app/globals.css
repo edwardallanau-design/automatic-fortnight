@@ -754,3 +754,88 @@ a {
   font-size: 0.82rem;
   color: #c0392b;
 }
+
+/* Test table picker (dev/QA) */
+
+.table-picker {
+  min-height: 100%;
+  width: 100%;
+  background: var(--crema);
+  color: var(--espresso);
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+  padding-bottom: 3rem;
+}
+
+.table-picker__list {
+  list-style: none;
+  width: 100%;
+  max-width: 480px;
+  margin: 1.25rem auto 0;
+  padding: 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.table-picker__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--espresso);
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 1rem;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.table-picker__row:hover {
+  border-color: var(--copper);
+}
+
+.table-picker__row:active {
+  transform: scale(0.99);
+}
+
+.table-picker__row:focus-visible {
+  outline: 2px solid var(--copper);
+  outline-offset: 2px;
+}
+
+.table-picker__row-label {
+  font-weight: 500;
+}
+
+.table-picker__chevron {
+  font-family: var(--font-mono), monospace;
+  color: var(--copper);
+  margin-left: 1rem;
+}
+
+.table-picker__empty {
+  max-width: 480px;
+  margin: 2.5rem auto 0;
+  padding: 0 1.25rem;
+  text-align: center;
+  color: var(--clay);
+}
+
+.table-picker__empty a {
+  color: var(--copper);
+  text-decoration: underline;
+}
+
+.table-picker__footnote {
+  max-width: 480px;
+  margin: 1.75rem auto 0;
+  padding: 0 1.25rem;
+  text-align: center;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--clay);
+}

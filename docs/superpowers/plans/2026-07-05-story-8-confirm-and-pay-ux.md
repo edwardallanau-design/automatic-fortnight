@@ -21,10 +21,12 @@
 ### Task 1: Confirm flow — dialog gate, submitting/error state, inline error
 
 **Files:**
+
 - Modify: `app/dashboard/PendingOrdersDashboard.tsx`
 - Test: `app/dashboard/PendingOrdersDashboard.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `apiClient.patch<T>(path: string, body: unknown): Promise<T>` and `ApiError` (has `.message: string`) from `lib/apiClient.ts` (both already exist and are already imported/used in this codebase, e.g. `app/order/Cart.tsx`).
 - Produces: a `RowState = { submitting: boolean; error: string | null }` type and `rowState: Record<string, RowState>` state var in `PendingOrdersDashboard`, which Task 2 also reads/writes for the pay flow. Also produces a module-level `errorMessage(err: unknown): string` helper that Task 2 reuses.
 
@@ -129,7 +131,7 @@ Insert these three tests immediately after the test from Step 1 (still inside th
 Also add `ApiError` to the top-of-file import so the new error test can construct one:
 
 ```ts
-import { apiClient, ApiError } from '@/lib/apiClient'
+import { apiClient, ApiError } from "@/lib/apiClient";
 ```
 
 (This replaces the current `import { apiClient } from '@/lib/apiClient'` line.)
@@ -145,99 +147,121 @@ Expected: FAIL — the Step-1 test fails on the `toHaveBeenCalledWith` assertion
 Replace the full contents of `app/dashboard/PendingOrdersDashboard.tsx` with:
 
 ```tsx
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { apiClient, ApiError } from '@/lib/apiClient'
-import type { Role } from '@/lib/types'
+import { useEffect, useState } from "react";
+import { apiClient, ApiError } from "@/lib/apiClient";
+import type { Role } from "@/lib/types";
 
-const POLL_INTERVAL_MS = 3500
+const POLL_INTERVAL_MS = 3500;
 
 type PendingOrderItem = {
-  id: string
-  nameSnapshot: string
-  priceSnapshot: string
-  quantity: number
-}
+  id: string;
+  nameSnapshot: string;
+  priceSnapshot: string;
+  quantity: number;
+};
 
 type PendingOrder = {
-  id: string
-  orderNumber: number
-  createdAt: string
-  paymentStatus: 'Unpaid' | 'Paid'
-  table: { number: number }
-  items: PendingOrderItem[]
-}
+  id: string;
+  orderNumber: number;
+  createdAt: string;
+  paymentStatus: "Unpaid" | "Paid";
+  table: { number: number };
+  items: PendingOrderItem[];
+};
 
-type RowState = { submitting: boolean; error: string | null }
+type RowState = { submitting: boolean; error: string | null };
 
-const EMPTY_ROW_STATE: RowState = { submitting: false, error: null }
+const EMPTY_ROW_STATE: RowState = { submitting: false, error: null };
 
 function formatTimeAgo(createdAt: string): string {
-  const elapsedMinutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000)
-  return elapsedMinutes < 1 ? 'just now' : `${elapsedMinutes} min ago`
+  const elapsedMinutes = Math.floor(
+    (Date.now() - new Date(createdAt).getTime()) / 60000,
+  );
+  return elapsedMinutes < 1 ? "just now" : `${elapsedMinutes} min ago`;
 }
 
 function errorMessage(err: unknown): string {
-  return err instanceof ApiError ? err.message : 'Something went wrong. Please try again.'
+  return err instanceof ApiError
+    ? err.message
+    : "Something went wrong. Please try again.";
 }
 
 export function PendingOrdersDashboard({ role }: { role: Role }) {
-  const [orders, setOrders] = useState<PendingOrder[]>([])
-  const [rowState, setRowState] = useState<Record<string, RowState>>({})
+  const [orders, setOrders] = useState<PendingOrder[]>([]);
+  const [rowState, setRowState] = useState<Record<string, RowState>>({});
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     async function poll() {
       try {
-        const result = await apiClient.get<PendingOrder[]>('/api/orders?status=pending')
-        if (!cancelled) setOrders(result)
+        const result = await apiClient.get<PendingOrder[]>(
+          "/api/orders?status=pending",
+        );
+        if (!cancelled) setOrders(result);
       } catch {
         // Transient poll failure: keep the last-known list, retry next tick.
       }
     }
 
-    poll()
-    const interval = setInterval(poll, POLL_INTERVAL_MS)
+    poll();
+    const interval = setInterval(poll, POLL_INTERVAL_MS);
     return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [])
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   async function handleConfirm(order: PendingOrder) {
-    if (!window.confirm(`Confirm order #${order.orderNumber}?`)) return
+    if (!window.confirm(`Confirm order #${order.orderNumber}?`)) return;
 
-    setRowState((current) => ({ ...current, [order.id]: { submitting: true, error: null } }))
+    setRowState((current) => ({
+      ...current,
+      [order.id]: { submitting: true, error: null },
+    }));
     try {
-      await apiClient.patch(`/api/orders/${order.id}/confirm`, {})
-      setOrders((current) => current.filter((o) => o.id !== order.id))
+      await apiClient.patch(`/api/orders/${order.id}/confirm`, {});
+      setOrders((current) => current.filter((o) => o.id !== order.id));
       setRowState((current) => {
-        const next = { ...current }
-        delete next[order.id]
-        return next
-      })
+        const next = { ...current };
+        delete next[order.id];
+        return next;
+      });
     } catch (err) {
-      setRowState((current) => ({ ...current, [order.id]: { submitting: false, error: errorMessage(err) } }))
+      setRowState((current) => ({
+        ...current,
+        [order.id]: { submitting: false, error: errorMessage(err) },
+      }));
     }
   }
 
-  async function handleSetPaymentStatus(orderId: string, paymentStatus: 'Paid' | 'Unpaid') {
-    const updated = await apiClient.patch<PendingOrder>(`/api/orders/${orderId}/pay`, { paymentStatus })
+  async function handleSetPaymentStatus(
+    orderId: string,
+    paymentStatus: "Paid" | "Unpaid",
+  ) {
+    const updated = await apiClient.patch<PendingOrder>(
+      `/api/orders/${orderId}/pay`,
+      { paymentStatus },
+    );
     setOrders((current) =>
-      current.map((order) => (order.id === orderId ? { ...order, paymentStatus: updated.paymentStatus } : order)),
-    )
+      current.map((order) =>
+        order.id === orderId
+          ? { ...order, paymentStatus: updated.paymentStatus }
+          : order,
+      ),
+    );
   }
 
   if (orders.length === 0) {
-    return <p>No pending orders</p>
+    return <p>No pending orders</p>;
   }
 
   return (
     <ul aria-label="Pending orders">
       {orders.map((order) => {
-        const { submitting, error } = rowState[order.id] ?? EMPTY_ROW_STATE
+        const { submitting, error } = rowState[order.id] ?? EMPTY_ROW_STATE;
         return (
           <li key={order.id} aria-label={`Order ${order.orderNumber}`}>
             <span>Table {order.table.number}</span>
@@ -250,15 +274,25 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
                 </li>
               ))}
             </ul>
-            <button type="button" disabled={submitting} onClick={() => handleConfirm(order)}>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => handleConfirm(order)}
+            >
               Confirm
             </button>
-            {order.paymentStatus === 'Unpaid' ? (
-              <button type="button" onClick={() => handleSetPaymentStatus(order.id, 'Paid')}>
+            {order.paymentStatus === "Unpaid" ? (
+              <button
+                type="button"
+                onClick={() => handleSetPaymentStatus(order.id, "Paid")}
+              >
                 Mark Paid
               </button>
-            ) : role === 'admin' ? (
-              <button type="button" onClick={() => handleSetPaymentStatus(order.id, 'Unpaid')}>
+            ) : role === "admin" ? (
+              <button
+                type="button"
+                onClick={() => handleSetPaymentStatus(order.id, "Unpaid")}
+              >
                 Mark Unpaid
               </button>
             ) : (
@@ -266,10 +300,10 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
             )}
             {error && <p role="alert">{error}</p>}
           </li>
-        )
+        );
       })}
     </ul>
-  )
+  );
 }
 ```
 
@@ -307,10 +341,12 @@ EOF
 ### Task 2: Pay flow — submitting/error state on Mark Paid/Unpaid
 
 **Files:**
+
 - Modify: `app/dashboard/PendingOrdersDashboard.tsx`
 - Test: `app/dashboard/PendingOrdersDashboard.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `RowState`, `rowState`/`setRowState`, and `errorMessage()` produced by Task 1 in the same file.
 - Produces: no new exports — this is the final state of `handleSetPaymentStatus` and its buttons; no later task depends on anything new here.
 
@@ -384,34 +420,63 @@ Expected: FAIL — both new tests fail because `handleSetPaymentStatus` doesn't 
 In `app/dashboard/PendingOrdersDashboard.tsx`, replace the `handleSetPaymentStatus` function with:
 
 ```tsx
-  async function handleSetPaymentStatus(orderId: string, paymentStatus: 'Paid' | 'Unpaid') {
-    setRowState((current) => ({ ...current, [orderId]: { submitting: true, error: null } }))
-    try {
-      const updated = await apiClient.patch<PendingOrder>(`/api/orders/${orderId}/pay`, { paymentStatus })
-      setOrders((current) =>
-        current.map((order) => (order.id === orderId ? { ...order, paymentStatus: updated.paymentStatus } : order)),
-      )
-      setRowState((current) => ({ ...current, [orderId]: { submitting: false, error: null } }))
-    } catch (err) {
-      setRowState((current) => ({ ...current, [orderId]: { submitting: false, error: errorMessage(err) } }))
-    }
+async function handleSetPaymentStatus(
+  orderId: string,
+  paymentStatus: "Paid" | "Unpaid",
+) {
+  setRowState((current) => ({
+    ...current,
+    [orderId]: { submitting: true, error: null },
+  }));
+  try {
+    const updated = await apiClient.patch<PendingOrder>(
+      `/api/orders/${orderId}/pay`,
+      { paymentStatus },
+    );
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === orderId
+          ? { ...order, paymentStatus: updated.paymentStatus }
+          : order,
+      ),
+    );
+    setRowState((current) => ({
+      ...current,
+      [orderId]: { submitting: false, error: null },
+    }));
+  } catch (err) {
+    setRowState((current) => ({
+      ...current,
+      [orderId]: { submitting: false, error: errorMessage(err) },
+    }));
   }
+}
 ```
 
 And update both payment-toggle buttons in the JSX to disable while submitting:
 
 ```tsx
-            {order.paymentStatus === 'Unpaid' ? (
-              <button type="button" disabled={submitting} onClick={() => handleSetPaymentStatus(order.id, 'Paid')}>
-                Mark Paid
-              </button>
-            ) : role === 'admin' ? (
-              <button type="button" disabled={submitting} onClick={() => handleSetPaymentStatus(order.id, 'Unpaid')}>
-                Mark Unpaid
-              </button>
-            ) : (
-              <span>Paid</span>
-            )}
+{
+  order.paymentStatus === "Unpaid" ? (
+    <button
+      type="button"
+      disabled={submitting}
+      onClick={() => handleSetPaymentStatus(order.id, "Paid")}
+    >
+      Mark Paid
+    </button>
+  ) : role === "admin" ? (
+    <button
+      type="button"
+      disabled={submitting}
+      onClick={() => handleSetPaymentStatus(order.id, "Unpaid")}
+    >
+      Mark Unpaid
+    </button>
+  ) : (
+    <span>Paid</span>
+  );
+}
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -445,9 +510,11 @@ EOF
 ### Task 3: Update BUILD_STATUS.md gotchas log (if anything surprising surfaced)
 
 **Files:**
+
 - Modify: `BUILD_STATUS.md`
 
 **Interfaces:**
+
 - Consumes: nothing code-level — this is a documentation-only step.
 - Produces: nothing consumed by later tasks.
 
