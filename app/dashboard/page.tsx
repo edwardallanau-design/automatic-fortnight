@@ -15,7 +15,7 @@ export default async function DashboardPage() {
           <Link href="/admin/tables">Table Setup</Link>
         </nav>
       )}
-      <PendingOrdersDashboard />
+      <PendingOrdersDashboard role={role} />
     </main>
   )
 }

@@ -1,8 +1,9 @@
-import type { Order, OrderItem, Table, FulfillmentStatus } from '@prisma/client'
+import type { Order, OrderItem, Table, FulfillmentStatus, PaymentStatus } from '@prisma/client'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
-import { NotFoundError, ConflictError, ValidationError } from './errors'
+import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from './errors'
+import type { Role } from './types'
 
 export type CartItemInput = { menuItemId: string; quantity: number }
 export type OrderWithItems = Order & { items: OrderItem[] }
@@ -53,5 +54,41 @@ export async function listOrders(options: { status?: FulfillmentStatus } = {}): 
     where: options.status ? { fulfillmentStatus: options.status } : {},
     include: { items: true, table: true },
     orderBy: { createdAt: 'asc' },
+  })
+}
+
+export async function confirmOrder(orderId: string): Promise<OrderWithItems> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  if (order.fulfillmentStatus !== 'Pending') {
+    throw new ConflictError(`Order is ${order.fulfillmentStatus}, not Pending`)
+  }
+
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { fulfillmentStatus: 'Confirmed', confirmedAt: new Date() },
+    include: { items: true },
+  })
+}
+
+export async function setPaymentStatus(
+  orderId: string,
+  paymentStatus: PaymentStatus,
+  role: Role,
+): Promise<OrderWithItems> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  if (paymentStatus === 'Unpaid' && order.paymentStatus === 'Paid' && role !== 'admin') {
+    throw new ForbiddenError('Only admin may revert payment status to Unpaid')
+  }
+
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { paymentStatus },
+    include: { items: true },
   })
 }
