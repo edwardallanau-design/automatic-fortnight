@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Cart } from './Cart'
 import { apiClient, ApiError } from '@/lib/apiClient'
@@ -129,5 +129,47 @@ describe('Cart', () => {
     const toasts = screen.getAllByRole('status')
     expect(toasts).toHaveLength(1)
     expect(toasts[0]).toHaveTextContent('Added Shake to cart')
+  })
+
+  it('reverses exactly the last add when Undo is tapped, leaving other quantities alone', async () => {
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Increase Burger quantity' }))
+    await user.click(screen.getByRole('button', { name: 'Increase Burger quantity' }))
+    // toast now reflects the most recent +1, cart quantity is 3
+
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+
+    const order = screen.getByRole('region', { name: 'Your order' })
+    expect(within(order).getByText('2')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('removes the line entirely if Undo is tapped right after the first add', async () => {
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+
+    const order = screen.getByRole('region', { name: 'Your order' })
+    expect(within(order).queryByText('Burger')).not.toBeInTheDocument()
+  })
+
+  it('auto-dismisses the toast after 4 seconds', async () => {
+    vi.useFakeTimers()
+    render(<Cart tableId="t1" items={items} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Burger/ }))
+    expect(screen.getByRole('status')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000)
+    })
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    vi.useRealTimers()
   })
 })

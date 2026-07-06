@@ -60,6 +60,13 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
     toastTimerRef.current = setTimeout(() => setToast(null), 4000)
   }
 
+  function undoToast() {
+    if (!toast) return
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    adjustQuantity(toast.menuItemId, -1)
+    setToast(null)
+  }
+
   const router = useRouter()
 
   function addItem(item: MenuItemProps) {
@@ -108,6 +115,9 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
       {toast && (
         <div className="cart-toast" role="status">
           <span>Added {toast.name} to cart</span>
+          <button type="button" className="cart-toast__undo" onClick={undoToast}>
+            Undo
+          </button>
         </div>
       )}
       <div className="menu-categories">
