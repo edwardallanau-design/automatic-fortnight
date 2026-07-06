@@ -186,6 +186,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
         tableId,
         items: lines.map((line) => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
       })
+      sessionStorage.removeItem(cartStorageKey(tableId))
       router.push(`/order/${order.id}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')

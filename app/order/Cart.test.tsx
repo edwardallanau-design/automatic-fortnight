@@ -313,4 +313,21 @@ describe('Cart', () => {
     const order = screen.getByRole('region', { name: 'Your order' })
     expect(within(order).getByText('Burger')).toBeInTheDocument()
   })
+
+  it('clears the saved cart from sessionStorage after a successful submit', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({
+      id: 'o1',
+      orderNumber: 47,
+      items: [{ id: 'oi1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
+    })
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Submit order' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm Order' }))
+
+    await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/order/o1'))
+    expect(sessionStorage.getItem('cart:t1')).toBeNull()
+  })
 })
