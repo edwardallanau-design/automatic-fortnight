@@ -15,17 +15,36 @@ describe('TestTablePage', () => {
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     vi.stubEnv('NODE_ENV', originalEnv ?? 'test')
   })
 
-  it('shows a not-available message in production and does not call listTables', async () => {
+  it('shows a not-available message in production without the flag, and does not call listTables', async () => {
     vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('ENABLE_TEST_PICKER', '')
 
     const ui = await TestTablePage()
     render(ui)
 
     expect(screen.getByText("This page isn't available.")).toBeInTheDocument()
     expect(listTables).not.toHaveBeenCalled()
+  })
+
+  it('renders the picker in production when ENABLE_TEST_PICKER=true', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('ENABLE_TEST_PICKER', 'true')
+    vi.mocked(listTables).mockResolvedValue([
+      { id: 't1', number: 1, createdAt: new Date() },
+    ] as never)
+
+    const ui = await TestTablePage()
+    render(ui)
+
+    expect(screen.getByRole('link', { name: 'Table 1' })).toHaveAttribute(
+      'href',
+      '/order?table=t1',
+    )
+    expect(listTables).toHaveBeenCalled()
   })
 
   it('renders a link per table labeled with its number, pointing at /order?table=<id>', async () => {

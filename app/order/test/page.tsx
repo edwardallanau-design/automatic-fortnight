@@ -1,8 +1,23 @@
 import Link from 'next/link'
 import { listTables } from '@/lib/tableService'
 
+// Render per-request rather than statically prerendering at build time, so the
+// ENABLE_TEST_PICKER / NODE_ENV gate is evaluated against the *runtime*
+// environment (e.g. the flag set in .env.docker), not the build-time one.
+export const dynamic = 'force-dynamic'
+
+// The test picker is hidden by default. It renders only in development, or
+// when ENABLE_TEST_PICKER=true is explicitly set (e.g. in .env.docker) — so a
+// real production deploy that doesn't set the flag stays hidden.
+function testPickerEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== 'production' ||
+    process.env.ENABLE_TEST_PICKER === 'true'
+  )
+}
+
 export default async function TestTablePage() {
-  if (process.env.NODE_ENV === 'production') {
+  if (!testPickerEnabled()) {
     return (
       <main className="table-picker">
         <p role="alert" className="order-page__error">
