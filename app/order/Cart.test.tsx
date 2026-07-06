@@ -56,7 +56,32 @@ describe('Cart', () => {
     expect(screen.getByRole('button', { name: 'Submit order' })).toBeDisabled()
   })
 
-  it('redirects to the order page after a successful submit', async () => {
+  it('opens the review modal instead of submitting when "Submit order" is tapped', async () => {
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Submit order' }))
+
+    expect(screen.getByRole('dialog', { name: 'Review your order' })).toBeInTheDocument()
+    expect(apiClient.post).not.toHaveBeenCalled()
+  })
+
+  it('"Back to menu" closes the review modal without submitting or changing the cart', async () => {
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Submit order' }))
+    await user.click(screen.getByRole('button', { name: 'Back to menu' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(apiClient.post).not.toHaveBeenCalled()
+    const order = screen.getByRole('region', { name: 'Your order' })
+    expect(within(order).getByText('Burger')).toBeInTheDocument()
+  })
+
+  it('redirects to the order page after confirming in the review modal', async () => {
     vi.mocked(apiClient.post).mockResolvedValue({
       id: 'o1',
       orderNumber: 47,
@@ -67,6 +92,7 @@ describe('Cart', () => {
 
     await user.click(screen.getByRole('button', { name: /Burger/ }))
     await user.click(screen.getByRole('button', { name: 'Submit order' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm Order' }))
 
     await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/order/o1'))
     expect(apiClient.post).toHaveBeenCalledWith('/api/orders', {
@@ -75,7 +101,7 @@ describe('Cart', () => {
     })
   })
 
-  it('ignores a second submit click while the first is still in flight', async () => {
+  it('ignores a second Confirm Order click while the first is still in flight', async () => {
     let resolvePost!: (value: { id: string; orderNumber: number; items: never[] }) => void
     vi.mocked(apiClient.post).mockReturnValue(
       new Promise((resolve) => {
@@ -86,9 +112,10 @@ describe('Cart', () => {
     render(<Cart tableId="t1" items={items} />)
 
     await user.click(screen.getByRole('button', { name: /Burger/ }))
-    const submit = screen.getByRole('button', { name: 'Submit order' })
-    await user.click(submit)
-    await user.click(submit)
+    await user.click(screen.getByRole('button', { name: 'Submit order' }))
+    const confirm = screen.getByRole('button', { name: 'Confirm Order' })
+    await user.click(confirm)
+    await user.click(confirm)
 
     resolvePost({ id: 'o1', orderNumber: 47, items: [] })
     await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/order/o1'))
@@ -96,15 +123,17 @@ describe('Cart', () => {
     expect(apiClient.post).toHaveBeenCalledTimes(1)
   })
 
-  it('shows an inline error and keeps the cart intact on submit failure', async () => {
+  it('shows an inline error in the modal and keeps the cart intact on submit failure', async () => {
     vi.mocked(apiClient.post).mockRejectedValue(new ApiError('MENU_ITEM_SOLD_OUT', 'Burger is no longer available'))
     const user = userEvent.setup()
     render(<Cart tableId="t1" items={items} />)
 
     await user.click(screen.getByRole('button', { name: /Burger/ }))
     await user.click(screen.getByRole('button', { name: 'Submit order' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm Order' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Burger is no longer available')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
     const order = screen.getByRole('region', { name: 'Your order' })
     expect(within(order).getByText('Burger')).toBeInTheDocument()
   })

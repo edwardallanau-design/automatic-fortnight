@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
+import { OrderReviewModal } from './OrderReviewModal'
 
 type MenuItemProps = {
   id: string
@@ -47,6 +48,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   const [cartExpanded, setCartExpanded] = useState(false)
   const [toast, setToast] = useState<{ menuItemId: string; name: string } | null>(null)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -198,7 +200,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
               </li>
             ))}
           </ul>
-          {error && (
+          {error && !reviewOpen && (
             <p role="alert" className="cart-summary__error">
               {error}
             </p>
@@ -206,13 +208,26 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
           <button
             type="button"
             className="cart-summary__submit"
-            onClick={handleSubmit}
+            onClick={() => setReviewOpen(true)}
             disabled={lines.length === 0 || submitting}
           >
             Submit order
           </button>
         </div>
       </section>
+
+      {reviewOpen && (
+        <OrderReviewModal
+          lines={lines}
+          total={cartTotal}
+          error={error}
+          submitting={submitting}
+          onConfirm={handleSubmit}
+          onClose={() => {
+            if (!submitting) setReviewOpen(false)
+          }}
+        />
+      )}
     </>
   )
 }
