@@ -56,6 +56,21 @@ describe('Cart', () => {
     expect(screen.getByRole('button', { name: 'Submit order' })).toBeDisabled()
   })
 
+  it('keeps the order panel collapsed by default even when the cart is empty', () => {
+    const { container } = render(<Cart tableId="t1" items={items} />)
+    expect(container.querySelector('.cart-summary')).toHaveClass('cart-summary--collapsed')
+  })
+
+  it('does not change collapsed state when the first item is added', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<Cart tableId="t1" items={items} />)
+    expect(container.querySelector('.cart-summary')).toHaveClass('cart-summary--collapsed')
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+
+    expect(container.querySelector('.cart-summary')).toHaveClass('cart-summary--collapsed')
+  })
+
   it('opens the review modal instead of submitting when "Submit order" is tapped', async () => {
     const user = userEvent.setup()
     render(<Cart tableId="t1" items={items} />)

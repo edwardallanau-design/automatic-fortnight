@@ -174,7 +174,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
           )}
         </button>
 
-        <div className={`cart-summary${lines.length > 0 && !cartExpanded ? ' cart-summary--collapsed' : ''}`}>
+        <div className={`cart-summary${!cartExpanded ? ' cart-summary--collapsed' : ''}`}>
           <ul className="cart-summary__lines">
             {lines.map((line) => (
               <li key={line.menuItemId} className="cart-summary__line">

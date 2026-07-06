@@ -312,6 +312,7 @@ a {
   flex-direction: column;
   gap: 0.5rem;
   margin: 0.5rem 0 0.75rem;
+  padding-right: 0.5rem;
   max-height: 40vh;
   overflow-y: auto;
 }
@@ -338,6 +339,18 @@ a {
   color: var(--crema);
   font-size: 1.1rem;
   cursor: pointer;
+  transition: transform 0.1s ease, background-color 0.1s ease;
+}
+
+.cart-summary__stepper:active:not(:disabled) {
+  transform: scale(0.92);
+  background: var(--clay-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-summary__stepper:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .cart-summary__stepper:focus-visible,
@@ -348,14 +361,14 @@ a {
 
 .cart-summary__line-qty {
   font-family: var(--font-mono), monospace;
-  min-width: 1.5ch;
+  min-width: 3ch;
   text-align: center;
 }
 
 .cart-summary__line-price {
   font-family: var(--font-mono), monospace;
   color: var(--copper-bright);
-  min-width: 4.5ch;
+  min-width: 6ch;
   text-align: right;
 }
 
