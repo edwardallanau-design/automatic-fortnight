@@ -90,7 +90,7 @@ describe('Cart', () => {
     await user.click(screen.getByRole('button', { name: 'Submit order' }))
     await user.click(screen.getByRole('button', { name: 'Back to menu' }))
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(apiClient.post).not.toHaveBeenCalled()
     const order = screen.getByRole('region', { name: 'Your order' })
     expect(within(order).getByText('Burger')).toBeInTheDocument()

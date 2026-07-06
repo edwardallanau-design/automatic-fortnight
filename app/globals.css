@@ -477,21 +477,63 @@ a {
   inset: 0;
   z-index: 30;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
   background: color-mix(in srgb, var(--espresso) 60%, transparent);
+  animation: review-modal-backdrop-enter 0.2s ease-out;
+}
+
+.review-modal__backdrop--exiting {
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .review-modal {
   width: 100%;
-  max-width: 480px;
-  margin: 0 auto;
+  max-width: 420px;
   max-height: 85vh;
   overflow-y: auto;
   background: var(--paper);
   color: var(--espresso);
-  border-radius: 16px 16px 0 0;
+  border-radius: 16px;
   padding: 1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -8px 24px var(--clay-faint);
+  box-shadow: 0 8px 24px var(--clay-faint);
+  animation: review-modal-enter 0.2s ease-out;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.review-modal--exiting {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+@keyframes review-modal-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes review-modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-modal__backdrop,
+  .review-modal {
+    animation: none;
+    transition: none;
+  }
 }
 
 .review-modal__title {

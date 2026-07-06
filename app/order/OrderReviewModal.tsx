@@ -14,6 +14,7 @@ export function OrderReviewModal({
   total,
   error,
   submitting,
+  exiting,
   onConfirm,
   onClose,
 }: {
@@ -21,6 +22,7 @@ export function OrderReviewModal({
   total: number
   error: string | null
   submitting: boolean
+  exiting: boolean
   onConfirm: () => void
   onClose: () => void
 }) {
@@ -33,9 +35,13 @@ export function OrderReviewModal({
   }, [onClose])
 
   return (
-    <div className="review-modal__backdrop" data-testid="review-modal-backdrop" onClick={onClose}>
+    <div
+      className={`review-modal__backdrop${exiting ? ' review-modal__backdrop--exiting' : ''}`}
+      data-testid="review-modal-backdrop"
+      onClick={onClose}
+    >
       <div
-        className="review-modal"
+        className={`review-modal${exiting ? ' review-modal--exiting' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Review your order"

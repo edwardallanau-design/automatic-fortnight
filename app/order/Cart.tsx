@@ -29,6 +29,7 @@ const OTHER_CATEGORY = 'More'
 
 const TOAST_AUTO_DISMISS_MS = 4000
 const TOAST_EXIT_MS = 200
+const REVIEW_EXIT_MS = 200
 
 function categorize(items: MenuItemProps[]) {
   const groups = new Map<string, MenuItemProps[]>()
@@ -54,13 +55,29 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const toastExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewClosing, setReviewClosing] = useState(false)
+  const reviewCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
       if (toastExitTimerRef.current) clearTimeout(toastExitTimerRef.current)
+      if (reviewCloseTimerRef.current) clearTimeout(reviewCloseTimerRef.current)
     }
   }, [])
+
+  function openReview() {
+    if (reviewCloseTimerRef.current) clearTimeout(reviewCloseTimerRef.current)
+    setReviewClosing(false)
+    setReviewOpen(true)
+  }
+
+  function closeReview() {
+    setReviewOpen(false)
+    setReviewClosing(true)
+    if (reviewCloseTimerRef.current) clearTimeout(reviewCloseTimerRef.current)
+    reviewCloseTimerRef.current = setTimeout(() => setReviewClosing(false), REVIEW_EXIT_MS)
+  }
 
   function showToast(menuItemId: string, name: string) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
@@ -227,7 +244,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
           <button
             type="button"
             className="cart-summary__submit"
-            onClick={() => setReviewOpen(true)}
+            onClick={openReview}
             disabled={lines.length === 0 || submitting}
           >
             Submit order
@@ -235,16 +252,17 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
         </div>
       </section>
 
-      {reviewOpen && (
+      {(reviewOpen || reviewClosing) && (
         <OrderReviewModal
           lines={lines}
           total={cartTotal}
           error={error}
           submitting={submitting}
+          exiting={!reviewOpen}
           onConfirm={handleSubmit}
           onClose={() => {
             if (!submitting) {
-              setReviewOpen(false)
+              closeReview()
               setError(null)
             }
           }}

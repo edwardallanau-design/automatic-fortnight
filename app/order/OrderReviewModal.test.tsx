@@ -16,6 +16,7 @@ describe('OrderReviewModal', () => {
         total={29}
         error={null}
         submitting={false}
+        exiting={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -37,6 +38,7 @@ describe('OrderReviewModal', () => {
         total={29}
         error={null}
         submitting={false}
+        exiting={false}
         onConfirm={vi.fn()}
         onClose={onClose}
       />,
@@ -55,6 +57,7 @@ describe('OrderReviewModal', () => {
         total={29}
         error={null}
         submitting={false}
+        exiting={false}
         onConfirm={onConfirm}
         onClose={vi.fn()}
       />,
@@ -73,6 +76,7 @@ describe('OrderReviewModal', () => {
         total={29}
         error={null}
         submitting={false}
+        exiting={false}
         onConfirm={vi.fn()}
         onClose={onClose}
       />,
@@ -91,6 +95,7 @@ describe('OrderReviewModal', () => {
         total={29}
         error={null}
         submitting={false}
+        exiting={false}
         onConfirm={vi.fn()}
         onClose={onClose}
       />,
@@ -110,6 +115,7 @@ describe('OrderReviewModal', () => {
         total={29}
         error={null}
         submitting={true}
+        exiting={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -126,11 +132,28 @@ describe('OrderReviewModal', () => {
         total={29}
         error="Burger is no longer available"
         submitting={false}
+        exiting={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
     )
 
     expect(screen.getByRole('alert')).toHaveTextContent('Burger is no longer available')
+  })
+
+  it('adds an exiting class to the dialog when exiting is true', () => {
+    render(
+      <OrderReviewModal
+        lines={lines}
+        total={29}
+        error={null}
+        submitting={false}
+        exiting={true}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('dialog')).toHaveClass('review-modal--exiting')
   })
 })
