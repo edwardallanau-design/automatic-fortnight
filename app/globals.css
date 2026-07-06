@@ -466,6 +466,51 @@ a {
   font-size: 0.85rem;
 }
 
+.ticket__remove {
+  margin-left: 0.75rem;
+  border: none;
+  background: none;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.25rem 0.5rem;
+}
+
+.ticket__remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ticket__cancel {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #b91c1c;
+  border-radius: 8px;
+  background: none;
+  color: #b91c1c;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.ticket__cancel:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ticket__error {
+  margin-top: 0.75rem;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
 /* Staff dashboard */
 
 .staff-dashboard {
