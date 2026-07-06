@@ -5,7 +5,7 @@ export default async function TestTablePage() {
   if (process.env.NODE_ENV === 'production') {
     return (
       <main className="order-page">
-        <p className="order-page__error">This page isn&apos;t available.</p>
+        <p role="alert" className="order-page__error">This page isn&apos;t available.</p>
       </main>
     )
   }
