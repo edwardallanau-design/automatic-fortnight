@@ -54,8 +54,8 @@ const [reviewOpen, setReviewOpen] = useState(false)
 
 ## Rendering / styling notes
 
-- Toast: fixed-position banner, top of viewport, reuses the app's existing color tokens (`--espresso`/`--crema`/`--copper-bright`) rather than introducing new ones.
-- Modal: full-screen overlay over `.order-page`, content styled with the `.ticket`/`.ticket__stub` classes already defined in `globals.css` for visual consistency with `/order/[id]`.
+- Toast: fixed-position card below the page header (`top: 7.5rem`, clearing the header's rendered height), using the `--paper`/`--espresso`/`--clay-faint` on-page-card look (not `--espresso`/`--crema`) — the original top-of-viewport placement visually blended into the header, which also uses `--espresso`; this was found and fixed during manual browser verification.
+- Modal: full-screen bottom-sheet overlay (`.review-modal__backdrop` / `.review-modal`) styled directly with the app's existing tokens, rather than reusing the `.ticket`/`.ticket__stub` classes from `/order/[id]` — kept as its own dedicated style since its content (line items + total + actions) doesn't match the ticket-stub's read-only receipt layout closely enough to share classes cleanly.
 - No changes to `.menu-item-button`, `.cart-rail`, or `.cart-summary` structure/behavior beyond what's listed above.
 
 ## Testing
