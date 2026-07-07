@@ -1020,20 +1020,31 @@ a {
   width: 100%;
   margin-top: 1rem;
   padding: 0.75rem 1rem;
-  border: 1px solid #b91c1c;
+  border: 1px solid var(--danger);
   border-radius: 8px;
   background: none;
-  color: #b91c1c;
+  color: var(--danger);
   font-family: var(--font-body), Arial, sans-serif;
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
   min-height: 44px;
+  transition: transform 0.1s ease;
 }
 
 .ticket__cancel:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.ticket__cancel:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket__cancel:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .ticket__error {

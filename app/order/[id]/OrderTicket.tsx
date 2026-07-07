@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
+import { TicketCard } from './TicketCard'
+import { ConfirmDialog } from './ConfirmDialog'
 
 export type OrderTicketLine = {
   id: string
@@ -19,16 +21,19 @@ export type OrderTicketProps = {
 }
 
 const CONFLICT_MESSAGE = 'This order was just confirmed by staff and can no longer be changed.'
+const CONFIRM_EXIT_MS = 200
+
+type ConfirmAction = { type: 'remove'; itemId: string; name: string } | { type: 'cancel' }
 
 export function OrderTicket({ order }: { order: OrderTicketProps }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmClosing, setConfirmClosing] = useState(false)
+  const confirmCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const total = order.items.reduce(
-    (sum, item) => sum + Number(item.priceSnapshot) * item.quantity,
-    0,
-  )
   const singleLine = order.items.length === 1
 
   async function mutate(path: string) {
@@ -46,54 +51,79 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
     }
   }
 
+  function openConfirm(action: ConfirmAction) {
+    if (confirmCloseTimerRef.current) clearTimeout(confirmCloseTimerRef.current)
+    setConfirmAction(action)
+    setConfirmOpen(true)
+    setConfirmClosing(false)
+  }
+
+  function closeConfirm() {
+    setConfirmOpen(false)
+    setConfirmClosing(true)
+    if (confirmCloseTimerRef.current) clearTimeout(confirmCloseTimerRef.current)
+    confirmCloseTimerRef.current = setTimeout(() => {
+      setConfirmClosing(false)
+      setConfirmAction(null)
+    }, CONFIRM_EXIT_MS)
+  }
+
+  function handleConfirm() {
+    if (!confirmAction) return
+    const path =
+      confirmAction.type === 'cancel'
+        ? `/api/orders/${order.id}`
+        : `/api/orders/${order.id}/items/${confirmAction.itemId}`
+    closeConfirm()
+    mutate(path)
+  }
+
   return (
-    <section aria-label="Order confirmation" className="ticket">
-      <div className="ticket__stub">
-        <span className="ticket__label">Your ticket</span>
-        <h2 className="ticket__number">Order #{order.orderNumber} confirmed</h2>
-        {order.customerName && <p className="ticket__customer">For {order.customerName}</p>}
-        <ul className="ticket__lines">
-          {order.items.map((item) => (
-            <li key={item.id} className="ticket__line">
-              <span>
-                {item.nameSnapshot} x{item.quantity}
-              </span>
-              <span className="ticket__line-price">
-                ${(Number(item.priceSnapshot) * item.quantity).toFixed(2)}
-              </span>
-              {!singleLine && (
-                <button
-                  type="button"
-                  className="ticket__remove"
-                  aria-label={`Remove ${item.nameSnapshot}`}
-                  disabled={busy}
-                  onClick={() => mutate(`/api/orders/${order.id}/items/${item.id}`)}
-                >
-                  Remove
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-        <div className="ticket__total">
-          <span>Total</span>
-          <span className="ticket__total-price">${total.toFixed(2)}</span>
-        </div>
-        {error && (
-          <p role="alert" className="ticket__error">
-            {error}
-          </p>
-        )}
-        <button
-          type="button"
-          className="ticket__cancel"
-          disabled={busy}
-          onClick={() => mutate(`/api/orders/${order.id}`)}
-        >
-          Cancel order
-        </button>
-        <p className="ticket__note">Remove items or cancel while your order is still pending.</p>
-      </div>
-    </section>
+    <>
+      <TicketCard
+        heading={`Order #${order.orderNumber} confirmed`}
+        customerName={order.customerName}
+        busy={busy}
+        items={order.items.map((item) => ({
+          ...item,
+          onRemove: singleLine
+            ? undefined
+            : () => openConfirm({ type: 'remove', itemId: item.id, name: item.nameSnapshot }),
+        }))}
+        statusNote="Remove items or cancel while your order is still pending."
+        footer={
+          <>
+            {error && (
+              <p role="alert" className="ticket__error">
+                {error}
+              </p>
+            )}
+            <button
+              type="button"
+              className="ticket__cancel"
+              disabled={busy}
+              onClick={() => openConfirm({ type: 'cancel' })}
+            >
+              Cancel order
+            </button>
+          </>
+        }
+      />
+      {confirmAction && (confirmOpen || confirmClosing) && (
+        <ConfirmDialog
+          title={confirmAction.type === 'cancel' ? 'Cancel this order?' : 'Remove item?'}
+          message={
+            confirmAction.type === 'cancel'
+              ? "Staff won't receive it, and this can't be undone."
+              : `Remove ${confirmAction.name} from your order?`
+          }
+          confirmLabel={confirmAction.type === 'cancel' ? 'Yes, cancel' : 'Remove'}
+          busy={busy}
+          exiting={!confirmOpen}
+          onConfirm={handleConfirm}
+          onClose={closeConfirm}
+        />
+      )}
+    </>
   )
 }
