@@ -151,8 +151,10 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
         const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
           closeTimersRef.current.delete(timerId)
           setConfirmedUnpaidOrders((current) => current.filter((o) => o.id !== order.id))
-          setCompletedTodayCount((count) => count + 1)
-          bumpSummary()
+          // Do not optimistically bump completedTodayCount here: this order's
+          // confirmedAt may be from a prior day (the Confirmed & Unpaid lane is
+          // not date-scoped), so the server's date=today filter may correctly
+          // exclude it. Defer to the next poll tick, which is authoritative.
           setExitingIds((current) => {
             const next = new Set(current)
             next.delete(order.id)

@@ -215,7 +215,7 @@ describe('PendingOrdersDashboard', () => {
     expect(screen.getByText('Paid')).toBeInTheDocument()
   })
 
-  it('marking a Confirmed & Unpaid order Paid moves it to the completed-today count', async () => {
+  it('marking a Confirmed & Unpaid order Paid moves it out of the lane immediately, then the count updates on the next poll', async () => {
     mockLanes({ confirmedUnpaid: [{ ...orderA, fulfillmentStatus: 'Confirmed' }] })
     vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Paid' })
     render(<PendingOrdersDashboard role="staff" />)
@@ -232,7 +232,21 @@ describe('PendingOrdersDashboard', () => {
       await vi.advanceTimersByTimeAsync(200)
     })
 
+    // The order leaves the Confirmed & Unpaid lane immediately, but the
+    // completed-today count must NOT bump optimistically: this order's
+    // confirmedAt could be from a prior day, which the server's date=today
+    // filter would correctly exclude.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Confirmed and unpaid orders' })).not.toBeInTheDocument()
+    expect(screen.queryByText('1 completed today')).not.toBeInTheDocument()
+
+    // Next poll tick: the server now authoritatively reports the order as
+    // completed today (its confirmedAt was in fact today).
+    mockLanes({ completedToday: [{ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Paid' }] })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3500)
+    })
+
     expect(screen.getByText('1 completed today')).toBeInTheDocument()
   })
 
