@@ -31,7 +31,13 @@ export function OrderCard({
   exiting: boolean
   onOpen: () => void
 }) {
-  const badgeLabel = order.fulfillmentStatus === 'Pending' ? 'Needs confirmation' : 'Awaiting payment'
+  const badgeLabel =
+    order.fulfillmentStatus === 'Pending'
+      ? 'Needs confirmation'
+      : order.paymentStatus === 'Paid'
+        ? 'Paid'
+        : 'Unpaid'
+  const badgePaid = order.fulfillmentStatus === 'Confirmed' && order.paymentStatus === 'Paid'
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
@@ -50,7 +56,7 @@ export function OrderCard({
           <span className="order-card__number">#{order.orderNumber}</span>
         </div>
         <span className="order-card__time">{formatTimeAgo(order.createdAt)}</span>
-        <span className="order-card__badge">{badgeLabel}</span>
+        <span className={`order-card__badge${badgePaid ? ' order-card__badge--paid' : ''}`}>{badgeLabel}</span>
         <span className="order-card__summary">
           {itemCount} item{itemCount === 1 ? '' : 's'}
         </span>

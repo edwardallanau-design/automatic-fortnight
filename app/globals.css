@@ -1297,6 +1297,11 @@ a {
   border-radius: 999px;
 }
 
+.order-card__badge--paid {
+  color: var(--sage);
+  background: color-mix(in srgb, var(--sage) 15%, transparent);
+}
+
 .order-card__summary {
   font-size: 0.85rem;
   color: var(--clay);

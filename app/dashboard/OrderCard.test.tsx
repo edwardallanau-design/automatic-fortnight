@@ -37,12 +37,23 @@ describe('OrderCard', () => {
     expect(screen.getByText('$29.00')).toBeInTheDocument()
   })
 
-  it('shows "Needs confirmation" for a Pending order and "Awaiting payment" for a Confirmed one', () => {
+  it('shows "Needs confirmation" for a Pending order, "Unpaid" for a Confirmed-and-unpaid order, and "Paid" for a Confirmed-and-paid order', () => {
     const { rerender } = render(<OrderCard order={order} exiting={false} onOpen={vi.fn()} />)
     expect(screen.getByText('Needs confirmation')).toBeInTheDocument()
 
     rerender(<OrderCard order={{ ...order, fulfillmentStatus: 'Confirmed' }} exiting={false} onOpen={vi.fn()} />)
-    expect(screen.getByText('Awaiting payment')).toBeInTheDocument()
+    expect(screen.getByText('Unpaid')).toBeInTheDocument()
+
+    rerender(
+      <OrderCard
+        order={{ ...order, fulfillmentStatus: 'Confirmed', paymentStatus: 'Paid' }}
+        exiting={false}
+        onOpen={vi.fn()}
+      />,
+    )
+    const paidBadge = screen.getByText('Paid')
+    expect(paidBadge).toBeInTheDocument()
+    expect(paidBadge).toHaveClass('order-card__badge--paid')
   })
 
   it('calls onOpen when clicked', async () => {
