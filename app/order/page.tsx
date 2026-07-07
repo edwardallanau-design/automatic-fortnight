@@ -2,6 +2,7 @@ import { getTableOrThrow } from '@/lib/tableService'
 import { listMenuItems } from '@/lib/menuService'
 import { NotFoundError } from '@/lib/errors'
 import { Cart } from './Cart'
+import { OrderHeaderTitle } from './OrderHeaderTitle'
 
 export default async function OrderPage({
   searchParams,
@@ -28,7 +29,7 @@ export default async function OrderPage({
       <main className="order-page">
         <header className="order-header">
           <span className="order-header__eyebrow">Now serving</span>
-          <h1 className="order-header__title">Table {table.number}</h1>
+          <OrderHeaderTitle tableId={table.id} tableNumber={table.number} />
         </header>
         {items.length === 0 ? (
           <p className="order-page__empty">No items available right now.</p>

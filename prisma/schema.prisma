@@ -52,6 +52,7 @@ model Order {
   table             Table             @relation(fields: [tableId], references: [id])
   fulfillmentStatus FulfillmentStatus @default(Pending)
   paymentStatus     PaymentStatus     @default(Unpaid)
+  customerName      String?
   createdAt         DateTime          @default(now())
   confirmedAt       DateTime?
   items             OrderItem[]

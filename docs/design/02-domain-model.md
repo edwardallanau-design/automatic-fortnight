@@ -19,7 +19,7 @@
 **Entities.**
 - **Table** — `number` (unique), `qrCode` — identifies where an order originated; no lifecycle of its own.
 - **MenuItem** — `name`, `price`, `available` (boolean) — the sellable item; price changes and sold-out toggles apply only to *future* order items, never retroactively.
-- **Order** — `table` (ref), `fulfillmentStatus`, `paymentStatus`, `orderNumber`, `createdAt`, `confirmedAt` — the aggregate root for a customer's visit.
+- **Order** — `table` (ref), `fulfillmentStatus`, `paymentStatus`, `orderNumber`, `customerName` (optional, captured at submission, immutable afterward), `createdAt`, `confirmedAt` — the aggregate root for a customer's visit.
 - **OrderItem** — `menuItem` (ref), `nameSnapshot`, `priceSnapshot`, `quantity` — a line item belonging to exactly one Order.
 
 **Aggregates.**

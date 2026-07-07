@@ -93,6 +93,7 @@ describe('orderService.createOrder', () => {
     expect(prisma.order.create).toHaveBeenCalledWith({
       data: {
         tableId: 't1',
+        customerName: null,
         items: {
           create: [
             { menuItemId: 'm1', quantity: 2, nameSnapshot: 'Burger', priceSnapshot: new Prisma.Decimal('12.50') },
@@ -101,6 +102,36 @@ describe('orderService.createOrder', () => {
       },
       include: { items: true },
     })
+  })
+
+  it('persists a trimmed customerName', async () => {
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+    ] as never)
+    vi.mocked(prisma.order.create).mockResolvedValue({} as never)
+
+    await createOrder('t1', [{ menuItemId: 'm1', quantity: 1 }], '  Edward  ')
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ customerName: 'Edward' }),
+      }),
+    )
+  })
+
+  it('coerces an empty or whitespace-only customerName to null', async () => {
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+    ] as never)
+    vi.mocked(prisma.order.create).mockResolvedValue({} as never)
+
+    await createOrder('t1', [{ menuItemId: 'm1', quantity: 1 }], '   ')
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ customerName: null }),
+      }),
+    )
   })
 })
 

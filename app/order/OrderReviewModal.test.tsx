@@ -17,6 +17,8 @@ describe('OrderReviewModal', () => {
         error={null}
         submitting={false}
         exiting={false}
+        customerName=""
+        onCustomerNameChange={vi.fn()}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -39,6 +41,8 @@ describe('OrderReviewModal', () => {
         error={null}
         submitting={false}
         exiting={false}
+        customerName=""
+        onCustomerNameChange={vi.fn()}
         onConfirm={vi.fn()}
         onClose={onClose}
       />,
@@ -58,6 +62,8 @@ describe('OrderReviewModal', () => {
         error={null}
         submitting={false}
         exiting={false}
+        customerName=""
+        onCustomerNameChange={vi.fn()}
         onConfirm={onConfirm}
         onClose={vi.fn()}
       />,
@@ -77,6 +83,8 @@ describe('OrderReviewModal', () => {
         error={null}
         submitting={false}
         exiting={false}
+        customerName=""
+        onCustomerNameChange={vi.fn()}
         onConfirm={vi.fn()}
         onClose={onClose}
       />,
@@ -96,6 +104,8 @@ describe('OrderReviewModal', () => {
         error={null}
         submitting={false}
         exiting={false}
+        customerName=""
+        onCustomerNameChange={vi.fn()}
         onConfirm={vi.fn()}
         onClose={onClose}
       />,
@@ -116,6 +126,8 @@ describe('OrderReviewModal', () => {
         error={null}
         submitting={true}
         exiting={false}
+        customerName=""
+        onCustomerNameChange={vi.fn()}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -133,6 +145,8 @@ describe('OrderReviewModal', () => {
         error="Burger is no longer available"
         submitting={false}
         exiting={false}
+        customerName=""
+        onCustomerNameChange={vi.fn()}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -149,11 +163,71 @@ describe('OrderReviewModal', () => {
         error={null}
         submitting={false}
         exiting={true}
+        customerName=""
+        onCustomerNameChange={vi.fn()}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
     )
 
     expect(screen.getByRole('dialog')).toHaveClass('review-modal--exiting')
+  })
+
+  it('renders the name input with its current value and the nudge text', () => {
+    render(
+      <OrderReviewModal
+        lines={lines}
+        total={29}
+        error={null}
+        submitting={false}
+        exiting={false}
+        customerName="Edward"
+        onCustomerNameChange={vi.fn()}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('Name for this order')).toHaveValue('Edward')
+    expect(screen.getByText('Add a name so we can find you')).toBeInTheDocument()
+  })
+
+  it('reports name edits through onCustomerNameChange', async () => {
+    const onCustomerNameChange = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OrderReviewModal
+        lines={lines}
+        total={29}
+        error={null}
+        submitting={false}
+        exiting={false}
+        customerName=""
+        onCustomerNameChange={onCustomerNameChange}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    await user.type(screen.getByLabelText('Name for this order'), 'E')
+    expect(onCustomerNameChange).toHaveBeenCalledWith('E')
+  })
+
+  it('disables the name input while submitting', () => {
+    render(
+      <OrderReviewModal
+        lines={lines}
+        total={29}
+        error={null}
+        submitting={true}
+        exiting={false}
+        customerName=""
+        onCustomerNameChange={vi.fn()}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('Name for this order')).toBeDisabled()
   })
 })

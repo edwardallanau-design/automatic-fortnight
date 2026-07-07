@@ -331,6 +331,51 @@ describe('Cart', () => {
     expect(sessionStorage.getItem('cart:t1')).toBeNull()
   })
 
+  it('prefills the name field from a previously saved order name', async () => {
+    sessionStorage.setItem('orderName:t1', 'Edward')
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Submit order' }))
+
+    expect(screen.getByLabelText('Name for this order')).toHaveValue('Edward')
+  })
+
+  it('includes the trimmed name in the payload and saves it for next time', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 'order-1' })
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Submit order' }))
+    await user.type(screen.getByLabelText('Name for this order'), '  Edward ')
+    await user.click(screen.getByRole('button', { name: 'Confirm Order' }))
+
+    expect(apiClient.post).toHaveBeenCalledWith('/api/orders', {
+      tableId: 't1',
+      items: [{ menuItemId: 'm1', quantity: 1 }],
+      customerName: 'Edward',
+    })
+    expect(sessionStorage.getItem('orderName:t1')).toBe('Edward')
+  })
+
+  it('omits customerName from the payload when the field is left blank', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 'order-1' })
+    const user = userEvent.setup()
+    render(<Cart tableId="t1" items={items} />)
+
+    await user.click(screen.getByRole('button', { name: /Burger/ }))
+    await user.click(screen.getByRole('button', { name: 'Submit order' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm Order' }))
+
+    expect(apiClient.post).toHaveBeenCalledWith('/api/orders', {
+      tableId: 't1',
+      items: [{ menuItemId: 'm1', quantity: 1 }],
+    })
+    expect(sessionStorage.getItem('orderName:t1')).toBeNull()
+  })
+
   it('does not crash when sessionStorage.setItem throws on cart changes', async () => {
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('storage unavailable')

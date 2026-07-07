@@ -8,7 +8,11 @@ import type { Role } from './types'
 export type CartItemInput = { menuItemId: string; quantity: number }
 export type OrderWithItems = Order & { items: OrderItem[] }
 
-export async function createOrder(tableId: string, items: CartItemInput[]): Promise<OrderWithItems> {
+export async function createOrder(
+  tableId: string,
+  items: CartItemInput[],
+  customerName?: string,
+): Promise<OrderWithItems> {
   if (items.length === 0) {
     throw new ValidationError('Cart must contain at least one item')
   }
@@ -31,6 +35,7 @@ export async function createOrder(tableId: string, items: CartItemInput[]): Prom
   return prisma.order.create({
     data: {
       tableId,
+      customerName: customerName?.trim() || null,
       items: {
         create: items.map((item) => {
           const menuItem = menuItemsById.get(item.menuItemId)!

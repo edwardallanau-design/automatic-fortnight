@@ -41,6 +41,7 @@ export default async function OrderDetailPage({
   const ticket: OrderTicketProps = {
     id: order.id,
     orderNumber: order.orderNumber,
+    customerName: order.customerName,
     items: order.items.map((item) => ({
       id: item.id,
       nameSnapshot: item.nameSnapshot,
@@ -60,6 +61,7 @@ export default async function OrderDetailPage({
           <div className="ticket__stub">
             <span className="ticket__label">Your ticket</span>
             <h2 className="ticket__number">Order #{ticket.orderNumber} confirmed</h2>
+            {ticket.customerName && <p className="ticket__customer">For {ticket.customerName}</p>}
             <ul className="ticket__lines">
               {ticket.items.map((item) => (
                 <li key={item.id} className="ticket__line">

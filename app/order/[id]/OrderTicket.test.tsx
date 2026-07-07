@@ -18,6 +18,7 @@ function twoLineOrder() {
   return {
     id: 'o1',
     orderNumber: 47,
+    customerName: null,
     items: [
       { id: 'oi1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 },
       { id: 'oi2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 2 },
@@ -55,7 +56,7 @@ describe('OrderTicket', () => {
   it('hides the Remove button when only one line remains', () => {
     render(
       <OrderTicket
-        order={{ id: 'o1', orderNumber: 47, items: [{ id: 'oi1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }] }}
+        order={{ id: 'o1', orderNumber: 47, customerName: null, items: [{ id: 'oi1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }] }}
       />,
     )
 
@@ -74,5 +75,35 @@ describe('OrderTicket', () => {
       'This order was just confirmed by staff and can no longer be changed.',
     )
     expect(refresh).toHaveBeenCalled()
+  })
+
+  it('shows the customer name when the order has one', () => {
+    render(
+      <OrderTicket
+        order={{
+          id: 'o1',
+          orderNumber: 7,
+          customerName: 'Edward',
+          items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
+        }}
+      />,
+    )
+
+    expect(screen.getByText('For Edward')).toBeInTheDocument()
+  })
+
+  it('renders no name line when the order has none', () => {
+    render(
+      <OrderTicket
+        order={{
+          id: 'o1',
+          orderNumber: 7,
+          customerName: null,
+          items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
+        }}
+      />,
+    )
+
+    expect(screen.queryByText(/^For /)).not.toBeInTheDocument()
   })
 })

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
 import { OrderReviewModal } from './OrderReviewModal'
+import { readOrderName, saveOrderName } from './orderNameStorage'
 
 type MenuItemProps = {
   id: string
@@ -64,6 +65,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   const reviewCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [removingLineIds, setRemovingLineIds] = useState<Set<string>>(new Set())
   const removingLineTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const [customerName, setCustomerName] = useState('')
 
   useEffect(() => {
     return () => {
@@ -83,6 +85,8 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
     } catch {
       // Corrupted or inaccessible storage — start with an empty cart, no error shown.
     }
+    const savedName = readOrderName(tableId)
+    if (savedName) setCustomerName(savedName)
     // Runs once on mount only: tableId does not change for a mounted Cart instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -185,12 +189,15 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
     if (submitting) return
     setError(null)
     setSubmitting(true)
+    const trimmedName = customerName.trim()
     try {
       const order = await apiClient.post<{ id: string }>('/api/orders', {
         tableId,
         items: lines.map((line) => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
+        ...(trimmedName ? { customerName: trimmedName } : {}),
       })
       sessionStorage.removeItem(cartStorageKey(tableId))
+      if (trimmedName) saveOrderName(tableId, trimmedName)
       router.push(`/order/${order.id}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
@@ -329,6 +336,8 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
           error={error}
           submitting={submitting}
           exiting={!reviewOpen}
+          customerName={customerName}
+          onCustomerNameChange={setCustomerName}
           onConfirm={handleSubmit}
           onClose={() => {
             if (!submitting) {
