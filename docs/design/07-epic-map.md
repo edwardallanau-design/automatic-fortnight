@@ -112,7 +112,7 @@ Stories:
 - **Order history & reporting** — owner-facing view of past orders/revenue.
 - **Kitchen prep / served tracking** — extend the order lifecycle past Confirmed if the pilot shows a need to track food delivery to the table.
 - **Admin edits to Confirmed orders (UI)** — the domain rule exists (`INV-5` exception); the admin-facing UI for it can wait until the pilot surfaces real correction cases.
-- **Payment integration** — in-app payment, if pay-at-counter proves to be friction in practice.
+- **Payment integration** — in-app payment, if pay-at-counter proves to be friction in practice. If built, also surface the paid/unpaid flag on the customer-facing `/order/[id]` confirmation page (`TicketCard` deliberately omits `paymentStatus` today — see Story 10's design spec — since there's nothing for the customer to see or do about a staff-marked flag; that changes once the customer is the one initiating payment). Raised during the Story 10a tile redesign on 2026-07-08.
 - **Multi-venue / multi-tenant support** — only if a second restaurant client materializes (see `03-tenancy-model.md`).
 - **Discounts/promotions** — deliberately scrapped for MVP; revisit post-validation.
 - **Resume order by re-scanning the QR** — recover a lost order link by looking up the table's active Pending order; needs a decision on whether a table may hold >1 concurrent Pending order (new invariant). Deferred from Story 6.
