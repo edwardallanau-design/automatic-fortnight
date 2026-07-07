@@ -1,6 +1,8 @@
+import Link from 'next/link'
 import { getOrderById } from '@/lib/orderService'
 import { NotFoundError } from '@/lib/errors'
 import { OrderTicket, type OrderTicketProps } from './OrderTicket'
+import { TicketCard } from './TicketCard'
 
 export default async function OrderDetailPage({
   params,
@@ -25,9 +27,22 @@ export default async function OrderDetailPage({
     throw error
   }
 
+  const header = (
+    <header className="order-header">
+      <div className="order-header__row">
+        <span className="order-header__eyebrow">Your order</span>
+        <Link href={`/order?table=${order.table.id}`} className="order-header__back">
+          ← Menu
+        </Link>
+      </div>
+      <h1 className="order-header__title">Table {order.table.number}</h1>
+    </header>
+  )
+
   if (order.fulfillmentStatus === 'Cancelled') {
     return (
       <main className="order-page">
+        {header}
         <section aria-label="Order cancelled" className="ticket">
           <div className="ticket__stub">
             <h2 className="ticket__number">Order #{order.orderNumber}</h2>
@@ -51,42 +66,22 @@ export default async function OrderDetailPage({
   }
 
   if (order.fulfillmentStatus === 'Confirmed') {
-    const total = ticket.items.reduce(
-      (sum, item) => sum + Number(item.priceSnapshot) * item.quantity,
-      0,
-    )
     return (
       <main className="order-page">
-        <section aria-label="Order confirmation" className="ticket">
-          <div className="ticket__stub">
-            <span className="ticket__label">Your ticket</span>
-            <h2 className="ticket__number">Order #{ticket.orderNumber} confirmed</h2>
-            {ticket.customerName && <p className="ticket__customer">For {ticket.customerName}</p>}
-            <ul className="ticket__lines">
-              {ticket.items.map((item) => (
-                <li key={item.id} className="ticket__line">
-                  <span>
-                    {item.nameSnapshot} x{item.quantity}
-                  </span>
-                  <span className="ticket__line-price">
-                    ${(Number(item.priceSnapshot) * item.quantity).toFixed(2)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="ticket__total">
-              <span>Total</span>
-              <span className="ticket__total-price">${total.toFixed(2)}</span>
-            </div>
-            <p className="ticket__note">Confirmed by staff — ask staff to change anything.</p>
-          </div>
-        </section>
+        {header}
+        <TicketCard
+          heading={`Order #${ticket.orderNumber} confirmed`}
+          customerName={ticket.customerName}
+          items={ticket.items}
+          statusNote="Confirmed by staff — ask staff to change anything."
+        />
       </main>
     )
   }
 
   return (
     <main className="order-page">
+      {header}
       <OrderTicket order={ticket} />
     </main>
   )
