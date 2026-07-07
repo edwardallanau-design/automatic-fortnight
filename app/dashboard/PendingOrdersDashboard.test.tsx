@@ -233,8 +233,9 @@ describe('PendingOrdersDashboard', () => {
     })
 
     expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/pay', { paymentStatus: 'Paid' })
-    expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
-    expect(screen.getByText('Paid')).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog', { name: 'Order 101' })
+    expect(dialog).toBeInTheDocument()
+    expect(within(dialog).getByText('Paid')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Pending (1)' })).toBeInTheDocument()
   })
 
