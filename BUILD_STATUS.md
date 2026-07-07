@@ -35,7 +35,8 @@ Recommended build order: 1 → 2 → 3 → 4 → 5 → 7 → 8 → 6 (see `07-ep
 | 8 | Staff confirms order and marks payment | Done | |
 | 6 | Customer edits/cancels a Pending order | Done | Dedicated /order/[id] page; QR-rescan resume deferred to backlog |
 | 9 | Order customer name (user-directed, post-epic) | Done | Spec: docs/superpowers/specs/2026-07-07-order-customer-name-design.md |
-| 10 | Staff dashboard live redesign (user-directed, post-epic) | Done | Three-lane dashboard (Pending / Confirmed & Unpaid / Completed today), tap-to-open OrderDetailModal, live status polling on the customer confirmation page. Spec: docs/superpowers/specs/2026-07-08-staff-dashboard-live-redesign-design.md · Plan: docs/superpowers/plans/2026-07-08-staff-dashboard-live-redesign.md |
+| 10 | Staff dashboard live redesign (user-directed, post-epic) | Done | Tap-to-open OrderDetailModal, live status polling on the customer confirmation page. Original three-lane layout (Pending / Confirmed & Unpaid / Completed today) superseded after manual testing feedback — see Story 10a. Spec: docs/superpowers/specs/2026-07-08-staff-dashboard-live-redesign-design.md · Plan: docs/superpowers/plans/2026-07-08-staff-dashboard-live-redesign.md |
+| 10a | Staff dashboard tabs revision (user-directed, post-epic) | Done | Replaces Story 10's three-way lane split with two tabs (Pending / Confirmed, the latter = today's full confirmed history, paid or unpaid). Payment toggle is now a plain flag with no lane-routing side effects. Spec: docs/superpowers/specs/2026-07-08-staff-dashboard-tabs-revision-design.md · Plan: docs/superpowers/plans/2026-07-08-staff-dashboard-tabs-revision.md |
 
 Status values: `Backlog` · `Building` · `Blocked` · `Done`
 
