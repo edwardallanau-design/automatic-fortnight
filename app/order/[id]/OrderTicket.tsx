@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
 import { TicketCard } from './TicketCard'
@@ -33,6 +33,12 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmClosing, setConfirmClosing] = useState(false)
   const confirmCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (confirmCloseTimerRef.current) clearTimeout(confirmCloseTimerRef.current)
+    }
+  }, [])
 
   const singleLine = order.items.length === 1
 

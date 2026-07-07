@@ -1049,7 +1049,7 @@ a {
 
 .ticket__error {
   margin-top: 0.75rem;
-  color: #b91c1c;
+  color: var(--danger);
   font-size: 0.9rem;
 }
 

@@ -1,0 +1,58 @@
+<h2>Where should the add-to-cart toast sit?</h2>
+<p class="subtitle">This is a mobile-first order page (390px-wide phone screens are the primary case). Which placement reads clearest without covering things the customer needs?</p>
+
+<div class="options">
+  <div class="option" data-choice="top-center" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Top-center, below header</h3>
+      <p>Current placement. Centered banner just under the "Now Serving" header.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-body" style="position:relative;background:#f0e6d8;height:220px;border-radius:8px;overflow:hidden">
+          <div style="background:#2b1b14;color:#f7eee1;padding:10px;font-size:11px">NOW SERVING<br><b style="font-size:14px">Table 1</b></div>
+          <div style="position:absolute;top:56px;left:50%;transform:translateX(-50%);background:#fffdf9;border:1px solid #8c5a4855;border-radius:8px;padding:6px 10px;font-size:11px;box-shadow:0 4px 10px #0002;white-space:nowrap">Added Chai Latte to cart &nbsp;<span style="text-decoration:underline">Undo</span> &nbsp;✕</div>
+          <div style="padding:10px;font-size:11px;color:#2b1b14">Brewed &amp; Tea</div>
+          <div style="margin:0 10px;background:#fff;border:1px solid #eee;border-radius:8px;padding:8px;font-size:11px">Chai Latte — $4.75</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="top-right" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Top-right corner</h3>
+      <p>Anchored to the right edge, below the header — out of the main reading line.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-body" style="position:relative;background:#f0e6d8;height:220px;border-radius:8px;overflow:hidden">
+          <div style="background:#2b1b14;color:#f7eee1;padding:10px;font-size:11px">NOW SERVING<br><b style="font-size:14px">Table 1</b></div>
+          <div style="position:absolute;top:56px;right:8px;background:#fffdf9;border:1px solid #8c5a4855;border-radius:8px;padding:6px 8px;font-size:10px;box-shadow:0 4px 10px #0002;max-width:150px">Added Chai Latte to cart<br><span style="text-decoration:underline">Undo</span> &nbsp;✕</div>
+          <div style="padding:10px;font-size:11px;color:#2b1b14">Brewed &amp; Tea</div>
+          <div style="margin:0 10px;background:#fff;border:1px solid #eee;border-radius:8px;padding:8px;font-size:11px">Chai Latte — $4.75</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="above-cart-rail" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Above the cart rail (bottom)</h3>
+      <p>Appears right where the customer's eyes already are — next to the cart bar they just affected.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-body" style="position:relative;background:#f0e6d8;height:220px;border-radius:8px;overflow:hidden">
+          <div style="background:#2b1b14;color:#f7eee1;padding:10px;font-size:11px">NOW SERVING<br><b style="font-size:14px">Table 1</b></div>
+          <div style="padding:10px;font-size:11px;color:#2b1b14">Brewed &amp; Tea</div>
+          <div style="margin:0 10px;background:#fff;border:1px solid #eee;border-radius:8px;padding:8px;font-size:11px">Chai Latte — $4.75</div>
+          <div style="position:absolute;bottom:46px;left:50%;transform:translateX(-50%);background:#fffdf9;border:1px solid #8c5a4855;border-radius:8px;padding:6px 10px;font-size:11px;box-shadow:0 4px 10px #0002;white-space:nowrap">Added Chai Latte to cart &nbsp;<span style="text-decoration:underline">Undo</span> &nbsp;✕</div>
+          <div style="position:absolute;bottom:0;left:0;right:0;background:#2b1b14;color:#fff;padding:8px 10px;font-size:11px;display:flex;justify-content:space-between">1 item · Your order <b style="color:#d97b3c">$4.75</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">Why this matters</p>
+  <p class="subtitle">Top-right doesn't have much room to be distinct from top-center on a narrow phone screen — both sit in the same visual band under the header. Bottom placement puts the toast near the cart rail the action just changed, which is arguably a better "eyes are already there" match, but risks feeling crowded with the cart rail right below it.</p>
+</div>

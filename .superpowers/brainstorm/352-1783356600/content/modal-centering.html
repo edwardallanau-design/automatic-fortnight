@@ -1,0 +1,76 @@
+<h2>Review modal: bottom-sheet vs. centered card</h2>
+<p class="subtitle">Current implementation anchors the modal to the bottom edge (a "bottom sheet"). You asked for it centered regardless of screen size. Comparing both on a phone-width viewport and a wider one.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Current: bottom sheet (phone width)</div>
+    <div class="mockup-body" style="position:relative;background:#00000055;height:260px;border-radius:8px;overflow:hidden">
+      <div style="position:absolute;bottom:0;left:0;right:0;background:#fffdf9;border-radius:16px 16px 0 0;padding:14px;box-shadow:0 -6px 16px #0003">
+        <b style="font-family:serif;font-style:italic">Review your order</b>
+        <div style="font-size:11px;margin-top:8px;display:flex;justify-content:space-between"><span>1x Chai Latte</span><span>$4.75</span></div>
+        <div style="font-size:11px;font-weight:700;margin-top:6px;display:flex;justify-content:space-between;border-top:1px solid #eee;padding-top:6px"><span>Total</span><span>$4.75</span></div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <div style="flex:1;border:1px solid #ccc;border-radius:8px;padding:6px;text-align:center;font-size:11px">Back to menu</div>
+          <div style="flex:1;background:#b5642c;color:#fff;border-radius:8px;padding:6px;text-align:center;font-size:11px">Confirm Order</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Centered card (phone width)</div>
+    <div class="mockup-body" style="position:relative;background:#00000055;height:260px;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center">
+      <div style="width:85%;background:#fffdf9;border-radius:14px;padding:14px;box-shadow:0 8px 24px #0004">
+        <b style="font-family:serif;font-style:italic">Review your order</b>
+        <div style="font-size:11px;margin-top:8px;display:flex;justify-content:space-between"><span>1x Chai Latte</span><span>$4.75</span></div>
+        <div style="font-size:11px;font-weight:700;margin-top:6px;display:flex;justify-content:space-between;border-top:1px solid #eee;padding-top:6px"><span>Total</span><span>$4.75</span></div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <div style="flex:1;border:1px solid #ccc;border-radius:8px;padding:6px;text-align:center;font-size:11px">Back to menu</div>
+          <div style="flex:1;background:#b5642c;color:#fff;border-radius:8px;padding:6px;text-align:center;font-size:11px">Confirm Order</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <p class="label">On a wide (desktop) window</p>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Bottom sheet stretched full-width</div>
+    <div class="mockup-body" style="position:relative;background:#00000055;height:180px;border-radius:8px;overflow:hidden">
+      <div style="position:absolute;bottom:0;left:0;right:0;background:#fffdf9;border-radius:16px 16px 0 0;padding:12px;box-shadow:0 -6px 16px #0003">
+        <b style="font-family:serif;font-style:italic;font-size:12px">Review your order</b>
+        <div style="font-size:10px;margin-top:6px">1x Chai Latte — $4.75 · Total $4.75</div>
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">Centered card, capped width</div>
+    <div class="mockup-body" style="position:relative;background:#00000055;height:180px;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center">
+      <div style="width:200px;background:#fffdf9;border-radius:14px;padding:12px;box-shadow:0 8px 24px #0004">
+        <b style="font-family:serif;font-style:italic;font-size:12px">Review your order</b>
+        <div style="font-size:10px;margin-top:6px">1x Chai Latte — $4.75 · Total $4.75</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:16px">
+  <div class="option" data-choice="centered-capped" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Centered card, width capped (Recommended)</h3>
+      <p>Floating dialog, vertically + horizontally centered, max-width ~420px even on wide screens so it never stretches into a giant awkward box.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="centered-fluid" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Centered card, fluid width</h3>
+      <p>Same centering, but width scales with viewport (e.g. 90% up to some max) rather than a hard cap.</p>
+    </div>
+  </div>
+</div>
