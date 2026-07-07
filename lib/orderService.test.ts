@@ -177,6 +177,50 @@ describe('orderService.listOrders', () => {
       orderBy: { createdAt: 'asc' },
     })
   })
+
+  it('queries with a paymentStatus filter combined with status', async () => {
+    vi.mocked(prisma.order.findMany).mockResolvedValue([] as never)
+
+    await listOrders({ status: 'Confirmed', paymentStatus: 'Unpaid' })
+
+    expect(prisma.order.findMany).toHaveBeenCalledWith({
+      where: { fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid' },
+      include: { items: true, table: true },
+      orderBy: { createdAt: 'asc' },
+    })
+  })
+
+  it('queries with a same-day confirmedAt range for date=today', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-08T15:30:00.000Z'))
+    vi.mocked(prisma.order.findMany).mockResolvedValue([] as never)
+
+    await listOrders({ status: 'Confirmed', paymentStatus: 'Paid', date: 'today' })
+
+    const call = vi.mocked(prisma.order.findMany).mock.calls[0][0] as {
+      where: { fulfillmentStatus?: string; paymentStatus?: string; confirmedAt?: { gte: Date; lt: Date } }
+    }
+    expect(call.where.fulfillmentStatus).toBe('Confirmed')
+    expect(call.where.paymentStatus).toBe('Paid')
+    const { gte, lt } = call.where.confirmedAt!
+    expect(lt.getTime() - gte.getTime()).toBe(24 * 60 * 60 * 1000)
+    expect(gte.getTime()).toBeLessThanOrEqual(Date.now())
+    expect(lt.getTime()).toBeGreaterThan(Date.now())
+
+    vi.useRealTimers()
+  })
+
+  it('omits paymentStatus and confirmedAt from the where clause when not requested', async () => {
+    vi.mocked(prisma.order.findMany).mockResolvedValue([] as never)
+
+    await listOrders({ status: 'Pending' })
+
+    expect(prisma.order.findMany).toHaveBeenCalledWith({
+      where: { fulfillmentStatus: 'Pending' },
+      include: { items: true, table: true },
+      orderBy: { createdAt: 'asc' },
+    })
+  })
 })
 
 describe('orderService.confirmOrder', () => {

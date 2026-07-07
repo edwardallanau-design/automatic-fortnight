@@ -1,4 +1,4 @@
-import type { Order, OrderItem, Table, FulfillmentStatus, PaymentStatus } from '@prisma/client'
+import type { Order, OrderItem, Table, FulfillmentStatus, PaymentStatus, Prisma } from '@prisma/client'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
@@ -54,9 +54,22 @@ export async function createOrder(
 
 export type OrderWithItemsAndTable = Order & { items: OrderItem[]; table: Table }
 
-export async function listOrders(options: { status?: FulfillmentStatus } = {}): Promise<OrderWithItemsAndTable[]> {
+export async function listOrders(
+  options: { status?: FulfillmentStatus; paymentStatus?: PaymentStatus; date?: 'today' } = {},
+): Promise<OrderWithItemsAndTable[]> {
+  const where: Prisma.OrderWhereInput = {}
+  if (options.status) where.fulfillmentStatus = options.status
+  if (options.paymentStatus) where.paymentStatus = options.paymentStatus
+  if (options.date === 'today') {
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+    const startOfNextDay = new Date(startOfDay)
+    startOfNextDay.setDate(startOfNextDay.getDate() + 1)
+    where.confirmedAt = { gte: startOfDay, lt: startOfNextDay }
+  }
+
   return prisma.order.findMany({
-    where: options.status ? { fulfillmentStatus: options.status } : {},
+    where,
     include: { items: true, table: true },
     orderBy: { createdAt: 'asc' },
   })
