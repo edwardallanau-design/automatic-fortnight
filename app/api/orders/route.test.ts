@@ -39,7 +39,36 @@ describe('POST /api/orders', () => {
     expect(res.status).toBe(201)
     const body = await res.json()
     expect(body.orderNumber).toBe(1)
-    expect(createOrder).toHaveBeenCalledWith('t1', [{ menuItemId: 'm1', quantity: 2 }])
+    expect(createOrder).toHaveBeenCalledWith('t1', [{ menuItemId: 'm1', quantity: 2 }], undefined)
+  })
+
+  it('forwards a trimmed customerName to the service', async () => {
+    vi.mocked(createOrder).mockResolvedValue({ id: 'o1' } as never)
+
+    const res = await POST(
+      makeRequest({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }], customerName: '  Edward  ' }),
+    )
+
+    expect(res.status).toBe(201)
+    expect(createOrder).toHaveBeenCalledWith('t1', [{ menuItemId: 'm1', quantity: 1 }], 'Edward')
+  })
+
+  it('returns 400 when customerName exceeds 50 characters after trimming', async () => {
+    const res = await POST(
+      makeRequest({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }], customerName: 'x'.repeat(51) }),
+    )
+
+    expect(res.status).toBe(400)
+    expect(createOrder).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when customerName is not a string', async () => {
+    const res = await POST(
+      makeRequest({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }], customerName: 42 }),
+    )
+
+    expect(res.status).toBe(400)
+    expect(createOrder).not.toHaveBeenCalled()
   })
 
   it('returns 400 when tableId is missing', async () => {

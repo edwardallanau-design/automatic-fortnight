@@ -15,7 +15,7 @@ services:
 
   app:
     build: .
-    restart: unless-stopped
+    restart: "no"
     env_file: .env.docker
     depends_on:
       db:

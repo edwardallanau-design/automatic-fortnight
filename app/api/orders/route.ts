@@ -52,7 +52,19 @@ export async function POST(request: Request) {
       }
     }
 
-    const order = await createOrder(body.tableId, body.items)
+    let customerName: string | undefined
+    if (body.customerName !== undefined && body.customerName !== null) {
+      if (typeof body.customerName !== 'string') {
+        throw new ValidationError('customerName must be a string')
+      }
+      const trimmedName: string = body.customerName.trim()
+      if (trimmedName.length > 50) {
+        throw new ValidationError('customerName must be 50 characters or fewer')
+      }
+      customerName = trimmedName
+    }
+
+    const order = await createOrder(body.tableId, body.items, customerName)
     return NextResponse.json(order, { status: 201 })
   } catch (error) {
     return handleApiError(error)
