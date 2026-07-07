@@ -1169,16 +1169,6 @@ a {
   }
 }
 
-.order-rail__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  text-align: center;
-  padding: 4rem 1rem;
-  color: var(--clay);
-}
-
 .order-rail__empty-eyebrow {
   font-family: var(--font-display), Georgia, serif;
   font-style: italic;
@@ -1496,54 +1486,40 @@ a {
   border-radius: 999px;
 }
 
-/* Dashboard lanes and completed-today summary */
+/* Dashboard tabs */
 
-.order-rail__summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-left: auto;
-  font-family: var(--font-mono), monospace;
-  font-size: 0.78rem;
-  color: var(--sage);
-  background: color-mix(in srgb, var(--sage) 12%, transparent);
-  padding: 0.3rem 0.7rem;
-  border-radius: 999px;
+.order-rail__tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--clay-faint);
 }
 
-.order-rail__summary--bump {
-  animation: order-rail-summary-bump 0.3s ease-out;
+.order-rail__tab {
+  padding: 0.6rem 0.2rem;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--clay);
+  cursor: pointer;
 }
 
-@keyframes order-rail-summary-bump {
-  0% {
-    transform: scale(1.15);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .order-rail__summary--bump {
-    animation: none;
-  }
-}
-
-.order-rail__lane {
-  margin-top: 2rem;
-}
-
-.order-rail__lane:first-of-type {
-  margin-top: 0;
-}
-
-.order-rail__lane-heading {
-  font-family: var(--font-display), Georgia, serif;
-  font-style: italic;
-  font-size: 1.1rem;
-  margin-bottom: 0.75rem;
+.order-rail__tab:hover {
   color: var(--espresso);
+}
+
+.order-rail__tab:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.order-rail__tab--active {
+  color: var(--espresso);
+  border-bottom-color: var(--copper);
 }
 
 /* Test table picker (dev/QA) */

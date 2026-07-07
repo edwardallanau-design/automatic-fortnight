@@ -7,10 +7,10 @@ import { OrderCard, type OrderCardOrder } from './OrderCard'
 import { OrderDetailModal } from './OrderDetailModal'
 
 const POLL_INTERVAL_MS = 3500
-const LANE_EXIT_MS = 200
-const SUMMARY_BUMP_MS = 300
+const EXIT_MS = 200
 
 type DashboardOrder = OrderCardOrder
+type Tab = 'pending' | 'confirmed'
 
 type ModalState = { orderId: string; busy: boolean; error: string | null; closing: boolean }
 
@@ -18,27 +18,20 @@ function errorMessage(err: unknown): string {
   return err instanceof ApiError ? err.message : 'Something went wrong. Please try again.'
 }
 
-async function fetchLanes(): Promise<{
-  pending: DashboardOrder[]
-  confirmedUnpaid: DashboardOrder[]
-  completedTodayCount: number
-}> {
-  const [pending, confirmedUnpaid, completedToday] = await Promise.all([
+async function fetchTabs(): Promise<{ pending: DashboardOrder[]; confirmed: DashboardOrder[] }> {
+  const [pending, confirmed] = await Promise.all([
     apiClient.get<DashboardOrder[]>('/api/orders?status=pending'),
-    apiClient.get<DashboardOrder[]>('/api/orders?status=confirmed&paymentStatus=unpaid'),
-    apiClient.get<DashboardOrder[]>('/api/orders?status=confirmed&paymentStatus=paid&date=today'),
+    apiClient.get<DashboardOrder[]>('/api/orders?status=confirmed&date=today'),
   ])
-  return { pending, confirmedUnpaid, completedTodayCount: completedToday.length }
+  return { pending, confirmed }
 }
 
 export function PendingOrdersDashboard({ role }: { role: Role }) {
+  const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [pendingOrders, setPendingOrders] = useState<DashboardOrder[]>([])
-  const [confirmedUnpaidOrders, setConfirmedUnpaidOrders] = useState<DashboardOrder[]>([])
-  const [completedTodayCount, setCompletedTodayCount] = useState(0)
+  const [confirmedOrders, setConfirmedOrders] = useState<DashboardOrder[]>([])
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
   const [modal, setModal] = useState<ModalState | null>(null)
-  const [summaryBump, setSummaryBump] = useState(false)
-  const bumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const closeTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
 
   useEffect(() => {
@@ -46,13 +39,12 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
 
     async function poll() {
       try {
-        const lanes = await fetchLanes()
+        const tabs = await fetchTabs()
         if (cancelled) return
-        setPendingOrders(lanes.pending)
-        setConfirmedUnpaidOrders(lanes.confirmedUnpaid)
-        setCompletedTodayCount(lanes.completedTodayCount)
+        setPendingOrders(tabs.pending)
+        setConfirmedOrders(tabs.confirmed)
       } catch {
-        // Transient poll failure: keep the last-known lanes, retry next tick.
+        // Transient poll failure: keep the last-known lists, retry next tick.
       }
     }
 
@@ -66,25 +58,13 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
 
   useEffect(() => {
     return () => {
-      if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current)
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => {
       for (const timerId of closeTimersRef.current) clearTimeout(timerId)
       closeTimersRef.current.clear()
     }
   }, [])
 
-  function bumpSummary() {
-    setSummaryBump(true)
-    if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current)
-    bumpTimerRef.current = setTimeout(() => setSummaryBump(false), SUMMARY_BUMP_MS)
-  }
-
   const selectedOrder = modal
-    ? [...pendingOrders, ...confirmedUnpaidOrders].find((order) => order.id === modal.orderId) ?? null
+    ? [...pendingOrders, ...confirmedOrders].find((order) => order.id === modal.orderId) ?? null
     : null
 
   function openModal(orderId: string) {
@@ -97,35 +77,26 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
     const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
       closeTimersRef.current.delete(timerId)
       setModal((current) => (current && current.orderId === closingOrderId && current.closing ? null : current))
-    }, LANE_EXIT_MS)
+    }, EXIT_MS)
     closeTimersRef.current.add(timerId)
   }
 
   async function handleConfirm(order: DashboardOrder) {
     setModal((current) => (current ? { ...current, busy: true, error: null } : current))
     try {
-      const updated = await apiClient.patch<DashboardOrder>(`/api/orders/${order.id}/confirm`, {})
+      await apiClient.patch<DashboardOrder>(`/api/orders/${order.id}/confirm`, {})
       setExitingIds((current) => new Set(current).add(order.id))
       setModal((current) => (current ? { ...current, closing: true } : current))
       const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
         closeTimersRef.current.delete(timerId)
         setPendingOrders((current) => current.filter((o) => o.id !== order.id))
-        if (updated.paymentStatus === 'Paid') {
-          setCompletedTodayCount((count) => count + 1)
-          bumpSummary()
-        } else {
-          setConfirmedUnpaidOrders((current) => [
-            ...current,
-            { ...order, fulfillmentStatus: 'Confirmed', paymentStatus: updated.paymentStatus },
-          ])
-        }
         setExitingIds((current) => {
           const next = new Set(current)
           next.delete(order.id)
           return next
         })
         setModal((current) => (current && current.orderId === order.id && current.closing ? null : current))
-      }, LANE_EXIT_MS)
+      }, EXIT_MS)
       closeTimersRef.current.add(timerId)
     } catch (err) {
       setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
@@ -136,98 +107,66 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
     setModal((current) => (current ? { ...current, busy: true, error: null } : current))
     try {
       const updated = await apiClient.patch<DashboardOrder>(`/api/orders/${order.id}/pay`, { paymentStatus })
-
-      if (order.fulfillmentStatus === 'Pending') {
-        setPendingOrders((current) =>
-          current.map((o) => (o.id === order.id ? { ...o, paymentStatus: updated.paymentStatus } : o)),
-        )
-        setModal((current) => (current ? { ...current, busy: false, error: null } : current))
-        return
-      }
-
-      if (paymentStatus === 'Paid') {
-        setExitingIds((current) => new Set(current).add(order.id))
-        setModal((current) => (current ? { ...current, closing: true } : current))
-        const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
-          closeTimersRef.current.delete(timerId)
-          setConfirmedUnpaidOrders((current) => current.filter((o) => o.id !== order.id))
-          // Do not optimistically bump completedTodayCount here: this order's
-          // confirmedAt may be from a prior day (the Confirmed & Unpaid lane is
-          // not date-scoped), so the server's date=today filter may correctly
-          // exclude it. Defer to the next poll tick, which is authoritative.
-          setExitingIds((current) => {
-            const next = new Set(current)
-            next.delete(order.id)
-            return next
-          })
-          setModal((current) => (current && current.orderId === order.id && current.closing ? null : current))
-        }, LANE_EXIT_MS)
-        closeTimersRef.current.add(timerId)
-      } else {
-        setConfirmedUnpaidOrders((current) =>
-          current.map((o) => (o.id === order.id ? { ...o, paymentStatus: updated.paymentStatus } : o)),
-        )
-        setModal((current) => (current ? { ...current, busy: false, error: null } : current))
-      }
+      const applyUpdate = (current: DashboardOrder[]) =>
+        current.map((o) => (o.id === order.id ? { ...o, paymentStatus: updated.paymentStatus } : o))
+      setPendingOrders(applyUpdate)
+      setConfirmedOrders(applyUpdate)
+      setModal((current) => (current ? { ...current, busy: false, error: null } : current))
     } catch (err) {
       setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
     }
   }
 
-  const totalVisible = pendingOrders.length + confirmedUnpaidOrders.length
+  const activeOrders = activeTab === 'pending' ? pendingOrders : confirmedOrders
+  const emptyMessage = activeTab === 'pending' ? 'No pending orders' : 'No orders confirmed yet today'
 
   return (
     <div className="order-rail">
       <div className="order-rail__status">
         <span className="order-rail__pulse" aria-hidden="true" />
         <span>Live — refreshes every few seconds</span>
-        <span className={`order-rail__summary${summaryBump ? ' order-rail__summary--bump' : ''}`}>
-          {completedTodayCount} completed today
-        </span>
       </div>
 
-      {totalVisible === 0 ? (
-        <div className="order-rail__empty">
-          <span className="order-rail__empty-eyebrow">All caught up</span>
-          <p>No pending orders</p>
-        </div>
-      ) : (
-        <>
-          <section className="order-rail__lane" aria-label="Pending orders">
-            <h2 className="order-rail__lane-heading">Pending</h2>
-            {pendingOrders.length === 0 ? (
-              <p className="order-rail__empty-eyebrow">No pending orders</p>
-            ) : (
-              <ul className="order-grid">
-                {pendingOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    exiting={exitingIds.has(order.id)}
-                    onOpen={() => openModal(order.id)}
-                  />
-                ))}
-              </ul>
-            )}
-          </section>
+      <div className="order-rail__tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'pending'}
+          className={`order-rail__tab${activeTab === 'pending' ? ' order-rail__tab--active' : ''}`}
+          onClick={() => setActiveTab('pending')}
+        >
+          Pending ({pendingOrders.length})
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'confirmed'}
+          className={`order-rail__tab${activeTab === 'confirmed' ? ' order-rail__tab--active' : ''}`}
+          onClick={() => setActiveTab('confirmed')}
+        >
+          Confirmed ({confirmedOrders.length})
+        </button>
+      </div>
 
-          {confirmedUnpaidOrders.length > 0 && (
-            <section className="order-rail__lane" aria-label="Confirmed and unpaid orders">
-              <h2 className="order-rail__lane-heading">Confirmed · awaiting payment</h2>
-              <ul className="order-grid">
-                {confirmedUnpaidOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    exiting={exitingIds.has(order.id)}
-                    onOpen={() => openModal(order.id)}
-                  />
-                ))}
-              </ul>
-            </section>
-          )}
-        </>
-      )}
+      <section
+        className="order-rail__panel"
+        aria-label={activeTab === 'pending' ? 'Pending orders' : 'Confirmed orders'}
+      >
+        {activeOrders.length === 0 ? (
+          <p className="order-rail__empty-eyebrow">{emptyMessage}</p>
+        ) : (
+          <ul className="order-grid">
+            {activeOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                exiting={exitingIds.has(order.id)}
+                onOpen={() => openModal(order.id)}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
 
       {modal && selectedOrder && (
         <OrderDetailModal
