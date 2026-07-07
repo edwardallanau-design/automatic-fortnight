@@ -109,7 +109,7 @@ Stories:
 ---
 
 **Backlog epics (placeholders).**
-- **Order history & reporting** — owner-facing view of past orders/revenue.
+- **Order history & reporting** — owner-facing view of past orders/revenue. Could include time-to-confirm analytics (gap between `createdAt` and `confirmedAt` per order) once both timestamps are surfaced to the dashboard for the Story 10a tile-and-tabs polish — raised during that work on 2026-07-08 as a data-analytics idea, explicitly deferred to this epic rather than built alongside the UX-only timestamp/sort change.
 - **Kitchen prep / served tracking** — extend the order lifecycle past Confirmed if the pilot shows a need to track food delivery to the table.
 - **Admin edits to Confirmed orders (UI)** — the domain rule exists (`INV-5` exception); the admin-facing UI for it can wait until the pilot surfaces real correction cases.
 - **Payment integration** — in-app payment, if pay-at-counter proves to be friction in practice. If built, also surface the paid/unpaid flag on the customer-facing `/order/[id]` confirmation page (`TicketCard` deliberately omits `paymentStatus` today — see Story 10's design spec — since there's nothing for the customer to see or do about a staff-marked flag; that changes once the customer is the one initiating payment). Raised during the Story 10a tile redesign on 2026-07-08.
