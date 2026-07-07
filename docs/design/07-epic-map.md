@@ -97,11 +97,11 @@ Stories:
 
 **Story 8 — Staff confirms order and marks payment**
 - **Context anchor.** Epic: Digital Ordering Core Loop · Bounded context: Ordering · Follow patterns in `02-domain-model.md` state machines (fulfillmentStatus, paymentStatus)
-- **Vertical slice.** From the dashboard, staff/admin can confirm a Pending order (`→ Confirmed`) and independently toggle `paymentStatus` (`Unpaid ↔ Paid`, with `Paid → Unpaid` restricted to admin per `INV-9`).
+- **Vertical slice.** From the dashboard, staff/admin can confirm a Pending order (`→ Confirmed`) and independently toggle `paymentStatus` (`Unpaid ↔ Paid` in either direction).
 - **Acceptance criteria.**
   - Staff confirming a `Pending` order sets `fulfillmentStatus=Confirmed`; the order becomes immutable to customer/staff (`INV-5`).
   - Staff can mark `paymentStatus=Paid` regardless of `fulfillmentStatus` (`INV-8`).
-  - Staff attempting to revert `Paid → Unpaid` is rejected (`403`); admin performing the same succeeds (`INV-9`).
+  - Any staff or admin can revert `Paid → Unpaid` (any authenticated session succeeds with `200`; `INV-9`).
   - Confirming an already-`Confirmed` or `Cancelled` order is rejected (`409`).
 - **Scope boundary — do NOT touch.** Menu management, table setup.
 - **Fits one window?** Yes.
