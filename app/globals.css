@@ -167,6 +167,8 @@ a {
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.1s ease;
+  animation: menu-item-arrive 0.25s ease-out backwards;
+  animation-delay: var(--stagger-delay, 0ms);
 }
 
 .menu-item-button:hover:not(:disabled) {
@@ -215,6 +217,23 @@ a {
 
 .menu-item-button:disabled .menu-item-button__price {
   color: var(--clay);
+}
+
+@keyframes menu-item-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-item-button {
+    animation: none;
+  }
 }
 
 /* Cart rail — persistent bottom bar that expands */
@@ -312,6 +331,7 @@ a {
   flex-direction: column;
   gap: 0.5rem;
   margin: 0.5rem 0 0.75rem;
+  padding-right: 0.5rem;
   max-height: 40vh;
   overflow-y: auto;
 }
@@ -322,6 +342,36 @@ a {
   gap: 0.5rem;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--clay-faint);
+  max-height: 60px;
+  overflow: hidden;
+  animation: cart-line-arrive 0.2s ease-out;
+  transition: opacity 0.2s ease, transform 0.2s ease, max-height 0.2s ease, padding 0.2s ease;
+}
+
+.cart-summary__line--removing {
+  opacity: 0;
+  transform: translateX(8px);
+  max-height: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+@keyframes cart-line-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-summary__line {
+    animation: none;
+    transition: none;
+  }
 }
 
 .cart-summary__line-name {
@@ -338,6 +388,18 @@ a {
   color: var(--crema);
   font-size: 1.1rem;
   cursor: pointer;
+  transition: transform 0.1s ease, background-color 0.1s ease;
+}
+
+.cart-summary__stepper:active:not(:disabled) {
+  transform: scale(0.92);
+  background: var(--clay-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-summary__stepper:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .cart-summary__stepper:focus-visible,
@@ -348,14 +410,14 @@ a {
 
 .cart-summary__line-qty {
   font-family: var(--font-mono), monospace;
-  min-width: 1.5ch;
+  min-width: 3ch;
   text-align: center;
 }
 
 .cart-summary__line-price {
   font-family: var(--font-mono), monospace;
   color: var(--copper-bright);
-  min-width: 4.5ch;
+  min-width: 6ch;
   text-align: right;
 }
 
@@ -382,6 +444,231 @@ a {
   color: #e8a05a;
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
+}
+
+/* Add-to-cart toast */
+
+.cart-toast {
+  position: fixed;
+  top: 7.5rem;
+  right: 1rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  max-width: min(240px, calc(100% - 2rem));
+  padding: 0.75rem 2.25rem 0.75rem 1rem;
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--espresso);
+  border: 1px solid var(--clay-faint);
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.9rem;
+  box-shadow: 0 8px 24px var(--clay-faint);
+  animation: cart-toast-enter 0.2s ease-out;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.cart-toast--exiting {
+  opacity: 0;
+  transform: translateX(12px);
+}
+
+.cart-toast__undo {
+  border: none;
+  background: none;
+  color: var(--copper);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0 0.25rem;
+}
+
+.cart-toast__close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  background: none;
+  color: var(--clay);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@keyframes cart-toast-enter {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-toast {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Order review modal */
+
+.review-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--espresso) 60%, transparent);
+  animation: review-modal-backdrop-enter 0.2s ease-out;
+}
+
+.review-modal__backdrop--exiting {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.review-modal {
+  width: 100%;
+  max-width: 420px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--paper);
+  color: var(--espresso);
+  border-radius: 16px;
+  padding: 1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 8px 24px var(--clay-faint);
+  animation: review-modal-enter 0.2s ease-out;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.review-modal--exiting {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+@keyframes review-modal-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes review-modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-modal__backdrop,
+  .review-modal {
+    animation: none;
+    transition: none;
+  }
+}
+
+.review-modal__title {
+  font-family: var(--font-display), Georgia, serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+}
+
+.review-modal__lines {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.review-modal__line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.95rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--clay-faint);
+}
+
+.review-modal__line-price {
+  font-family: var(--font-mono), monospace;
+  white-space: nowrap;
+}
+
+.review-modal__total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--clay-faint);
+  font-weight: 600;
+  font-family: var(--font-mono), monospace;
+  margin-bottom: 1rem;
+}
+
+.review-modal__error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.review-modal__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.review-modal__back,
+.review-modal__confirm {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 10px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.review-modal__back {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  color: var(--espresso);
+}
+
+.review-modal__confirm {
+  border: none;
+  background: var(--copper);
+  color: var(--paper);
+}
+
+.review-modal__back:disabled,
+.review-modal__confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.review-modal__back:focus-visible,
+.review-modal__confirm:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
 }
 
 /* Ticket-stub order confirmation */

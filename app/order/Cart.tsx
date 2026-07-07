@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
+import { OrderReviewModal } from './OrderReviewModal'
 
 type MenuItemProps = {
   id: string
@@ -26,6 +27,11 @@ const CATEGORIES: { label: string; match: RegExp }[] = [
 ]
 const OTHER_CATEGORY = 'More'
 
+const TOAST_AUTO_DISMISS_MS = 4000
+const TOAST_EXIT_MS = 200
+const REVIEW_EXIT_MS = 200
+const LINE_EXIT_MS = 200
+
 function categorize(items: MenuItemProps[]) {
   const groups = new Map<string, MenuItemProps[]>()
   for (const item of items) {
@@ -40,11 +46,96 @@ function categorize(items: MenuItemProps[]) {
     .map((label) => ({ label, items: groups.get(label)! }))
 }
 
+function cartStorageKey(tableId: string) {
+  return `cart:${tableId}`
+}
+
 export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps[] }) {
   const [lines, setLines] = useState<CartLine[]>([])
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [cartExpanded, setCartExpanded] = useState(false)
+  const [toast, setToast] = useState<{ menuItemId: string; name: string } | null>(null)
+  const [toastExiting, setToastExiting] = useState(false)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toastExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewClosing, setReviewClosing] = useState(false)
+  const reviewCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [removingLineIds, setRemovingLineIds] = useState<Set<string>>(new Set())
+  const removingLineTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+      if (toastExitTimerRef.current) clearTimeout(toastExitTimerRef.current)
+      if (reviewCloseTimerRef.current) clearTimeout(reviewCloseTimerRef.current)
+      removingLineTimersRef.current.forEach((timer) => clearTimeout(timer))
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(cartStorageKey(tableId))
+      if (saved) {
+        setLines(JSON.parse(saved))
+      }
+    } catch {
+      // Corrupted or inaccessible storage — start with an empty cart, no error shown.
+    }
+    // Runs once on mount only: tableId does not change for a mounted Cart instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(cartStorageKey(tableId), JSON.stringify(lines))
+    } catch {
+      // Corrupted or inaccessible storage — silently ignore the failure.
+    }
+  }, [lines, tableId])
+
+  function openReview() {
+    if (reviewCloseTimerRef.current) clearTimeout(reviewCloseTimerRef.current)
+    setReviewClosing(false)
+    setReviewOpen(true)
+  }
+
+  function closeReview() {
+    setReviewOpen(false)
+    setReviewClosing(true)
+    if (reviewCloseTimerRef.current) clearTimeout(reviewCloseTimerRef.current)
+    reviewCloseTimerRef.current = setTimeout(() => setReviewClosing(false), REVIEW_EXIT_MS)
+  }
+
+  function showToast(menuItemId: string, name: string) {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    if (toastExitTimerRef.current) clearTimeout(toastExitTimerRef.current)
+    setToastExiting(false)
+    setToast({ menuItemId, name })
+    toastTimerRef.current = setTimeout(() => dismissToast(), TOAST_AUTO_DISMISS_MS)
+  }
+
+  function dismissToast() {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToastExiting(true)
+    toastExitTimerRef.current = setTimeout(() => {
+      setToast(null)
+      setToastExiting(false)
+    }, TOAST_EXIT_MS)
+  }
+
+  function undoToast() {
+    if (!toast) return
+    const line = lines.find((l) => l.menuItemId === toast.menuItemId)
+    if (line?.quantity === 1) {
+      removeLineWithAnimation(toast.menuItemId)
+    } else {
+      adjustQuantity(toast.menuItemId, -1)
+    }
+    dismissToast()
+  }
+
   const router = useRouter()
 
   function addItem(item: MenuItemProps) {
@@ -57,6 +148,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
       }
       return [...prev, { menuItemId: item.id, name: item.name, price: item.price, quantity: 1 }]
     })
+    showToast(item.id, item.name)
   }
 
   function adjustQuantity(menuItemId: string, delta: number) {
@@ -65,6 +157,28 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
         .map((line) => (line.menuItemId === menuItemId ? { ...line, quantity: line.quantity + delta } : line))
         .filter((line) => line.quantity > 0),
     )
+  }
+
+  function removeLineWithAnimation(menuItemId: string) {
+    setRemovingLineIds((prev) => new Set(prev).add(menuItemId))
+    const timer = setTimeout(() => {
+      adjustQuantity(menuItemId, -1)
+      setRemovingLineIds((prev) => {
+        const next = new Set(prev)
+        next.delete(menuItemId)
+        return next
+      })
+      removingLineTimersRef.current.delete(menuItemId)
+    }, LINE_EXIT_MS)
+    removingLineTimersRef.current.set(menuItemId, timer)
+  }
+
+  function handleDecrease(line: CartLine) {
+    if (line.quantity === 1) {
+      removeLineWithAnimation(line.menuItemId)
+    } else {
+      adjustQuantity(line.menuItemId, -1)
+    }
   }
 
   async function handleSubmit() {
@@ -76,6 +190,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
         tableId,
         items: lines.map((line) => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
       })
+      sessionStorage.removeItem(cartStorageKey(tableId))
       router.push(`/order/${order.id}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
@@ -89,30 +204,49 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
 
   return (
     <>
+      {toast && (
+        <div className={`cart-toast${toastExiting ? ' cart-toast--exiting' : ''}`} role="status">
+          <span>Added {toast.name} to cart</span>
+          <button type="button" className="cart-toast__undo" onClick={undoToast}>
+            Undo
+          </button>
+          <button type="button" className="cart-toast__close" aria-label="Dismiss" onClick={dismissToast}>
+            ×
+          </button>
+        </div>
+      )}
       <div className="menu-categories">
-        {categories.map((category) => (
-          <div key={category.label} className="menu-category">
-            <h2 className="menu-category__title">{category.label}</h2>
-            <ul className="menu-list">
-              {category.items.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className="menu-item-button"
-                    disabled={!item.available}
-                    onClick={() => addItem(item)}
-                  >
-                    <span>
-                      <span className="menu-item-button__name">{item.name}</span>
-                      {!item.available && <span className="menu-item-button__sold-out">Sold out</span>}
-                    </span>
-                    <span className="menu-item-button__price">${item.price}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {(() => {
+          let staggerIndex = 0
+          return categories.map((category) => (
+            <div key={category.label} className="menu-category">
+              <h2 className="menu-category__title">{category.label}</h2>
+              <ul className="menu-list">
+                {category.items.map((item) => {
+                  const staggerDelay = `${Math.min(staggerIndex * 30, 300)}ms`
+                  staggerIndex += 1
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        className="menu-item-button"
+                        style={{ '--stagger-delay': staggerDelay } as React.CSSProperties}
+                        disabled={!item.available}
+                        onClick={() => addItem(item)}
+                      >
+                        <span>
+                          <span className="menu-item-button__name">{item.name}</span>
+                          {!item.available && <span className="menu-item-button__sold-out">Sold out</span>}
+                        </span>
+                        <span className="menu-item-button__price">${item.price}</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))
+        })()}
       </div>
 
       <section aria-label="Your order" className="cart-rail">
@@ -141,16 +275,20 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
           )}
         </button>
 
-        <div className={`cart-summary${lines.length > 0 && !cartExpanded ? ' cart-summary--collapsed' : ''}`}>
+        <div className={`cart-summary${!cartExpanded ? ' cart-summary--collapsed' : ''}`}>
           <ul className="cart-summary__lines">
             {lines.map((line) => (
-              <li key={line.menuItemId} className="cart-summary__line">
+              <li
+                key={line.menuItemId}
+                className={`cart-summary__line${removingLineIds.has(line.menuItemId) ? ' cart-summary__line--removing' : ''}`}
+              >
                 <span className="cart-summary__line-name">{line.name}</span>
                 <button
                   type="button"
                   className="cart-summary__stepper"
                   aria-label={`Decrease ${line.name} quantity`}
-                  onClick={() => adjustQuantity(line.menuItemId, -1)}
+                  onClick={() => handleDecrease(line)}
+                  disabled={removingLineIds.has(line.menuItemId)}
                 >
                   -
                 </button>
@@ -160,6 +298,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
                   className="cart-summary__stepper"
                   aria-label={`Increase ${line.name} quantity`}
                   onClick={() => adjustQuantity(line.menuItemId, 1)}
+                  disabled={removingLineIds.has(line.menuItemId)}
                 >
                   +
                 </button>
@@ -167,7 +306,7 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
               </li>
             ))}
           </ul>
-          {error && (
+          {error && !reviewOpen && (
             <p role="alert" className="cart-summary__error">
               {error}
             </p>
@@ -175,13 +314,30 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
           <button
             type="button"
             className="cart-summary__submit"
-            onClick={handleSubmit}
+            onClick={openReview}
             disabled={lines.length === 0 || submitting}
           >
             Submit order
           </button>
         </div>
       </section>
+
+      {(reviewOpen || reviewClosing) && (
+        <OrderReviewModal
+          lines={lines}
+          total={cartTotal}
+          error={error}
+          submitting={submitting}
+          exiting={!reviewOpen}
+          onConfirm={handleSubmit}
+          onClose={() => {
+            if (!submitting) {
+              closeReview()
+              setError(null)
+            }
+          }}
+        />
+      )}
     </>
   )
 }
