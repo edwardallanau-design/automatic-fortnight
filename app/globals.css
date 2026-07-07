@@ -10,6 +10,7 @@
   --sage: #6b7a5e;
   --clay: #8c5a48;
   --clay-faint: #8c5a4833;
+  --danger: #b91c1c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +23,7 @@
     --espresso: #f7eee1;
     --clay: #c9a894;
     --clay-faint: #c9a89433;
+    --danger: #e57373;
   }
 }
 
@@ -666,7 +668,7 @@ a {
 }
 
 .review-modal__error {
-  color: #b91c1c;
+  color: var(--danger);
   font-size: 0.9rem;
   margin-bottom: 1rem;
 }
