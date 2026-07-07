@@ -47,6 +47,15 @@ describe('OrderDetailPage', () => {
     )
   })
 
+  it('does not show a header or back link when the order is not found', async () => {
+    vi.mocked(getOrderById).mockRejectedValue(new NotFoundError('Order not found'))
+
+    const ui = await OrderDetailPage({ params: Promise.resolve({ id: 'missing' }) })
+    render(ui)
+
+    expect(screen.queryByRole('link', { name: '← Menu' })).not.toBeInTheDocument()
+  })
+
   it('renders the editable ticket for a Pending order', async () => {
     vi.mocked(getOrderById).mockResolvedValue(order('Pending') as never)
 
@@ -54,6 +63,16 @@ describe('OrderDetailPage', () => {
     render(ui)
 
     expect(screen.getByTestId('order-ticket')).toHaveTextContent('editable #47')
+  })
+
+  it('shows the table header and a back-to-menu link for a Pending order', async () => {
+    vi.mocked(getOrderById).mockResolvedValue(order('Pending') as never)
+
+    const ui = await OrderDetailPage({ params: Promise.resolve({ id: 'o1' }) })
+    render(ui)
+
+    expect(screen.getByText('Table 4')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '← Menu' })).toHaveAttribute('href', '/order?table=t1')
   })
 
   it('renders a locked note for a Confirmed order and no editable ticket', async () => {
@@ -75,6 +94,15 @@ describe('OrderDetailPage', () => {
     expect(screen.getByText('This order was cancelled.')).toBeInTheDocument()
   })
 
+  it('shows the table header and back-to-menu link for a Cancelled order', async () => {
+    vi.mocked(getOrderById).mockResolvedValue(order('Cancelled') as never)
+
+    const ui = await OrderDetailPage({ params: Promise.resolve({ id: 'o1' }) })
+    render(ui)
+
+    expect(screen.getByRole('link', { name: '← Menu' })).toHaveAttribute('href', '/order?table=t1')
+  })
+
   it('shows the customer name on a confirmed order', async () => {
     vi.mocked(getOrderById).mockResolvedValue({
       id: 'o1',
@@ -84,6 +112,7 @@ describe('OrderDetailPage', () => {
       items: [
         { id: 'i1', nameSnapshot: 'Burger', priceSnapshot: { toString: () => '12.50' }, quantity: 1 },
       ],
+      table: { id: 't1', number: 4, createdAt: new Date() },
     } as never)
 
     const ui = await OrderDetailPage({ params: Promise.resolve({ id: 'o1' }) })
