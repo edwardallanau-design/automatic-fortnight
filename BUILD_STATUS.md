@@ -34,7 +34,7 @@ Recommended build order: 1 → 2 → 3 → 4 → 5 → 7 → 8 → 6 (see `07-ep
 | 7 | Staff dashboard: view Pending orders (polling) | Done | |
 | 8 | Staff confirms order and marks payment | Done | |
 | 6 | Customer edits/cancels a Pending order | Done | Dedicated /order/[id] page; QR-rescan resume deferred to backlog |
-| 9 | Order customer name (user-directed, post-epic) | Building | Spec: docs/superpowers/specs/2026-07-07-order-customer-name-design.md |
+| 9 | Order customer name (user-directed, post-epic) | Done | Spec: docs/superpowers/specs/2026-07-07-order-customer-name-design.md |
 
 Status values: `Backlog` · `Building` · `Blocked` · `Done`
 

@@ -285,4 +285,27 @@ describe('PendingOrdersDashboard', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByText('Paid')).toBeInTheDocument()
   })
+
+  it('shows the customer name on the order card when present', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue([{ ...orderA, customerName: 'Edward' }])
+    render(<PendingOrdersDashboard role="staff" />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    expect(screen.getByText(/· Edward/)).toBeInTheDocument()
+  })
+
+  it('shows no name segment when the order has none', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue([{ ...orderA, customerName: null }])
+    render(<PendingOrdersDashboard role="staff" />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    expect(screen.getByText('Table 4')).toBeInTheDocument()
+    expect(screen.queryByText(/·/)).not.toBeInTheDocument()
+  })
 })

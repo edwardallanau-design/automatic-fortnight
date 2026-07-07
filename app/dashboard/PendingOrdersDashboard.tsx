@@ -18,6 +18,7 @@ type PendingOrder = {
   orderNumber: number
   createdAt: string
   paymentStatus: 'Unpaid' | 'Paid'
+  customerName: string | null
   table: { number: number }
   items: PendingOrderItem[]
 }
@@ -113,7 +114,12 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
                 className={`order-card${isPaid ? '' : ' order-card--unpaid'}`}
               >
                 <div className="order-card__head">
-                  <span className="order-card__table">Table {order.table.number}</span>
+                  <span className="order-card__table">
+                    Table {order.table.number}
+                    {order.customerName && (
+                      <span className="order-card__customer"> · {order.customerName}</span>
+                    )}
+                  </span>
                   <span className="order-card__number">#{order.orderNumber}</span>
                 </div>
                 <span className="order-card__time">{formatTimeAgo(order.createdAt)}</span>
