@@ -315,4 +315,30 @@ describe('PendingOrdersDashboard', () => {
 
     expect(screen.getByRole('dialog', { name: 'Order 102' })).toBeInTheDocument()
   })
+
+  it('does not let a stale close timer clobber order A after it is reopened before the timer fires', async () => {
+    mockLanes({ pending: [orderA] })
+    render(<PendingOrdersDashboard role="staff" />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('order-detail-modal-backdrop'))
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
+  })
 })

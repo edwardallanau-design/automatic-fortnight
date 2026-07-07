@@ -96,7 +96,7 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
     setModal((current) => (current ? { ...current, closing: true } : current))
     const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
       closeTimersRef.current.delete(timerId)
-      setModal((current) => (current && current.orderId === closingOrderId ? null : current))
+      setModal((current) => (current && current.orderId === closingOrderId && current.closing ? null : current))
     }, LANE_EXIT_MS)
     closeTimersRef.current.add(timerId)
   }
@@ -124,7 +124,7 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
           next.delete(order.id)
           return next
         })
-        setModal((current) => (current && current.orderId === order.id ? null : current))
+        setModal((current) => (current && current.orderId === order.id && current.closing ? null : current))
       }, LANE_EXIT_MS)
       closeTimersRef.current.add(timerId)
     } catch (err) {
@@ -158,7 +158,7 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
             next.delete(order.id)
             return next
           })
-          setModal((current) => (current && current.orderId === order.id ? null : current))
+          setModal((current) => (current && current.orderId === order.id && current.closing ? null : current))
         }, LANE_EXIT_MS)
         closeTimersRef.current.add(timerId)
       } else {
