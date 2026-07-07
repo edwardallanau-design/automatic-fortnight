@@ -134,7 +134,7 @@ describe('GET /api/orders', () => {
     const body = await res.json()
     expect(body).toHaveLength(1)
     expect(body[0].orderNumber).toBe(1)
-    expect(listOrders).toHaveBeenCalledWith({ status: 'Pending' })
+    expect(listOrders).toHaveBeenCalledWith({ status: 'Pending', paymentStatus: undefined, date: undefined })
   })
 
   it('returns 200 with an unfiltered call when no status is given', async () => {
@@ -143,7 +143,7 @@ describe('GET /api/orders', () => {
     const res = await GET(makeGetRequest())
 
     expect(res.status).toBe(200)
-    expect(listOrders).toHaveBeenCalledWith({ status: undefined })
+    expect(listOrders).toHaveBeenCalledWith({ status: undefined, paymentStatus: undefined, date: undefined })
   })
 
   it('returns 400 for an invalid status value', async () => {
@@ -170,5 +170,37 @@ describe('GET /api/orders', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body).toEqual([])
+  })
+
+  it('returns 200 with a paymentStatus filter combined with status', async () => {
+    vi.mocked(listOrders).mockResolvedValue([] as never)
+
+    const res = await GET(makeGetRequest('?status=confirmed&paymentStatus=unpaid'))
+
+    expect(res.status).toBe(200)
+    expect(listOrders).toHaveBeenCalledWith({ status: 'Confirmed', paymentStatus: 'Unpaid', date: undefined })
+  })
+
+  it('returns 200 with a date=today filter', async () => {
+    vi.mocked(listOrders).mockResolvedValue([] as never)
+
+    const res = await GET(makeGetRequest('?status=confirmed&paymentStatus=paid&date=today'))
+
+    expect(res.status).toBe(200)
+    expect(listOrders).toHaveBeenCalledWith({ status: 'Confirmed', paymentStatus: 'Paid', date: 'today' })
+  })
+
+  it('returns 400 for an invalid paymentStatus value', async () => {
+    const res = await GET(makeGetRequest('?paymentStatus=bogus'))
+
+    expect(res.status).toBe(400)
+    expect(listOrders).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for an invalid date value', async () => {
+    const res = await GET(makeGetRequest('?date=yesterday'))
+
+    expect(res.status).toBe(400)
+    expect(listOrders).not.toHaveBeenCalled()
   })
 })
