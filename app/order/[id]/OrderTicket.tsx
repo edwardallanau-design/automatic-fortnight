@@ -87,7 +87,7 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
   return (
     <>
       <TicketCard
-        heading={`Order #${order.orderNumber} confirmed`}
+        heading={`Order #${order.orderNumber}`}
         customerName={order.customerName}
         busy={busy}
         items={order.items.map((item) => ({
