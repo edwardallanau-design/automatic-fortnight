@@ -625,6 +625,40 @@ a {
   margin-bottom: 1rem;
 }
 
+.review-modal__name {
+  margin-bottom: 1rem;
+}
+
+.review-modal__name-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+}
+
+.review-modal__name-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 10px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.95rem;
+  color: var(--espresso);
+  background: none;
+}
+
+.review-modal__name-input:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.review-modal__name-hint {
+  font-size: 0.8rem;
+  color: var(--clay);
+  margin-top: 0.35rem;
+}
+
 .review-modal__error {
   color: #b91c1c;
   font-size: 0.9rem;

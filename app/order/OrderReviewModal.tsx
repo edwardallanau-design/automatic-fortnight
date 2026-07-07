@@ -15,6 +15,8 @@ export function OrderReviewModal({
   error,
   submitting,
   exiting,
+  customerName,
+  onCustomerNameChange,
   onConfirm,
   onClose,
 }: {
@@ -23,6 +25,8 @@ export function OrderReviewModal({
   error: string | null
   submitting: boolean
   exiting: boolean
+  customerName: string
+  onCustomerNameChange: (value: string) => void
   onConfirm: () => void
   onClose: () => void
 }) {
@@ -63,6 +67,22 @@ export function OrderReviewModal({
         <div className="review-modal__total">
           <span>Total</span>
           <span>${total.toFixed(2)}</span>
+        </div>
+        <div className="review-modal__name">
+          <label className="review-modal__name-label" htmlFor="order-customer-name">
+            Name for this order
+          </label>
+          <input
+            id="order-customer-name"
+            type="text"
+            className="review-modal__name-input"
+            value={customerName}
+            maxLength={50}
+            placeholder="e.g. Alex"
+            disabled={submitting}
+            onChange={(event) => onCustomerNameChange(event.target.value)}
+          />
+          <p className="review-modal__name-hint">Add a name so we can find you</p>
         </div>
         {error && (
           <p role="alert" className="review-modal__error">
