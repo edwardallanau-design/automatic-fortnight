@@ -153,6 +153,39 @@ describe('PendingOrdersDashboard', () => {
     expect(screen.getByText('No orders confirmed yet today')).toBeInTheDocument()
   })
 
+  it('shows no sort control on the Pending tab', async () => {
+    mockTabs({ pending: [orderA] })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    expect(screen.queryByRole('button', { name: /Newest first|Oldest first/ })).not.toBeInTheDocument()
+  })
+
+  it('sorts the Confirmed tab newest-first by default and toggles to oldest-first', async () => {
+    const older = { ...orderA, fulfillmentStatus: 'Confirmed', confirmedAt: '2026-07-04T10:00:00.000Z' }
+    const newer = { ...orderB, fulfillmentStatus: 'Confirmed', confirmedAt: '2026-07-04T11:00:00.000Z' }
+    mockTabs({ confirmed: [older, newer] })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (2)' }))
+
+    const newestFirst = screen.getAllByRole('button', { name: /Order 10[12]/ })
+    expect(newestFirst[0]).toHaveAttribute('aria-label', expect.stringContaining('Order 102'))
+    expect(newestFirst[1]).toHaveAttribute('aria-label', expect.stringContaining('Order 101'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Newest first' }))
+
+    const oldestFirst = screen.getAllByRole('button', { name: /Order 10[12]/ })
+    expect(oldestFirst[0]).toHaveAttribute('aria-label', expect.stringContaining('Order 101'))
+    expect(oldestFirst[1]).toHaveAttribute('aria-label', expect.stringContaining('Order 102'))
+  })
+
   it('opens the detail modal when a card is tapped', async () => {
     mockTabs({ pending: [orderA] })
     render(<PendingOrdersDashboard />)

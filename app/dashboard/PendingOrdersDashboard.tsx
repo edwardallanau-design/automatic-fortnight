@@ -27,6 +27,7 @@ async function fetchTabs(): Promise<{ pending: DashboardOrder[]; confirmed: Dash
 
 export function PendingOrdersDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
+  const [sortDirection, setSortDirection] = useState<'newest' | 'oldest'>('newest')
   const [pendingOrders, setPendingOrders] = useState<DashboardOrder[]>([])
   const [confirmedOrders, setConfirmedOrders] = useState<DashboardOrder[]>([])
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
@@ -116,7 +117,16 @@ export function PendingOrdersDashboard() {
     }
   }
 
-  const activeOrders = activeTab === 'pending' ? pendingOrders : confirmedOrders
+  function sortConfirmedOrders(orders: DashboardOrder[]): DashboardOrder[] {
+    const sorted = [...orders].sort((a, b) => {
+      const aTime = a.confirmedAt ? new Date(a.confirmedAt).getTime() : 0
+      const bTime = b.confirmedAt ? new Date(b.confirmedAt).getTime() : 0
+      return aTime - bTime
+    })
+    return sortDirection === 'newest' ? sorted.reverse() : sorted
+  }
+
+  const activeOrders = activeTab === 'pending' ? pendingOrders : sortConfirmedOrders(confirmedOrders)
   const emptyMessage = activeTab === 'pending' ? 'No pending orders' : 'No orders confirmed yet today'
 
   return (
@@ -146,6 +156,19 @@ export function PendingOrdersDashboard() {
           Confirmed ({confirmedOrders.length})
         </button>
       </div>
+
+      {activeTab === 'confirmed' && (
+        <button
+          type="button"
+          className="order-rail__sort"
+          onClick={() => setSortDirection((current) => (current === 'newest' ? 'oldest' : 'newest'))}
+        >
+          <span className="order-rail__sort-arrow" aria-hidden="true">
+            {sortDirection === 'newest' ? '↓' : '↑'}
+          </span>
+          {sortDirection === 'newest' ? 'Newest first' : 'Oldest first'}
+        </button>
+      )}
 
       <section
         className="order-rail__panel"

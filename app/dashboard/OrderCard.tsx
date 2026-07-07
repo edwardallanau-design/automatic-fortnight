@@ -6,6 +6,7 @@ export type OrderCardOrder = {
   id: string
   orderNumber: number
   createdAt: string
+  confirmedAt?: string | null
   fulfillmentStatus: 'Pending' | 'Confirmed'
   paymentStatus: 'Unpaid' | 'Paid'
   customerName: string | null
@@ -16,6 +17,10 @@ export type OrderCardOrder = {
 function formatTimeAgo(createdAt: string): string {
   const elapsedMinutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000)
   return elapsedMinutes < 1 ? 'just now' : `${elapsedMinutes} min ago`
+}
+
+function formatTimestamp(confirmedAt: string): string {
+  return new Date(confirmedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
 function orderTotal(order: OrderCardOrder): number {
@@ -32,6 +37,10 @@ export function OrderCard({
   onOpen: () => void
 }) {
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
+  const timeLabel =
+    order.fulfillmentStatus === 'Confirmed' && order.confirmedAt
+      ? formatTimestamp(order.confirmedAt)
+      : formatTimeAgo(order.createdAt)
 
   return (
     <li className="order-grid__item">
@@ -47,7 +56,7 @@ export function OrderCard({
           {order.customerName && <span className="order-card__customer"> · {order.customerName}</span>}
         </span>
         <span className="order-card__meta">
-          <span className="order-card__time">{formatTimeAgo(order.createdAt)}</span>
+          <span className="order-card__time">{timeLabel}</span>
           <span className="order-card__summary">
             {itemCount} item{itemCount === 1 ? '' : 's'}
           </span>

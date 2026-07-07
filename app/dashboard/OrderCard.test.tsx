@@ -78,6 +78,23 @@ describe('OrderCard', () => {
     expect(screen.getByText('Paid')).toHaveClass('order-card__badge--paid')
   })
 
+  it('shows relative time for a Pending order', () => {
+    render(<OrderCard order={order} exiting={false} onOpen={vi.fn()} />)
+    expect(screen.getByText('2 min ago')).toBeInTheDocument()
+  })
+
+  it('shows a wall-clock timestamp for a Confirmed order, derived from confirmedAt not createdAt', () => {
+    render(
+      <OrderCard
+        order={{ ...order, fulfillmentStatus: 'Confirmed', confirmedAt: '2026-07-04T18:30:00.000Z' }}
+        exiting={false}
+        onOpen={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/\d{1,2}:\d{2}\s?(AM|PM)/i)).toBeInTheDocument()
+    expect(screen.queryByText(/min ago|just now/)).not.toBeInTheDocument()
+  })
+
   it('never renders "Needs confirmation" or "Awaiting payment"', () => {
     render(<OrderCard order={order} exiting={false} onOpen={vi.fn()} />)
     expect(screen.queryByText('Needs confirmation')).not.toBeInTheDocument()
