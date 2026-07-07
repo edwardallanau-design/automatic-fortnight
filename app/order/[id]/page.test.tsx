@@ -8,10 +8,10 @@ vi.mock('@/lib/orderService', () => ({
   getOrderById: vi.fn(),
 }))
 
-// OrderTicket is a client component with next/navigation + apiClient deps;
+// OrderStatusPoller is a client component with next/navigation + apiClient deps;
 // stub it so the page test stays focused on branching.
-vi.mock('./OrderTicket', () => ({
-  OrderTicket: ({ order }: { order: { orderNumber: number } }) => (
+vi.mock('./OrderStatusPoller', () => ({
+  OrderStatusPoller: ({ order }: { order: { orderNumber: number } }) => (
     <div data-testid="order-ticket">editable #{order.orderNumber}</div>
   ),
 }))

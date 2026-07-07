@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { getOrderById } from '@/lib/orderService'
 import { NotFoundError } from '@/lib/errors'
-import { OrderTicket, type OrderTicketProps } from './OrderTicket'
+import type { OrderTicketProps } from './OrderTicket'
+import { OrderStatusPoller } from './OrderStatusPoller'
 import { TicketCard } from './TicketCard'
 
 export default async function OrderDetailPage({
@@ -82,7 +83,7 @@ export default async function OrderDetailPage({
   return (
     <main className="order-page">
       {header}
-      <OrderTicket order={ticket} />
+      <OrderStatusPoller order={ticket} />
     </main>
   )
 }
