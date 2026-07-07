@@ -1,54 +1,57 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiClient, ApiError } from '@/lib/apiClient'
 import type { Role } from '@/lib/types'
+import { OrderCard, type OrderCardOrder } from './OrderCard'
+import { OrderDetailModal } from './OrderDetailModal'
 
 const POLL_INTERVAL_MS = 3500
+const LANE_EXIT_MS = 200
+const SUMMARY_BUMP_MS = 300
 
-type PendingOrderItem = {
-  id: string
-  nameSnapshot: string
-  priceSnapshot: string
-  quantity: number
-}
+type DashboardOrder = OrderCardOrder
 
-type PendingOrder = {
-  id: string
-  orderNumber: number
-  createdAt: string
-  paymentStatus: 'Unpaid' | 'Paid'
-  customerName: string | null
-  table: { number: number }
-  items: PendingOrderItem[]
-}
-
-type RowState = { submitting: boolean; error: string | null }
-
-const EMPTY_ROW_STATE: RowState = { submitting: false, error: null }
-
-function formatTimeAgo(createdAt: string): string {
-  const elapsedMinutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000)
-  return elapsedMinutes < 1 ? 'just now' : `${elapsedMinutes} min ago`
-}
+type ModalState = { orderId: string; busy: boolean; error: string | null; closing: boolean }
 
 function errorMessage(err: unknown): string {
   return err instanceof ApiError ? err.message : 'Something went wrong. Please try again.'
 }
 
+async function fetchLanes(): Promise<{
+  pending: DashboardOrder[]
+  confirmedUnpaid: DashboardOrder[]
+  completedTodayCount: number
+}> {
+  const [pending, confirmedUnpaid, completedToday] = await Promise.all([
+    apiClient.get<DashboardOrder[]>('/api/orders?status=pending'),
+    apiClient.get<DashboardOrder[]>('/api/orders?status=confirmed&paymentStatus=unpaid'),
+    apiClient.get<DashboardOrder[]>('/api/orders?status=confirmed&paymentStatus=paid&date=today'),
+  ])
+  return { pending, confirmedUnpaid, completedTodayCount: completedToday.length }
+}
+
 export function PendingOrdersDashboard({ role }: { role: Role }) {
-  const [orders, setOrders] = useState<PendingOrder[]>([])
-  const [rowState, setRowState] = useState<Record<string, RowState>>({})
+  const [pendingOrders, setPendingOrders] = useState<DashboardOrder[]>([])
+  const [confirmedUnpaidOrders, setConfirmedUnpaidOrders] = useState<DashboardOrder[]>([])
+  const [completedTodayCount, setCompletedTodayCount] = useState(0)
+  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
+  const [modal, setModal] = useState<ModalState | null>(null)
+  const [summaryBump, setSummaryBump] = useState(false)
+  const bumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
     async function poll() {
       try {
-        const result = await apiClient.get<PendingOrder[]>('/api/orders?status=pending')
-        if (!cancelled) setOrders(result)
+        const lanes = await fetchLanes()
+        if (cancelled) return
+        setPendingOrders(lanes.pending)
+        setConfirmedUnpaidOrders(lanes.confirmedUnpaid)
+        setCompletedTodayCount(lanes.completedTodayCount)
       } catch {
-        // Transient poll failure: keep the last-known list, retry next tick.
+        // Transient poll failure: keep the last-known lanes, retry next tick.
       }
     }
 
@@ -60,118 +63,164 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
     }
   }, [])
 
-  async function handleConfirm(order: PendingOrder) {
-    if (!window.confirm(`Confirm order #${order.orderNumber}?`)) return
+  useEffect(() => {
+    return () => {
+      if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current)
+    }
+  }, [])
 
-    setRowState((current) => ({ ...current, [order.id]: { submitting: true, error: null } }))
+  function bumpSummary() {
+    setSummaryBump(true)
+    if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current)
+    bumpTimerRef.current = setTimeout(() => setSummaryBump(false), SUMMARY_BUMP_MS)
+  }
+
+  const selectedOrder = modal
+    ? [...pendingOrders, ...confirmedUnpaidOrders].find((order) => order.id === modal.orderId) ?? null
+    : null
+
+  function openModal(orderId: string) {
+    setModal({ orderId, busy: false, error: null, closing: false })
+  }
+
+  function closeModal() {
+    setModal((current) => (current ? { ...current, closing: true } : current))
+    setTimeout(() => setModal(null), LANE_EXIT_MS)
+  }
+
+  async function handleConfirm(order: DashboardOrder) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
     try {
-      await apiClient.patch(`/api/orders/${order.id}/confirm`, {})
-      setOrders((current) => current.filter((o) => o.id !== order.id))
-      setRowState((current) => {
-        const next = { ...current }
-        delete next[order.id]
-        return next
-      })
+      const updated = await apiClient.patch<DashboardOrder>(`/api/orders/${order.id}/confirm`, {})
+      setExitingIds((current) => new Set(current).add(order.id))
+      setModal((current) => (current ? { ...current, closing: true } : current))
+      setTimeout(() => {
+        setPendingOrders((current) => current.filter((o) => o.id !== order.id))
+        if (updated.paymentStatus === 'Paid') {
+          setCompletedTodayCount((count) => count + 1)
+          bumpSummary()
+        } else {
+          setConfirmedUnpaidOrders((current) => [
+            ...current,
+            { ...order, fulfillmentStatus: 'Confirmed', paymentStatus: updated.paymentStatus },
+          ])
+        }
+        setExitingIds((current) => {
+          const next = new Set(current)
+          next.delete(order.id)
+          return next
+        })
+        setModal(null)
+      }, LANE_EXIT_MS)
     } catch (err) {
-      setRowState((current) => ({ ...current, [order.id]: { submitting: false, error: errorMessage(err) } }))
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
     }
   }
 
-  async function handleSetPaymentStatus(orderId: string, paymentStatus: 'Paid' | 'Unpaid') {
-    setRowState((current) => ({ ...current, [orderId]: { submitting: true, error: null } }))
+  async function handleSetPaymentStatus(order: DashboardOrder, paymentStatus: 'Paid' | 'Unpaid') {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
     try {
-      const updated = await apiClient.patch<PendingOrder>(`/api/orders/${orderId}/pay`, { paymentStatus })
-      setOrders((current) =>
-        current.map((order) => (order.id === orderId ? { ...order, paymentStatus: updated.paymentStatus } : order)),
-      )
-      setRowState((current) => ({ ...current, [orderId]: { submitting: false, error: null } }))
+      const updated = await apiClient.patch<DashboardOrder>(`/api/orders/${order.id}/pay`, { paymentStatus })
+
+      if (order.fulfillmentStatus === 'Pending') {
+        setPendingOrders((current) =>
+          current.map((o) => (o.id === order.id ? { ...o, paymentStatus: updated.paymentStatus } : o)),
+        )
+        setModal((current) => (current ? { ...current, busy: false, error: null } : current))
+        return
+      }
+
+      if (paymentStatus === 'Paid') {
+        setExitingIds((current) => new Set(current).add(order.id))
+        setModal((current) => (current ? { ...current, closing: true } : current))
+        setTimeout(() => {
+          setConfirmedUnpaidOrders((current) => current.filter((o) => o.id !== order.id))
+          setCompletedTodayCount((count) => count + 1)
+          bumpSummary()
+          setExitingIds((current) => {
+            const next = new Set(current)
+            next.delete(order.id)
+            return next
+          })
+          setModal(null)
+        }, LANE_EXIT_MS)
+      } else {
+        setConfirmedUnpaidOrders((current) =>
+          current.map((o) => (o.id === order.id ? { ...o, paymentStatus: updated.paymentStatus } : o)),
+        )
+        setModal((current) => (current ? { ...current, busy: false, error: null } : current))
+      }
     } catch (err) {
-      setRowState((current) => ({ ...current, [orderId]: { submitting: false, error: errorMessage(err) } }))
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
     }
   }
+
+  const totalVisible = pendingOrders.length + confirmedUnpaidOrders.length
 
   return (
     <div className="order-rail">
       <div className="order-rail__status">
         <span className="order-rail__pulse" aria-hidden="true" />
         <span>Live — refreshes every few seconds</span>
+        <span className={`order-rail__summary${summaryBump ? ' order-rail__summary--bump' : ''}`}>
+          {completedTodayCount} completed today
+        </span>
       </div>
 
-      {orders.length === 0 ? (
+      {totalVisible === 0 ? (
         <div className="order-rail__empty">
           <span className="order-rail__empty-eyebrow">All caught up</span>
           <p>No pending orders</p>
         </div>
       ) : (
-        <ul aria-label="Pending orders" className="order-grid">
-          {orders.map((order) => {
-            const { submitting, error } = rowState[order.id] ?? EMPTY_ROW_STATE
-            const isPaid = order.paymentStatus === 'Paid'
-            return (
-              <li
-                key={order.id}
-                aria-label={`Order ${order.orderNumber}`}
-                className={`order-card${isPaid ? '' : ' order-card--unpaid'}`}
-              >
-                <div className="order-card__head">
-                  <span className="order-card__table">
-                    Table {order.table.number}
-                    {order.customerName && (
-                      <span className="order-card__customer"> · {order.customerName}</span>
-                    )}
-                  </span>
-                  <span className="order-card__number">#{order.orderNumber}</span>
-                </div>
-                <span className="order-card__time">{formatTimeAgo(order.createdAt)}</span>
+        <>
+          <section className="order-rail__lane" aria-label="Pending orders">
+            <h2 className="order-rail__lane-heading">Pending</h2>
+            {pendingOrders.length === 0 ? (
+              <p className="order-rail__empty-eyebrow">No pending orders</p>
+            ) : (
+              <ul className="order-grid">
+                {pendingOrders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    exiting={exitingIds.has(order.id)}
+                    onOpen={() => openModal(order.id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
 
-                <ul className="order-card__items">
-                  {order.items.map((item) => (
-                    <li key={item.id} className="order-card__item">
-                      {item.quantity}x {item.nameSnapshot}
-                    </li>
-                  ))}
-                </ul>
+          {confirmedUnpaidOrders.length > 0 && (
+            <section className="order-rail__lane" aria-label="Confirmed and unpaid orders">
+              <h2 className="order-rail__lane-heading">Confirmed · awaiting payment</h2>
+              <ul className="order-grid">
+                {confirmedUnpaidOrders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    exiting={exitingIds.has(order.id)}
+                    onOpen={() => openModal(order.id)}
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
 
-                <div className="order-card__actions">
-                  <button
-                    type="button"
-                    className="order-card__confirm"
-                    disabled={submitting}
-                    onClick={() => handleConfirm(order)}
-                  >
-                    Confirm
-                  </button>
-                  {order.paymentStatus === 'Unpaid' ? (
-                    <button
-                      type="button"
-                      className="order-card__pay"
-                      disabled={submitting}
-                      onClick={() => handleSetPaymentStatus(order.id, 'Paid')}
-                    >
-                      Mark Paid
-                    </button>
-                  ) : role === 'admin' ? (
-                    <button
-                      type="button"
-                      className="order-card__pay order-card__pay--revert"
-                      disabled={submitting}
-                      onClick={() => handleSetPaymentStatus(order.id, 'Unpaid')}
-                    >
-                      Mark Unpaid
-                    </button>
-                  ) : (
-                    <span className="order-card__paid-badge">Paid</span>
-                  )}
-                </div>
-                {error && (
-                  <p role="alert" className="order-card__error">
-                    {error}
-                  </p>
-                )}
-              </li>
-            )
-          })}
-        </ul>
+      {modal && selectedOrder && (
+        <OrderDetailModal
+          order={selectedOrder}
+          role={role}
+          busy={modal.busy}
+          error={modal.error}
+          exiting={modal.closing}
+          onConfirm={() => handleConfirm(selectedOrder)}
+          onSetPaymentStatus={(paymentStatus) => handleSetPaymentStatus(selectedOrder, paymentStatus)}
+          onClose={closeModal}
+        />
       )}
     </div>
   )
