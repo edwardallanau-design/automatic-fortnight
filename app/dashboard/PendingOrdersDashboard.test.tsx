@@ -55,7 +55,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('renders Pending orders on the Pending tab by default and polls both endpoints', async () => {
     mockTabs({ pending: [orderA] })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -69,7 +69,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('shows live counts on both tab labels without switching tabs', async () => {
     mockTabs({ pending: [orderA], confirmed: [{ ...orderB, fulfillmentStatus: 'Confirmed' }] })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -83,7 +83,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('switching to the Confirmed tab shows confirmed orders already fetched in the background', async () => {
     mockTabs({ pending: [orderA], confirmed: [{ ...orderB, fulfillmentStatus: 'Confirmed' }] })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -97,7 +97,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('re-fetches on each polling interval and updates the active tab', async () => {
     mockTabs({ pending: [orderA] })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -114,7 +114,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('keeps showing the last-known orders when a poll tick fails', async () => {
     mockTabs({ pending: [orderA] })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -131,7 +131,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('shows an empty message on the Pending tab when there are no pending orders', async () => {
     mockTabs()
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -142,7 +142,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('shows an empty message on the Confirmed tab when nothing has been confirmed today', async () => {
     mockTabs()
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -155,7 +155,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('opens the detail modal when a card is tapped', async () => {
     mockTabs({ pending: [orderA] })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -170,7 +170,7 @@ describe('PendingOrdersDashboard', () => {
   it('confirms a Pending order: it exits the Pending tab immediately but does not appear on the Confirmed tab until the next poll', async () => {
     mockTabs({ pending: [orderA] })
     vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid' })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -203,7 +203,7 @@ describe('PendingOrdersDashboard', () => {
   it('shows an inline error in the modal and keeps it open when confirming fails', async () => {
     mockTabs({ pending: [orderA] })
     vi.mocked(apiClient.patch).mockRejectedValue(new ApiError('CONFLICT', 'Order is Confirmed, not Pending'))
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -221,7 +221,7 @@ describe('PendingOrdersDashboard', () => {
   it('marks a Pending order Paid in place — stays on the Pending tab, modal stays open', async () => {
     mockTabs({ pending: [orderA] })
     vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, paymentStatus: 'Paid' })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -235,14 +235,14 @@ describe('PendingOrdersDashboard', () => {
     expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/pay', { paymentStatus: 'Paid' })
     const dialog = screen.getByRole('dialog', { name: 'Order 101' })
     expect(dialog).toBeInTheDocument()
-    expect(within(dialog).getByText('Paid')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Mark Unpaid' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Pending (1)' })).toBeInTheDocument()
   })
 
   it('marks a Confirmed order Paid in place — stays on the Confirmed tab, modal stays open', async () => {
     mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed' }] })
     vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Paid' })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -257,14 +257,14 @@ describe('PendingOrdersDashboard', () => {
     expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/pay', { paymentStatus: 'Paid' })
     const dialog = screen.getByRole('dialog', { name: 'Order 101' })
     expect(dialog).toBeInTheDocument()
-    expect(within(dialog).getByText('Paid')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Mark Unpaid' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Confirmed (1)' })).toBeInTheDocument()
   })
 
-  it('allows an admin to revert a Paid Confirmed order back to Unpaid, in place', async () => {
+  it('reverts a Paid Confirmed order back to Unpaid, in place', async () => {
     mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Paid' }] })
     vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid' })
-    render(<PendingOrdersDashboard role="admin" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -283,7 +283,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('closes the modal on backdrop click without calling any mutation', async () => {
     mockTabs({ pending: [orderA] })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -302,7 +302,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('does not let a stale close timer from order A clobber a modal reopened for order B', async () => {
     mockTabs({ pending: [orderA, orderB] })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -327,7 +327,7 @@ describe('PendingOrdersDashboard', () => {
 
   it('does not let a stale close timer clobber order A after it is reopened before the timer fires', async () => {
     mockTabs({ pending: [orderA] })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)

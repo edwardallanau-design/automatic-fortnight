@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { apiClient, ApiError } from '@/lib/apiClient'
-import type { Role } from '@/lib/types'
 import { OrderCard, type OrderCardOrder } from './OrderCard'
 import { OrderDetailModal } from './OrderDetailModal'
 
@@ -26,7 +25,7 @@ async function fetchTabs(): Promise<{ pending: DashboardOrder[]; confirmed: Dash
   return { pending, confirmed }
 }
 
-export function PendingOrdersDashboard({ role }: { role: Role }) {
+export function PendingOrdersDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [pendingOrders, setPendingOrders] = useState<DashboardOrder[]>([])
   const [confirmedOrders, setConfirmedOrders] = useState<DashboardOrder[]>([])
@@ -171,7 +170,6 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
       {modal && selectedOrder && (
         <OrderDetailModal
           order={selectedOrder}
-          role={role}
           busy={modal.busy}
           error={modal.error}
           exiting={modal.closing}

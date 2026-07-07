@@ -1,7 +1,6 @@
 'use client'
 
 import { Modal } from '@/app/components/Modal'
-import type { Role } from '@/lib/types'
 import type { OrderCardItem, OrderCardOrder } from './OrderCard'
 
 function lineTotal(item: OrderCardItem): number {
@@ -10,7 +9,6 @@ function lineTotal(item: OrderCardItem): number {
 
 export function OrderDetailModal({
   order,
-  role,
   busy,
   error,
   exiting,
@@ -19,7 +17,6 @@ export function OrderDetailModal({
   onClose,
 }: {
   order: OrderCardOrder
-  role: Role
   busy: boolean
   error: string | null
   exiting: boolean
@@ -79,7 +76,7 @@ export function OrderDetailModal({
           >
             Mark Paid
           </button>
-        ) : role === 'admin' ? (
+        ) : (
           <button
             type="button"
             className="order-detail-modal__pay order-detail-modal__pay--revert"
@@ -88,8 +85,6 @@ export function OrderDetailModal({
           >
             Mark Unpaid
           </button>
-        ) : (
-          <span className="order-detail-modal__paid-badge">Paid</span>
         )}
       </div>
     </Modal>

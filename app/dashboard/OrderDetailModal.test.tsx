@@ -20,7 +20,6 @@ describe('OrderDetailModal', () => {
     render(
       <OrderDetailModal
         order={pendingOrder}
-        role="staff"
         busy={false}
         error={null}
         exiting={false}
@@ -31,7 +30,6 @@ describe('OrderDetailModal', () => {
     )
 
     expect(screen.getByText('2x Burger')).toBeInTheDocument()
-    // Verify line total appears (first $25.00 in the list)
     const allTotals = screen.getAllByText('$25.00')
     expect(allTotals.length).toBeGreaterThanOrEqual(2) // line + order total
   })
@@ -43,7 +41,6 @@ describe('OrderDetailModal', () => {
     render(
       <OrderDetailModal
         order={pendingOrder}
-        role="staff"
         busy={false}
         error={null}
         exiting={false}
@@ -64,7 +61,6 @@ describe('OrderDetailModal', () => {
     render(
       <OrderDetailModal
         order={{ ...pendingOrder, fulfillmentStatus: 'Confirmed' }}
-        role="staff"
         busy={false}
         error={null}
         exiting={false}
@@ -78,31 +74,12 @@ describe('OrderDetailModal', () => {
     expect(screen.getByRole('button', { name: 'Mark Paid' })).toBeInTheDocument()
   })
 
-  it('shows a static Paid badge (no revert button) for staff on a Paid order', () => {
-    render(
-      <OrderDetailModal
-        order={{ ...pendingOrder, paymentStatus: 'Paid' }}
-        role="staff"
-        busy={false}
-        error={null}
-        exiting={false}
-        onConfirm={vi.fn()}
-        onSetPaymentStatus={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    )
-
-    expect(screen.getByText('Paid')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Mark Unpaid' })).not.toBeInTheDocument()
-  })
-
-  it('lets an admin revert a Paid order to Unpaid', async () => {
+  it('shows Mark Unpaid for any role on a Paid order', async () => {
     const onSetPaymentStatus = vi.fn()
     const user = userEvent.setup()
     render(
       <OrderDetailModal
         order={{ ...pendingOrder, paymentStatus: 'Paid' }}
-        role="admin"
         busy={false}
         error={null}
         exiting={false}
@@ -120,7 +97,6 @@ describe('OrderDetailModal', () => {
     render(
       <OrderDetailModal
         order={pendingOrder}
-        role="staff"
         busy={true}
         error="Order is Confirmed, not Pending"
         exiting={false}

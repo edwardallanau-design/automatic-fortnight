@@ -1502,19 +1502,6 @@ a {
   outline-offset: 2px;
 }
 
-.order-detail-modal__paid-badge {
-  align-self: flex-start;
-  font-family: var(--font-mono), monospace;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--sage);
-  background: color-mix(in srgb, var(--sage) 15%, transparent);
-  padding: 0.3rem 0.6rem;
-  border-radius: 999px;
-}
-
 /* Dashboard tabs */
 
 .order-rail__tabs {
