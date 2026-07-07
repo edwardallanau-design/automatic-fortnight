@@ -39,6 +39,7 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
   const [modal, setModal] = useState<ModalState | null>(null)
   const [summaryBump, setSummaryBump] = useState(false)
   const bumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const closeTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
 
   useEffect(() => {
     let cancelled = false
@@ -69,6 +70,13 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
     }
   }, [])
 
+  useEffect(() => {
+    return () => {
+      for (const timerId of closeTimersRef.current) clearTimeout(timerId)
+      closeTimersRef.current.clear()
+    }
+  }, [])
+
   function bumpSummary() {
     setSummaryBump(true)
     if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current)
@@ -84,8 +92,13 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
   }
 
   function closeModal() {
+    const closingOrderId = modal?.orderId
     setModal((current) => (current ? { ...current, closing: true } : current))
-    setTimeout(() => setModal(null), LANE_EXIT_MS)
+    const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
+      closeTimersRef.current.delete(timerId)
+      setModal((current) => (current && current.orderId === closingOrderId ? null : current))
+    }, LANE_EXIT_MS)
+    closeTimersRef.current.add(timerId)
   }
 
   async function handleConfirm(order: DashboardOrder) {
@@ -94,7 +107,8 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
       const updated = await apiClient.patch<DashboardOrder>(`/api/orders/${order.id}/confirm`, {})
       setExitingIds((current) => new Set(current).add(order.id))
       setModal((current) => (current ? { ...current, closing: true } : current))
-      setTimeout(() => {
+      const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
+        closeTimersRef.current.delete(timerId)
         setPendingOrders((current) => current.filter((o) => o.id !== order.id))
         if (updated.paymentStatus === 'Paid') {
           setCompletedTodayCount((count) => count + 1)
@@ -110,8 +124,9 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
           next.delete(order.id)
           return next
         })
-        setModal(null)
+        setModal((current) => (current && current.orderId === order.id ? null : current))
       }, LANE_EXIT_MS)
+      closeTimersRef.current.add(timerId)
     } catch (err) {
       setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
     }
@@ -133,7 +148,8 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
       if (paymentStatus === 'Paid') {
         setExitingIds((current) => new Set(current).add(order.id))
         setModal((current) => (current ? { ...current, closing: true } : current))
-        setTimeout(() => {
+        const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
+          closeTimersRef.current.delete(timerId)
           setConfirmedUnpaidOrders((current) => current.filter((o) => o.id !== order.id))
           setCompletedTodayCount((count) => count + 1)
           bumpSummary()
@@ -142,8 +158,9 @@ export function PendingOrdersDashboard({ role }: { role: Role }) {
             next.delete(order.id)
             return next
           })
-          setModal(null)
+          setModal((current) => (current && current.orderId === order.id ? null : current))
         }, LANE_EXIT_MS)
+        closeTimersRef.current.add(timerId)
       } else {
         setConfirmedUnpaidOrders((current) =>
           current.map((o) => (o.id === order.id ? { ...o, paymentStatus: updated.paymentStatus } : o)),
