@@ -745,6 +745,137 @@ a {
   outline-offset: 2px;
 }
 
+/* Confirm dialog (destructive actions: cancel order, remove item) */
+
+.confirm-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--espresso) 60%, transparent);
+  animation: confirm-dialog-backdrop-enter 0.2s ease-out;
+}
+
+.confirm-dialog__backdrop--exiting {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.confirm-dialog {
+  width: 100%;
+  max-width: 360px;
+  background: var(--paper);
+  color: var(--espresso);
+  border-radius: 16px;
+  padding: 1.5rem 1.25rem;
+  box-shadow: 0 8px 24px var(--clay-faint);
+  animation: confirm-dialog-enter 0.2s ease-out;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.confirm-dialog--exiting {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+@keyframes confirm-dialog-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes confirm-dialog-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog__backdrop,
+  .confirm-dialog {
+    animation: none;
+    transition: none;
+  }
+}
+
+.confirm-dialog__title {
+  font-family: var(--font-display), Georgia, serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin-bottom: 0.6rem;
+}
+
+.confirm-dialog__message {
+  font-size: 0.95rem;
+  color: var(--clay);
+  margin-bottom: 1.25rem;
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.confirm-dialog__cancel,
+.confirm-dialog__confirm {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 10px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.confirm-dialog__cancel {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  color: var(--espresso);
+}
+
+.confirm-dialog__confirm {
+  border: none;
+  background: var(--danger);
+  color: var(--paper);
+}
+
+.confirm-dialog__cancel:disabled,
+.confirm-dialog__confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirm-dialog__cancel:active:not(:disabled),
+.confirm-dialog__confirm:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog__cancel:active:not(:disabled),
+  .confirm-dialog__confirm:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+.confirm-dialog__cancel:focus-visible,
+.confirm-dialog__confirm:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
 /* Ticket-stub order confirmation */
 
 .ticket {
