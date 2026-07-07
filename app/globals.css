@@ -99,6 +99,12 @@ a {
   line-height: 1.1;
 }
 
+.order-header__name {
+  font-style: normal;
+  font-size: 1.4rem;
+  color: var(--copper-bright);
+}
+
 .order-page__error {
   max-width: 480px;
   margin: 3rem auto;
