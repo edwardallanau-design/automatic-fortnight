@@ -775,12 +775,25 @@ a {
 
 .ticket__line {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ticket__line-name {
+  flex: 1;
+}
+
+.ticket__line-qty {
+  font-family: var(--font-mono), monospace;
+  min-width: 3ch;
+  text-align: center;
+  color: var(--clay);
 }
 
 .ticket__line-price {
   font-family: var(--font-mono), monospace;
+  min-width: 6ch;
+  text-align: right;
   white-space: nowrap;
 }
 
@@ -803,21 +816,40 @@ a {
 }
 
 .ticket__remove {
-  margin-left: 0.75rem;
-  border: none;
-  background: none;
-  color: #b91c1c;
-  font-size: 0.85rem;
-  text-decoration: underline;
-  cursor: pointer;
-  min-height: 44px;
   min-width: 44px;
-  padding: 0.25rem 0.5rem;
+  min-height: 44px;
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+  background: none;
+  color: var(--danger);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.ticket__remove:hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+.ticket__remove:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.ticket__remove:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
 }
 
 .ticket__remove:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket__remove:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .ticket__cancel {
