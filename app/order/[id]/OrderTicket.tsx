@@ -14,6 +14,7 @@ export type OrderTicketLine = {
 export type OrderTicketProps = {
   id: string
   orderNumber: number
+  customerName: string | null
   items: OrderTicketLine[]
 }
 
@@ -50,6 +51,7 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
       <div className="ticket__stub">
         <span className="ticket__label">Your ticket</span>
         <h2 className="ticket__number">Order #{order.orderNumber} confirmed</h2>
+        {order.customerName && <p className="ticket__customer">For {order.customerName}</p>}
         <ul className="ticket__lines">
           {order.items.map((item) => (
             <li key={item.id} className="ticket__line">

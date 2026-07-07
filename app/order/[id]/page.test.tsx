@@ -74,4 +74,21 @@ describe('OrderDetailPage', () => {
 
     expect(screen.getByText('This order was cancelled.')).toBeInTheDocument()
   })
+
+  it('shows the customer name on a confirmed order', async () => {
+    vi.mocked(getOrderById).mockResolvedValue({
+      id: 'o1',
+      orderNumber: 7,
+      fulfillmentStatus: 'Confirmed',
+      customerName: 'Edward',
+      items: [
+        { id: 'i1', nameSnapshot: 'Burger', priceSnapshot: { toString: () => '12.50' }, quantity: 1 },
+      ],
+    } as never)
+
+    const ui = await OrderDetailPage({ params: Promise.resolve({ id: 'o1' }) })
+    render(ui)
+
+    expect(screen.getByText('For Edward')).toBeInTheDocument()
+  })
 })

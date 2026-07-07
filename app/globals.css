@@ -755,6 +755,13 @@ a {
   margin: 0.35rem 0 1.25rem;
 }
 
+.ticket__customer {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.85rem;
+  color: var(--clay);
+  margin-top: 0.25rem;
+}
+
 .ticket__lines {
   list-style: none;
   display: flex;
