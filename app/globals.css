@@ -10,6 +10,7 @@
   --sage: #6b7a5e;
   --clay: #8c5a48;
   --clay-faint: #8c5a4833;
+  --danger: #b91c1c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +23,7 @@
     --espresso: #f7eee1;
     --clay: #c9a894;
     --clay-faint: #c9a89433;
+    --danger: #e57373;
   }
 }
 
@@ -89,6 +91,38 @@ a {
   text-transform: uppercase;
   color: var(--copper-bright);
   margin-bottom: 0.35rem;
+}
+
+.order-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.order-header__row .order-header__eyebrow {
+  margin-bottom: 0;
+}
+
+.order-header__back {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--copper-bright);
+  text-decoration: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 0.25rem;
+}
+
+.order-header__back:hover {
+  text-decoration: underline;
+}
+
+.order-header__back:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
 }
 
 .order-header__title {
@@ -666,7 +700,7 @@ a {
 }
 
 .review-modal__error {
-  color: #b91c1c;
+  color: var(--danger);
   font-size: 0.9rem;
   margin-bottom: 1rem;
 }
@@ -707,6 +741,137 @@ a {
 
 .review-modal__back:focus-visible,
 .review-modal__confirm:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+/* Confirm dialog (destructive actions: cancel order, remove item) */
+
+.confirm-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--espresso) 60%, transparent);
+  animation: confirm-dialog-backdrop-enter 0.2s ease-out;
+}
+
+.confirm-dialog__backdrop--exiting {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.confirm-dialog {
+  width: 100%;
+  max-width: 360px;
+  background: var(--paper);
+  color: var(--espresso);
+  border-radius: 16px;
+  padding: 1.5rem 1.25rem;
+  box-shadow: 0 8px 24px var(--clay-faint);
+  animation: confirm-dialog-enter 0.2s ease-out;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.confirm-dialog--exiting {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+@keyframes confirm-dialog-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes confirm-dialog-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog__backdrop,
+  .confirm-dialog {
+    animation: none;
+    transition: none;
+  }
+}
+
+.confirm-dialog__title {
+  font-family: var(--font-display), Georgia, serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin-bottom: 0.6rem;
+}
+
+.confirm-dialog__message {
+  font-size: 0.95rem;
+  color: var(--clay);
+  margin-bottom: 1.25rem;
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.confirm-dialog__cancel,
+.confirm-dialog__confirm {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 10px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.confirm-dialog__cancel {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  color: var(--espresso);
+}
+
+.confirm-dialog__confirm {
+  border: none;
+  background: var(--danger);
+  color: var(--paper);
+}
+
+.confirm-dialog__cancel:disabled,
+.confirm-dialog__confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirm-dialog__cancel:active:not(:disabled),
+.confirm-dialog__confirm:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog__cancel:active:not(:disabled),
+  .confirm-dialog__confirm:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+.confirm-dialog__cancel:focus-visible,
+.confirm-dialog__confirm:focus-visible {
   outline: 2px solid var(--copper-bright);
   outline-offset: 2px;
 }
@@ -773,12 +938,25 @@ a {
 
 .ticket__line {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ticket__line-name {
+  flex: 1;
+}
+
+.ticket__line-qty {
+  font-family: var(--font-mono), monospace;
+  min-width: 3ch;
+  text-align: center;
+  color: var(--clay);
 }
 
 .ticket__line-price {
   font-family: var(--font-mono), monospace;
+  min-width: 6ch;
+  text-align: right;
   white-space: nowrap;
 }
 
@@ -801,16 +979,29 @@ a {
 }
 
 .ticket__remove {
-  margin-left: 0.75rem;
-  border: none;
-  background: none;
-  color: #b91c1c;
-  font-size: 0.85rem;
-  text-decoration: underline;
-  cursor: pointer;
-  min-height: 44px;
   min-width: 44px;
-  padding: 0.25rem 0.5rem;
+  min-height: 44px;
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+  background: none;
+  color: var(--danger);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.ticket__remove:hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+.ticket__remove:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.ticket__remove:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
 }
 
 .ticket__remove:disabled {
@@ -818,20 +1009,27 @@ a {
   cursor: default;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .ticket__remove:active:not(:disabled) {
+    transform: none;
+  }
+}
+
 .ticket__cancel {
   display: block;
   width: 100%;
   margin-top: 1rem;
   padding: 0.75rem 1rem;
-  border: 1px solid #b91c1c;
+  border: 1px solid var(--danger);
   border-radius: 8px;
   background: none;
-  color: #b91c1c;
+  color: var(--danger);
   font-family: var(--font-body), Arial, sans-serif;
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
   min-height: 44px;
+  transition: transform 0.1s ease;
 }
 
 .ticket__cancel:disabled {
@@ -839,9 +1037,19 @@ a {
   cursor: default;
 }
 
+.ticket__cancel:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket__cancel:active:not(:disabled) {
+    transform: none;
+  }
+}
+
 .ticket__error {
   margin-top: 0.75rem;
-  color: #b91c1c;
+  color: var(--danger);
   font-size: 0.9rem;
 }
 
