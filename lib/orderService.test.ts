@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
 import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder, removeOrderItem, getOrderById } from './orderService'
-import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from './errors'
+import { NotFoundError, ConflictError, ValidationError } from './errors'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
@@ -273,16 +273,16 @@ describe('orderService.setPaymentStatus', () => {
   it('throws NotFoundError when the order does not exist', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue(null)
 
-    await expect(setPaymentStatus('missing', 'Paid', 'staff')).rejects.toThrow(NotFoundError)
+    await expect(setPaymentStatus('missing', 'Paid')).rejects.toThrow(NotFoundError)
     expect(prisma.order.update).not.toHaveBeenCalled()
   })
 
-  it('allows staff to mark an order Paid regardless of fulfillmentStatus', async () => {
+  it('marks an order Paid regardless of fulfillmentStatus', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', paymentStatus: 'Unpaid', fulfillmentStatus: 'Confirmed' } as never)
     const updated = { id: 'o1', paymentStatus: 'Paid', items: [] }
     vi.mocked(prisma.order.update).mockResolvedValue(updated as never)
 
-    const result = await setPaymentStatus('o1', 'Paid', 'staff')
+    const result = await setPaymentStatus('o1', 'Paid')
 
     expect(result).toEqual(updated)
     expect(prisma.order.update).toHaveBeenCalledWith({
@@ -292,19 +292,12 @@ describe('orderService.setPaymentStatus', () => {
     })
   })
 
-  it('throws ForbiddenError when staff attempts to revert Paid to Unpaid', async () => {
-    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', paymentStatus: 'Paid', fulfillmentStatus: 'Pending' } as never)
-
-    await expect(setPaymentStatus('o1', 'Unpaid', 'staff')).rejects.toThrow(ForbiddenError)
-    expect(prisma.order.update).not.toHaveBeenCalled()
-  })
-
-  it('allows admin to revert Paid to Unpaid', async () => {
+  it('reverts Paid to Unpaid regardless of caller role', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', paymentStatus: 'Paid', fulfillmentStatus: 'Pending' } as never)
     const updated = { id: 'o1', paymentStatus: 'Unpaid', items: [] }
     vi.mocked(prisma.order.update).mockResolvedValue(updated as never)
 
-    const result = await setPaymentStatus('o1', 'Unpaid', 'admin')
+    const result = await setPaymentStatus('o1', 'Unpaid')
 
     expect(result).toEqual(updated)
     expect(prisma.order.update).toHaveBeenCalledWith({

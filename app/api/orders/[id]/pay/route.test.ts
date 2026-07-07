@@ -39,7 +39,7 @@ describe('PATCH /api/orders/[id]/pay', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.paymentStatus).toBe('Paid')
-    expect(setPaymentStatus).toHaveBeenCalledWith('o1', 'Paid', 'staff')
+    expect(setPaymentStatus).toHaveBeenCalledWith('o1', 'Paid')
   })
 
   it('returns 400 when paymentStatus is missing', async () => {
@@ -64,23 +64,14 @@ describe('PATCH /api/orders/[id]/pay', () => {
     expect(res.status).toBe(404)
   })
 
-  it('returns 403 when staff attempts to revert Paid to Unpaid', async () => {
-    vi.mocked(setPaymentStatus).mockRejectedValue(new ForbiddenError('Only admin may revert payment status to Unpaid'))
-
-    const res = await PATCH(makeRequest({ paymentStatus: 'Unpaid' }), makeContext('o1'))
-
-    expect(res.status).toBe(403)
-  })
-
-  it('returns 200 when admin reverts Paid to Unpaid', async () => {
-    vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
+  it('returns 200 when reverting Paid to Unpaid', async () => {
     const updated = { id: 'o1', paymentStatus: 'Unpaid', fulfillmentStatus: 'Pending', items: [] }
     vi.mocked(setPaymentStatus).mockResolvedValue(updated as never)
 
     const res = await PATCH(makeRequest({ paymentStatus: 'Unpaid' }), makeContext('o1'))
 
     expect(res.status).toBe(200)
-    expect(setPaymentStatus).toHaveBeenCalledWith('o1', 'Unpaid', 'admin')
+    expect(setPaymentStatus).toHaveBeenCalledWith('o1', 'Unpaid')
   })
 
   it('returns 403 when the caller is not staff or admin at all', async () => {

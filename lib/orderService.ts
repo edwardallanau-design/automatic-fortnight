@@ -2,8 +2,7 @@ import type { Order, OrderItem, Table, FulfillmentStatus, PaymentStatus, Prisma 
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
-import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from './errors'
-import type { Role } from './types'
+import { NotFoundError, ConflictError, ValidationError } from './errors'
 
 export type CartItemInput = { menuItemId: string; quantity: number }
 export type OrderWithItems = Order & { items: OrderItem[] }
@@ -91,17 +90,10 @@ export async function confirmOrder(orderId: string): Promise<OrderWithItems> {
   })
 }
 
-export async function setPaymentStatus(
-  orderId: string,
-  paymentStatus: PaymentStatus,
-  role: Role,
-): Promise<OrderWithItems> {
+export async function setPaymentStatus(orderId: string, paymentStatus: PaymentStatus): Promise<OrderWithItems> {
   const order = await prisma.order.findUnique({ where: { id: orderId } })
   if (!order) {
     throw new NotFoundError('Order not found')
-  }
-  if (paymentStatus === 'Unpaid' && order.paymentStatus === 'Paid' && role !== 'admin') {
-    throw new ForbiddenError('Only admin may revert payment status to Unpaid')
   }
 
   return prisma.order.update({
