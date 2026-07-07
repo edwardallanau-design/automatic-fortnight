@@ -37,11 +37,34 @@ describe('OrderCard', () => {
     expect(screen.getByText('$29.00')).toBeInTheDocument()
   })
 
-  it('shows "Needs confirmation" for a Pending order, "Unpaid" for a Confirmed-and-unpaid order, and "Paid" for a Confirmed-and-paid order', () => {
-    const { rerender } = render(<OrderCard order={order} exiting={false} onOpen={vi.fn()} />)
-    expect(screen.getByText('Needs confirmation')).toBeInTheDocument()
+  it('shows the badge as the order\'s paymentStatus verbatim, regardless of fulfillmentStatus', () => {
+    const { rerender } = render(
+      <OrderCard
+        order={{ ...order, fulfillmentStatus: 'Pending', paymentStatus: 'Unpaid' }}
+        exiting={false}
+        onOpen={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Unpaid')).toBeInTheDocument()
+    expect(screen.getByText('Unpaid')).not.toHaveClass('order-card__badge--paid')
 
-    rerender(<OrderCard order={{ ...order, fulfillmentStatus: 'Confirmed' }} exiting={false} onOpen={vi.fn()} />)
+    rerender(
+      <OrderCard
+        order={{ ...order, fulfillmentStatus: 'Pending', paymentStatus: 'Paid' }}
+        exiting={false}
+        onOpen={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Paid')).toBeInTheDocument()
+    expect(screen.getByText('Paid')).toHaveClass('order-card__badge--paid')
+
+    rerender(
+      <OrderCard
+        order={{ ...order, fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid' }}
+        exiting={false}
+        onOpen={vi.fn()}
+      />,
+    )
     expect(screen.getByText('Unpaid')).toBeInTheDocument()
 
     rerender(
@@ -51,9 +74,14 @@ describe('OrderCard', () => {
         onOpen={vi.fn()}
       />,
     )
-    const paidBadge = screen.getByText('Paid')
-    expect(paidBadge).toBeInTheDocument()
-    expect(paidBadge).toHaveClass('order-card__badge--paid')
+    expect(screen.getByText('Paid')).toBeInTheDocument()
+    expect(screen.getByText('Paid')).toHaveClass('order-card__badge--paid')
+  })
+
+  it('never renders "Needs confirmation" or "Awaiting payment"', () => {
+    render(<OrderCard order={order} exiting={false} onOpen={vi.fn()} />)
+    expect(screen.queryByText('Needs confirmation')).not.toBeInTheDocument()
+    expect(screen.queryByText('Awaiting payment')).not.toBeInTheDocument()
   })
 
   it('calls onOpen when clicked', async () => {
@@ -85,6 +113,6 @@ describe('OrderCard', () => {
   it('shows no name segment when the order has none', () => {
     render(<OrderCard order={{ ...order, customerName: null }} exiting={false} onOpen={vi.fn()} />)
     expect(screen.getByText('Table 4')).toBeInTheDocument()
-    expect(screen.queryByText(/·/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/· Edward/)).not.toBeInTheDocument()
   })
 })

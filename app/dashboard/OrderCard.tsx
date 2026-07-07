@@ -31,13 +31,6 @@ export function OrderCard({
   exiting: boolean
   onOpen: () => void
 }) {
-  const badgeLabel =
-    order.fulfillmentStatus === 'Pending'
-      ? 'Needs confirmation'
-      : order.paymentStatus === 'Paid'
-        ? 'Paid'
-        : 'Unpaid'
-  const badgePaid = order.fulfillmentStatus === 'Confirmed' && order.paymentStatus === 'Paid'
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
@@ -48,17 +41,19 @@ export function OrderCard({
         aria-label={`Order ${order.orderNumber}, table ${order.table.number}`}
         onClick={onOpen}
       >
-        <div className="order-card__head">
-          <span className="order-card__table">
-            Table {order.table.number}
-            {order.customerName && <span className="order-card__customer"> · {order.customerName}</span>}
+        <span className="order-card__stub">#{order.orderNumber}</span>
+        <span className="order-card__table">
+          Table {order.table.number}
+          {order.customerName && <span className="order-card__customer"> · {order.customerName}</span>}
+        </span>
+        <span className="order-card__meta">
+          <span className="order-card__time">{formatTimeAgo(order.createdAt)}</span>
+          <span className="order-card__summary">
+            {itemCount} item{itemCount === 1 ? '' : 's'}
           </span>
-          <span className="order-card__number">#{order.orderNumber}</span>
-        </div>
-        <span className="order-card__time">{formatTimeAgo(order.createdAt)}</span>
-        <span className={`order-card__badge${badgePaid ? ' order-card__badge--paid' : ''}`}>{badgeLabel}</span>
-        <span className="order-card__summary">
-          {itemCount} item{itemCount === 1 ? '' : 's'}
+          <span className={`order-card__badge${order.paymentStatus === 'Paid' ? ' order-card__badge--paid' : ''}`}>
+            {order.paymentStatus}
+          </span>
         </span>
         <span className="order-card__total">${orderTotal(order).toFixed(2)}</span>
       </button>
