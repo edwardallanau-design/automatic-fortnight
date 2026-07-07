@@ -57,10 +57,11 @@ export async function POST(request: Request) {
       if (typeof body.customerName !== 'string') {
         throw new ValidationError('customerName must be a string')
       }
-      customerName = body.customerName.trim()
-      if (customerName.length > 50) {
+      const trimmedName: string = body.customerName.trim()
+      if (trimmedName.length > 50) {
         throw new ValidationError('customerName must be 50 characters or fewer')
       }
+      customerName = trimmedName
     }
 
     const order = await createOrder(body.tableId, body.items, customerName)
