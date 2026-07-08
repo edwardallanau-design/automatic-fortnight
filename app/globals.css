@@ -1124,6 +1124,37 @@ a {
   outline: none;
 }
 
+.staff-header__new-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: var(--copper-bright);
+  color: var(--espresso);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: transform 0.1s ease;
+}
+
+.staff-header__new-order:hover,
+.staff-header__new-order:focus-visible {
+  background: var(--copper);
+  outline: none;
+}
+
+.staff-header__new-order:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staff-header__new-order:active {
+    transform: none;
+  }
+}
+
 .order-rail {
   width: 100%;
   max-width: 1200px;

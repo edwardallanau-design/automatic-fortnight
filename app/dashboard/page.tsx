@@ -13,6 +13,9 @@ export default async function DashboardPage() {
           <h1 className="staff-header__title">Staff Dashboard</h1>
         </div>
         <div className="staff-header__meta">
+          <Link href="/order/new" className="staff-header__new-order">
+            + New order
+          </Link>
           <p className="staff-header__role">Logged in as: {role}</p>
           {role === 'admin' && (
             <nav className="staff-header__nav">

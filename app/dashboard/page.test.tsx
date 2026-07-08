@@ -37,4 +37,22 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('link', { name: 'Menu Management' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Table Setup' })).toBeInTheDocument()
   })
+
+  it('shows a prominent New order button for a staff session', async () => {
+    vi.mocked(requireRole).mockResolvedValue({ role: 'staff' })
+
+    const ui = await DashboardPage()
+    render(ui)
+
+    expect(screen.getByRole('link', { name: '+ New order' })).toHaveAttribute('href', '/order/new')
+  })
+
+  it('shows the New order button for an admin session too', async () => {
+    vi.mocked(requireRole).mockResolvedValue({ role: 'admin' })
+
+    const ui = await DashboardPage()
+    render(ui)
+
+    expect(screen.getByRole('link', { name: '+ New order' })).toHaveAttribute('href', '/order/new')
+  })
 })
