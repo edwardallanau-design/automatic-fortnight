@@ -120,4 +120,17 @@ describe('OrderDetailPage', () => {
 
     expect(screen.getByText('For Edward')).toBeInTheDocument()
   })
+
+  it('renders "Counter" instead of "Table 0" when the order is for table number 0', async () => {
+    vi.mocked(getOrderById).mockResolvedValue({
+      ...order('Pending'),
+      table: { id: 't0', number: 0, createdAt: new Date() },
+    } as never)
+
+    const ui = await OrderDetailPage({ params: Promise.resolve({ id: 'o1' }) })
+    render(ui)
+
+    expect(screen.getByText('Counter')).toBeInTheDocument()
+    expect(screen.queryByText('Table 0')).not.toBeInTheDocument()
+  })
 })

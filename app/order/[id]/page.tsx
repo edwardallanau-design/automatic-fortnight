@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getOrderById } from '@/lib/orderService'
 import { NotFoundError } from '@/lib/errors'
+import { formatTableLabel } from '@/lib/tableDisplay'
 import type { OrderTicketProps } from './OrderTicket'
 import { OrderStatusPoller } from './OrderStatusPoller'
 import { TicketCard } from './TicketCard'
@@ -36,7 +37,7 @@ export default async function OrderDetailPage({
           ← Menu
         </Link>
       </div>
-      <h1 className="order-header__title">Table {order.table.number}</h1>
+      <h1 className="order-header__title">{formatTableLabel(order.table.number)}</h1>
     </header>
   )
 
