@@ -4,10 +4,9 @@ import OrderPage from './page'
 import { getTableOrThrow } from '@/lib/tableService'
 import { listMenuItems } from '@/lib/menuService'
 import { NotFoundError } from '@/lib/errors'
-import { peekSession } from '@/lib/authGuard'
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }))
 
 vi.mock('@/lib/tableService', () => ({
@@ -18,10 +17,6 @@ vi.mock('@/lib/menuService', () => ({
   listMenuItems: vi.fn(),
 }))
 
-vi.mock('@/lib/authGuard', () => ({
-  peekSession: vi.fn(),
-}))
-
 function priceOf(value: string) {
   return { toString: () => value } as never
 }
@@ -29,7 +24,6 @@ function priceOf(value: string) {
 describe('OrderPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(peekSession).mockResolvedValue(null)
   })
 
   it('shows an error when the table id is missing', async () => {
@@ -98,35 +92,4 @@ describe('OrderPage', () => {
     expect(screen.getByText('No items available right now.')).toBeInTheDocument()
   })
 
-  it('does not show a back-to-dashboard link when there is no staff session', async () => {
-    vi.mocked(getTableOrThrow).mockResolvedValue({ id: 't1', number: 5, createdAt: new Date() } as never)
-    vi.mocked(listMenuItems).mockResolvedValue([])
-
-    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 't1' }) })
-    render(ui)
-
-    expect(screen.queryByRole('link', { name: '← Dashboard' })).not.toBeInTheDocument()
-  })
-
-  it('shows a back-to-dashboard link for an authenticated staff session', async () => {
-    vi.mocked(getTableOrThrow).mockResolvedValue({ id: 't1', number: 5, createdAt: new Date() } as never)
-    vi.mocked(listMenuItems).mockResolvedValue([])
-    vi.mocked(peekSession).mockResolvedValue({ role: 'staff' })
-
-    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 't1' }) })
-    render(ui)
-
-    expect(screen.getByRole('link', { name: '← Dashboard' })).toHaveAttribute('href', '/dashboard')
-  })
-
-  it('shows a back-to-dashboard link for an authenticated admin session', async () => {
-    vi.mocked(getTableOrThrow).mockResolvedValue({ id: 't1', number: 5, createdAt: new Date() } as never)
-    vi.mocked(listMenuItems).mockResolvedValue([])
-    vi.mocked(peekSession).mockResolvedValue({ role: 'admin' })
-
-    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 't1' }) })
-    render(ui)
-
-    expect(screen.getByRole('link', { name: '← Dashboard' })).toBeInTheDocument()
-  })
 })

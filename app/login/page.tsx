@@ -18,6 +18,7 @@ export default function LoginPage() {
     try {
       await apiClient.post('/api/auth/login', { password })
       router.push('/dashboard')
+      router.refresh()
     } catch (err) {
       if (err instanceof ApiError) {
         setError('Incorrect password')

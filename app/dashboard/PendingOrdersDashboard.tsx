@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { apiClient, ApiError } from '@/lib/apiClient'
+import type { Role } from '@/lib/types'
 import { OrderCard, type OrderCardOrder } from './OrderCard'
 import { OrderDetailModal } from './OrderDetailModal'
 
@@ -25,14 +26,30 @@ async function fetchTabs(): Promise<{ pending: DashboardOrder[]; confirmed: Dash
   return { pending, confirmed }
 }
 
-export function PendingOrdersDashboard() {
+export function PendingOrdersDashboard({ role = 'staff' }: { role?: Role } = {}) {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [sortDirection, setSortDirection] = useState<'newest' | 'oldest'>('newest')
   const [pendingOrders, setPendingOrders] = useState<DashboardOrder[]>([])
   const [confirmedOrders, setConfirmedOrders] = useState<DashboardOrder[]>([])
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
   const [modal, setModal] = useState<ModalState | null>(null)
+  const [menuItems, setMenuItems] = useState<{ id: string; name: string; price: string }[]>([])
   const closeTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    apiClient
+      .get<{ id: string; name: string; price: string; available: boolean }[]>('/api/menu-items')
+      .then((items) => {
+        if (!cancelled) setMenuItems(items.filter((item) => item.available).map((item) => ({ id: item.id, name: item.name, price: item.price })))
+      })
+      .catch(() => {
+        // Non-critical: the add-item picker just stays empty until the next mount.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -103,6 +120,28 @@ export function PendingOrdersDashboard() {
     }
   }
 
+  async function handleCancel(order: DashboardOrder) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
+    try {
+      await apiClient.del(`/api/orders/${order.id}`)
+      setExitingIds((current) => new Set(current).add(order.id))
+      setModal((current) => (current ? { ...current, closing: true } : current))
+      const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
+        closeTimersRef.current.delete(timerId)
+        setPendingOrders((current) => current.filter((o) => o.id !== order.id))
+        setExitingIds((current) => {
+          const next = new Set(current)
+          next.delete(order.id)
+          return next
+        })
+        setModal((current) => (current && current.orderId === order.id && current.closing ? null : current))
+      }, EXIT_MS)
+      closeTimersRef.current.add(timerId)
+    } catch (err) {
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
+    }
+  }
+
   async function handleSetPaymentStatus(order: DashboardOrder, paymentStatus: 'Paid' | 'Unpaid') {
     setModal((current) => (current ? { ...current, busy: true, error: null } : current))
     try {
@@ -111,6 +150,49 @@ export function PendingOrdersDashboard() {
         current.map((o) => (o.id === order.id ? { ...o, paymentStatus: updated.paymentStatus } : o))
       setPendingOrders(applyUpdate)
       setConfirmedOrders(applyUpdate)
+      setModal((current) => (current ? { ...current, busy: false, error: null } : current))
+    } catch (err) {
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
+    }
+  }
+
+  async function refreshTabs() {
+    try {
+      const tabs = await fetchTabs()
+      setPendingOrders(tabs.pending)
+      setConfirmedOrders(tabs.confirmed)
+    } catch {
+      // Keep last-known lists; the next scheduled poll will retry.
+    }
+  }
+
+  async function handleAddItem(order: DashboardOrder, menuItemId: string) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
+    try {
+      await apiClient.post(`/api/orders/${order.id}/items`, { menuItemId, quantity: 1 })
+      await refreshTabs()
+      setModal((current) => (current ? { ...current, busy: false, error: null } : current))
+    } catch (err) {
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
+    }
+  }
+
+  async function handleAdjustQuantity(order: DashboardOrder, itemId: string, quantity: number) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
+    try {
+      await apiClient.patch(`/api/orders/${order.id}/items/${itemId}`, { quantity })
+      await refreshTabs()
+      setModal((current) => (current ? { ...current, busy: false, error: null } : current))
+    } catch (err) {
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
+    }
+  }
+
+  async function handleRemoveItem(order: DashboardOrder, itemId: string) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
+    try {
+      await apiClient.del(`/api/orders/${order.id}/items/${itemId}`)
+      await refreshTabs()
       setModal((current) => (current ? { ...current, busy: false, error: null } : current))
     } catch (err) {
       setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
@@ -193,11 +275,17 @@ export function PendingOrdersDashboard() {
       {modal && selectedOrder && (
         <OrderDetailModal
           order={selectedOrder}
+          role={role}
           busy={modal.busy}
           error={modal.error}
           exiting={modal.closing}
+          menuItems={menuItems}
           onConfirm={() => handleConfirm(selectedOrder)}
           onSetPaymentStatus={(paymentStatus) => handleSetPaymentStatus(selectedOrder, paymentStatus)}
+          onCancelOrder={() => handleCancel(selectedOrder)}
+          onAddItem={(menuItemId) => handleAddItem(selectedOrder, menuItemId)}
+          onAdjustQuantity={(itemId, quantity) => handleAdjustQuantity(selectedOrder, itemId, quantity)}
+          onRemoveItem={(itemId) => handleRemoveItem(selectedOrder, itemId)}
           onClose={closeModal}
         />
       )}

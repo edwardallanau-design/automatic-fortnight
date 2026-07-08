@@ -3,6 +3,7 @@ import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
 import { NotFoundError, ConflictError, ValidationError } from './errors'
+import type { Role } from './types'
 
 export type CartItemInput = { menuItemId: string; quantity: number }
 export type OrderWithItems = Order & { items: OrderItem[] }
@@ -119,7 +120,14 @@ export async function cancelOrder(orderId: string): Promise<OrderWithItems> {
   })
 }
 
-export async function removeOrderItem(orderId: string, orderItemId: string): Promise<OrderWithItems> {
+function assertOrderEditable(order: { fulfillmentStatus: FulfillmentStatus }, actorRole?: Role): void {
+  const adminOverride = order.fulfillmentStatus === 'Confirmed' && actorRole === 'admin'
+  if (order.fulfillmentStatus !== 'Pending' && !adminOverride) {
+    throw new ConflictError(`Order is ${order.fulfillmentStatus}, not Pending`)
+  }
+}
+
+export async function removeOrderItem(orderId: string, orderItemId: string, actorRole?: Role): Promise<OrderWithItems> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { items: true },
@@ -127,9 +135,7 @@ export async function removeOrderItem(orderId: string, orderItemId: string): Pro
   if (!order) {
     throw new NotFoundError('Order not found')
   }
-  if (order.fulfillmentStatus !== 'Pending') {
-    throw new ConflictError(`Order is ${order.fulfillmentStatus}, not Pending`)
-  }
+  assertOrderEditable(order, actorRole)
   if (!order.items.some((item) => item.id === orderItemId)) {
     throw new NotFoundError('Order item not found')
   }
@@ -138,6 +144,87 @@ export async function removeOrderItem(orderId: string, orderItemId: string): Pro
   }
 
   await prisma.orderItem.delete({ where: { id: orderItemId } })
+
+  return prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  }) as Promise<OrderWithItems>
+}
+
+export async function addOrderItem(
+  orderId: string,
+  menuItemId: string,
+  quantity: number,
+  actorRole?: Role,
+): Promise<OrderWithItems> {
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    throw new ValidationError('quantity must be a positive integer')
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  assertOrderEditable(order, actorRole)
+
+  const [menuItem] = await findMenuItemsByIds([menuItemId])
+  if (!menuItem) {
+    throw new NotFoundError('Menu item not found')
+  }
+  if (!menuItem.available) {
+    throw new ConflictError(`${menuItem.name} is no longer available`)
+  }
+
+  const existingLine = order.items.find((item) => item.menuItemId === menuItemId)
+  if (existingLine) {
+    await prisma.orderItem.update({
+      where: { id: existingLine.id },
+      data: { quantity: existingLine.quantity + quantity },
+    })
+  } else {
+    await prisma.orderItem.create({
+      data: {
+        orderId,
+        menuItemId,
+        quantity,
+        nameSnapshot: menuItem.name,
+        priceSnapshot: menuItem.price,
+      },
+    })
+  }
+
+  return prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  }) as Promise<OrderWithItems>
+}
+
+export async function updateOrderItemQuantity(
+  orderId: string,
+  orderItemId: string,
+  quantity: number,
+  actorRole?: Role,
+): Promise<OrderWithItems> {
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    throw new ValidationError('quantity must be a positive integer')
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  assertOrderEditable(order, actorRole)
+  if (!order.items.some((item) => item.id === orderItemId)) {
+    throw new NotFoundError('Order item not found')
+  }
+
+  await prisma.orderItem.update({ where: { id: orderItemId }, data: { quantity } })
 
   return prisma.order.findUnique({
     where: { id: orderId },

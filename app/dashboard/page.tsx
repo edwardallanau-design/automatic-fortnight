@@ -12,20 +12,11 @@ export default async function DashboardPage() {
           <span className="staff-header__eyebrow">Order rail</span>
           <h1 className="staff-header__title">Staff Dashboard</h1>
         </div>
-        <div className="staff-header__meta">
-          <Link href="/order/new" className="staff-header__new-order">
-            + New order
-          </Link>
-          <p className="staff-header__role">Logged in as: {role}</p>
-          {role === 'admin' && (
-            <nav className="staff-header__nav">
-              <Link href="/admin/menu">Menu Management</Link>
-              <Link href="/admin/tables">Table Setup</Link>
-            </nav>
-          )}
-        </div>
+        <Link href="/order/new" className="staff-header__new-order">
+          + New order
+        </Link>
       </header>
-      <PendingOrdersDashboard />
+      <PendingOrdersDashboard role={role} />
     </main>
   )
 }

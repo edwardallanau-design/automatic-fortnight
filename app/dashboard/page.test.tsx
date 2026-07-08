@@ -9,7 +9,7 @@ vi.mock('@/lib/authGuard', () => ({
 }))
 
 vi.mock('@/lib/apiClient', () => ({
-  apiClient: { get: vi.fn() },
+  apiClient: { get: vi.fn(), post: vi.fn() },
 }))
 
 describe('DashboardPage', () => {
@@ -26,16 +26,6 @@ describe('DashboardPage', () => {
 
     expect(screen.getByText('Staff Dashboard')).toBeInTheDocument()
     expect(await screen.findByText('No pending orders')).toBeInTheDocument()
-  })
-
-  it('still shows admin-only nav links for an admin session', async () => {
-    vi.mocked(requireRole).mockResolvedValue({ role: 'admin' })
-
-    const ui = await DashboardPage()
-    render(ui)
-
-    expect(screen.getByRole('link', { name: 'Menu Management' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Table Setup' })).toBeInTheDocument()
   })
 
   it('shows a prominent New order button for a staff session', async () => {

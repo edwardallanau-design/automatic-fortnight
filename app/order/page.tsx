@@ -1,7 +1,5 @@
-import Link from 'next/link'
 import { getTableOrThrow } from '@/lib/tableService'
 import { listMenuItems } from '@/lib/menuService'
-import { peekSession } from '@/lib/authGuard'
 import { NotFoundError } from '@/lib/errors'
 import { Cart } from './Cart'
 import { OrderHeaderTitle } from './OrderHeaderTitle'
@@ -23,8 +21,6 @@ export default async function OrderPage({
     )
   }
 
-  const session = await peekSession()
-
   try {
     const table = await getTableOrThrow(tableId)
     const items = await listMenuItems()
@@ -34,11 +30,6 @@ export default async function OrderPage({
         <header className="order-header">
           <div className="order-header__row">
             <span className="order-header__eyebrow">Now serving</span>
-            {session && (
-              <Link href="/dashboard" className="order-header__back">
-                ← Dashboard
-              </Link>
-            )}
           </div>
           <OrderHeaderTitle tableId={table.id} tableNumber={table.number} />
         </header>

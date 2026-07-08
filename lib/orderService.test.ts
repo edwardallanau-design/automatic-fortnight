@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
-import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder, removeOrderItem, getOrderById } from './orderService'
+import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder, removeOrderItem, addOrderItem, updateOrderItemQuantity, getOrderById } from './orderService'
 import { NotFoundError, ConflictError, ValidationError } from './errors'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
@@ -16,6 +16,8 @@ vi.mock('./prisma', () => ({
     },
     orderItem: {
       delete: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
     },
   },
 }))
@@ -407,6 +409,46 @@ describe('orderService.removeOrderItem', () => {
     expect(prisma.orderItem.delete).toHaveBeenCalledWith({ where: { id: 'oi1' } })
     expect(result).toEqual(reloaded)
   })
+
+  it('allows an admin to remove an item from a Confirmed order', async () => {
+    const confirmed = {
+      id: 'o1',
+      fulfillmentStatus: 'Confirmed',
+      items: [{ id: 'oi1', orderId: 'o1' }, { id: 'oi2', orderId: 'o1' }],
+    }
+    const reloaded = { id: 'o1', fulfillmentStatus: 'Confirmed', items: [{ id: 'oi2', orderId: 'o1' }] }
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce(confirmed as never)
+      .mockResolvedValueOnce(reloaded as never)
+    vi.mocked(prisma.orderItem.delete).mockResolvedValue({ id: 'oi1' } as never)
+
+    const result = await removeOrderItem('o1', 'oi1', 'admin')
+
+    expect(prisma.orderItem.delete).toHaveBeenCalledWith({ where: { id: 'oi1' } })
+    expect(result).toEqual(reloaded)
+  })
+
+  it('throws ConflictError when a non-admin actor removes an item from a Confirmed order', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o1',
+      fulfillmentStatus: 'Confirmed',
+      items: [{ id: 'oi1', orderId: 'o1' }, { id: 'oi2', orderId: 'o1' }],
+    } as never)
+
+    await expect(removeOrderItem('o1', 'oi1', 'staff')).rejects.toThrow(ConflictError)
+    expect(prisma.orderItem.delete).not.toHaveBeenCalled()
+  })
+
+  it('blocks removing the last item from a Confirmed order even for an admin (INV-2)', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o1',
+      fulfillmentStatus: 'Confirmed',
+      items: [{ id: 'oi1', orderId: 'o1' }],
+    } as never)
+
+    await expect(removeOrderItem('o1', 'oi1', 'admin')).rejects.toThrow(ConflictError)
+    expect(prisma.orderItem.delete).not.toHaveBeenCalled()
+  })
 })
 
 describe('orderService.getOrderById', () => {
@@ -437,5 +479,179 @@ describe('orderService.getOrderById', () => {
       where: { id: 'o1' },
       include: { items: true, table: true },
     })
+  })
+})
+
+describe('orderService.addOrderItem', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('throws ValidationError for a non-positive-integer quantity', async () => {
+    await expect(addOrderItem('o1', 'm1', 0)).rejects.toThrow(ValidationError)
+    expect(prisma.order.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when the order does not exist', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(null)
+
+    await expect(addOrderItem('missing', 'm1', 1)).rejects.toThrow(NotFoundError)
+  })
+
+  it('throws ConflictError when the order is Confirmed and the actor is not admin', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o1',
+      fulfillmentStatus: 'Confirmed',
+      items: [],
+    } as never)
+
+    await expect(addOrderItem('o1', 'm1', 1, 'staff')).rejects.toThrow(ConflictError)
+  })
+
+  it('throws NotFoundError when the menu item does not exist', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Pending', items: [] } as never)
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([])
+
+    await expect(addOrderItem('o1', 'missing', 1)).rejects.toThrow(NotFoundError)
+  })
+
+  it('throws ConflictError when the menu item is sold out', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Pending', items: [] } as never)
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([
+      { id: 'm1', name: 'Fries', price: new Prisma.Decimal('4.00'), available: false, archived: false, createdAt: new Date() },
+    ] as never)
+
+    await expect(addOrderItem('o1', 'm1', 1)).rejects.toThrow(ConflictError)
+    expect(prisma.orderItem.create).not.toHaveBeenCalled()
+  })
+
+  it('creates a new line with a snapshot when the item is not already on the order', async () => {
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', items: [] } as never)
+      .mockResolvedValueOnce({
+        id: 'o1',
+        fulfillmentStatus: 'Pending',
+        items: [{ id: 'oi1', menuItemId: 'm1', quantity: 2 }],
+      } as never)
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+    ] as never)
+
+    const result = await addOrderItem('o1', 'm1', 2)
+
+    expect(prisma.orderItem.create).toHaveBeenCalledWith({
+      data: { orderId: 'o1', menuItemId: 'm1', quantity: 2, nameSnapshot: 'Burger', priceSnapshot: new Prisma.Decimal('12.50') },
+    })
+    expect(result).toEqual({
+      id: 'o1',
+      fulfillmentStatus: 'Pending',
+      items: [{ id: 'oi1', menuItemId: 'm1', quantity: 2 }],
+    })
+  })
+
+  it('increments the existing line instead of creating a duplicate when the item is already on the order', async () => {
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({
+        id: 'o1',
+        fulfillmentStatus: 'Pending',
+        items: [{ id: 'oi1', menuItemId: 'm1', quantity: 2 }],
+      } as never)
+      .mockResolvedValueOnce({
+        id: 'o1',
+        fulfillmentStatus: 'Pending',
+        items: [{ id: 'oi1', menuItemId: 'm1', quantity: 3 }],
+      } as never)
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+    ] as never)
+
+    const result = await addOrderItem('o1', 'm1', 1)
+
+    expect(prisma.orderItem.update).toHaveBeenCalledWith({ where: { id: 'oi1' }, data: { quantity: 3 } })
+    expect(prisma.orderItem.create).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      id: 'o1',
+      fulfillmentStatus: 'Pending',
+      items: [{ id: 'oi1', menuItemId: 'm1', quantity: 3 }],
+    })
+  })
+
+  it('allows an admin to add an item to a Confirmed order', async () => {
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Confirmed', items: [] } as never)
+      .mockResolvedValueOnce({
+        id: 'o1',
+        fulfillmentStatus: 'Confirmed',
+        items: [{ id: 'oi1', menuItemId: 'm1', quantity: 1 }],
+      } as never)
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+    ] as never)
+
+    const result = await addOrderItem('o1', 'm1', 1, 'admin')
+
+    expect(prisma.orderItem.create).toHaveBeenCalled()
+    expect(result.fulfillmentStatus).toBe('Confirmed')
+  })
+})
+
+describe('orderService.updateOrderItemQuantity', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('throws ValidationError for a non-positive-integer quantity', async () => {
+    await expect(updateOrderItemQuantity('o1', 'oi1', 0)).rejects.toThrow(ValidationError)
+    expect(prisma.order.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when the order does not exist', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(null)
+
+    await expect(updateOrderItemQuantity('missing', 'oi1', 2)).rejects.toThrow(NotFoundError)
+  })
+
+  it('throws ConflictError when the order is Confirmed and the actor is not admin', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o1',
+      fulfillmentStatus: 'Confirmed',
+      items: [{ id: 'oi1', quantity: 1 }],
+    } as never)
+
+    await expect(updateOrderItemQuantity('o1', 'oi1', 2, 'staff')).rejects.toThrow(ConflictError)
+    expect(prisma.orderItem.update).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when the item does not belong to the order', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o1',
+      fulfillmentStatus: 'Pending',
+      items: [{ id: 'oi1', quantity: 1 }],
+    } as never)
+
+    await expect(updateOrderItemQuantity('o1', 'other', 2)).rejects.toThrow(NotFoundError)
+    expect(prisma.orderItem.update).not.toHaveBeenCalled()
+  })
+
+  it('updates the quantity for a Pending order', async () => {
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', items: [{ id: 'oi1', quantity: 1 }] } as never)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', items: [{ id: 'oi1', quantity: 3 }] } as never)
+
+    const result = await updateOrderItemQuantity('o1', 'oi1', 3)
+
+    expect(prisma.orderItem.update).toHaveBeenCalledWith({ where: { id: 'oi1' }, data: { quantity: 3 } })
+    expect(result).toEqual({ id: 'o1', fulfillmentStatus: 'Pending', items: [{ id: 'oi1', quantity: 3 }] })
+  })
+
+  it('allows an admin to update quantity on a Confirmed order', async () => {
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Confirmed', items: [{ id: 'oi1', quantity: 1 }] } as never)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Confirmed', items: [{ id: 'oi1', quantity: 2 }] } as never)
+
+    const result = await updateOrderItemQuantity('o1', 'oi1', 2, 'admin')
+
+    expect(prisma.orderItem.update).toHaveBeenCalledWith({ where: { id: 'oi1' }, data: { quantity: 2 } })
+    expect(result.items[0].quantity).toBe(2)
   })
 })

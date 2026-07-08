@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
 import { TicketCard } from './TicketCard'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '@/app/components/ConfirmDialog'
 
 export type OrderTicketLine = {
   id: string
