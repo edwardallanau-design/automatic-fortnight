@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { PendingOrdersDashboard } from './PendingOrdersDashboard'
 import { apiClient, ApiError } from '@/lib/apiClient'
 
@@ -11,11 +11,22 @@ vi.mock('@/lib/apiClient', async (importOriginal) => {
   }
 })
 
+type Tabs = { pending?: unknown[]; confirmed?: unknown[] }
+
+function mockTabs({ pending = [], confirmed = [] }: Tabs = {}) {
+  vi.mocked(apiClient.get).mockImplementation((path: string) => {
+    if (path.includes('status=confirmed')) return Promise.resolve(confirmed)
+    return Promise.resolve(pending)
+  })
+}
+
 const orderA = {
   id: 'o1',
   orderNumber: 101,
   createdAt: '2026-07-04T12:00:00.000Z',
+  fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
+  customerName: null,
   table: { number: 4 },
   items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
 }
@@ -24,7 +35,9 @@ const orderB = {
   id: 'o2',
   orderNumber: 102,
   createdAt: '2026-07-04T12:01:00.000Z',
+  fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
+  customerName: null,
   table: { number: 7 },
   items: [{ id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
 }
@@ -40,9 +53,9 @@ describe('PendingOrdersDashboard', () => {
     vi.useRealTimers()
   })
 
-  it('renders orders returned by the initial fetch', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([orderA])
-    render(<PendingOrdersDashboard role="staff" />)
+  it('renders Pending orders on the Pending tab by default and polls both endpoints', async () => {
+    mockTabs({ pending: [orderA] })
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -50,40 +63,65 @@ describe('PendingOrdersDashboard', () => {
 
     expect(screen.getByText('Table 4')).toBeInTheDocument()
     expect(screen.getByText('#101')).toBeInTheDocument()
-    expect(screen.getByText('2x Burger')).toBeInTheDocument()
     expect(apiClient.get).toHaveBeenCalledWith('/api/orders?status=pending')
+    expect(apiClient.get).toHaveBeenCalledWith('/api/orders?status=confirmed&date=today')
   })
 
-  it('re-fetches on each polling interval and renders newly-arrived orders', async () => {
-    vi.mocked(apiClient.get)
-      .mockResolvedValueOnce([orderA])
-      .mockResolvedValueOnce([orderA, orderB])
-    render(<PendingOrdersDashboard role="staff" />)
+  it('shows live counts on both tab labels without switching tabs', async () => {
+    mockTabs({ pending: [orderA], confirmed: [{ ...orderB, fulfillmentStatus: 'Confirmed' }] })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    expect(screen.getByRole('tab', { name: 'Pending (1)' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Confirmed (1)' })).toBeInTheDocument()
+    expect(screen.getByText('Table 4')).toBeInTheDocument()
+    expect(screen.queryByText('Table 7')).not.toBeInTheDocument()
+  })
+
+  it('switching to the Confirmed tab shows confirmed orders already fetched in the background', async () => {
+    mockTabs({ pending: [orderA], confirmed: [{ ...orderB, fulfillmentStatus: 'Confirmed' }] })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (1)' }))
+
+    expect(screen.getByText('Table 7')).toBeInTheDocument()
+    expect(screen.queryByText('Table 4')).not.toBeInTheDocument()
+  })
+
+  it('re-fetches on each polling interval and updates the active tab', async () => {
+    mockTabs({ pending: [orderA] })
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
     expect(screen.queryByText('Table 7')).not.toBeInTheDocument()
 
+    mockTabs({ pending: [orderA, orderB] })
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3500)
     })
 
     expect(screen.getByText('Table 7')).toBeInTheDocument()
-    expect(apiClient.get).toHaveBeenCalledTimes(2)
   })
 
   it('keeps showing the last-known orders when a poll tick fails', async () => {
-    vi.mocked(apiClient.get)
-      .mockResolvedValueOnce([orderA])
-      .mockRejectedValueOnce(new Error('network error'))
-    render(<PendingOrdersDashboard role="staff" />)
+    mockTabs({ pending: [orderA] })
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
     expect(screen.getByText('Table 4')).toBeInTheDocument()
 
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('network error'))
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3500)
     })
@@ -91,9 +129,9 @@ describe('PendingOrdersDashboard', () => {
     expect(screen.getByText('Table 4')).toBeInTheDocument()
   })
 
-  it('shows "No pending orders" when the list is empty', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([])
-    render(<PendingOrdersDashboard role="staff" />)
+  it('shows an empty message on the Pending tab when there are no pending orders', async () => {
+    mockTabs()
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -102,128 +140,170 @@ describe('PendingOrdersDashboard', () => {
     expect(screen.getByText('No pending orders')).toBeInTheDocument()
   })
 
-  it('confirms an order and removes it from the list on success', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([orderA])
-    vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, fulfillmentStatus: 'Confirmed' })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
-    render(<PendingOrdersDashboard role="staff" />)
+  it('shows an empty message on the Confirmed tab when nothing has been confirmed today', async () => {
+    mockTabs()
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (0)' }))
+
+    expect(screen.getByText('No orders confirmed yet today')).toBeInTheDocument()
+  })
+
+  it('shows no sort control on the Pending tab', async () => {
+    mockTabs({ pending: [orderA] })
+    render(<PendingOrdersDashboard />)
+
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+      await vi.advanceTimersByTimeAsync(0)
     })
 
-    expect(window.confirm).toHaveBeenCalledWith('Confirm order #101?')
+    expect(screen.queryByRole('button', { name: /Newest first|Oldest first/ })).not.toBeInTheDocument()
+  })
+
+  it('sorts the Confirmed tab newest-first by default and toggles to oldest-first', async () => {
+    const older = { ...orderA, fulfillmentStatus: 'Confirmed', confirmedAt: '2026-07-04T10:00:00.000Z' }
+    const newer = { ...orderB, fulfillmentStatus: 'Confirmed', confirmedAt: '2026-07-04T11:00:00.000Z' }
+    mockTabs({ confirmed: [older, newer] })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (2)' }))
+
+    const newestFirst = screen.getAllByRole('button', { name: /Order 10[12]/ })
+    expect(newestFirst[0]).toHaveAttribute('aria-label', expect.stringContaining('Order 102'))
+    expect(newestFirst[1]).toHaveAttribute('aria-label', expect.stringContaining('Order 101'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Newest first' }))
+
+    const oldestFirst = screen.getAllByRole('button', { name: /Order 10[12]/ })
+    expect(oldestFirst[0]).toHaveAttribute('aria-label', expect.stringContaining('Order 101'))
+    expect(oldestFirst[1]).toHaveAttribute('aria-label', expect.stringContaining('Order 102'))
+  })
+
+  it('opens the detail modal when a card is tapped', async () => {
+    mockTabs({ pending: [orderA] })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
+  })
+
+  it('confirms a Pending order: it exits the Pending tab immediately but does not appear on the Confirmed tab until the next poll', async () => {
+    mockTabs({ pending: [orderA] })
+    vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid' })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm order' }))
+    })
     expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/confirm', {})
-    expect(screen.queryByText('#101')).not.toBeInTheDocument()
-    expect(screen.getByText('No pending orders')).toBeInTheDocument()
-  })
-
-  it('does not call the confirm API when the confirm dialog is cancelled', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([orderA])
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(<PendingOrdersDashboard role="staff" />)
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(200)
     })
 
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByText('Table 4')).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Confirmed (0)' })).toBeInTheDocument()
+
+    mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed' }] })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+      await vi.advanceTimersByTimeAsync(3500)
     })
 
-    expect(apiClient.patch).not.toHaveBeenCalled()
-    expect(screen.getByText('#101')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Confirmed (1)' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (1)' }))
+    expect(screen.getByText('Table 4')).toBeInTheDocument()
   })
 
-  it('shows an inline error and re-enables the Confirm button when confirming fails', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([orderA])
+  it('shows an inline error in the modal and keeps it open when confirming fails', async () => {
+    mockTabs({ pending: [orderA] })
     vi.mocked(apiClient.patch).mockRejectedValue(new ApiError('CONFLICT', 'Order is Confirmed, not Pending'))
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm order' }))
     })
 
     expect(screen.getByRole('alert')).toHaveTextContent('Order is Confirmed, not Pending')
-    expect(screen.getByText('#101')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Confirm' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Confirm order' })).not.toBeDisabled()
   })
 
-  it('disables the Confirm button while the request is in flight', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([orderA])
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
-    let resolvePatch: (value: unknown) => void = () => {}
-    vi.mocked(apiClient.patch).mockReturnValue(
-      new Promise((resolve) => {
-        resolvePatch = resolve
-      }),
-    )
-    render(<PendingOrdersDashboard role="staff" />)
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0)
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
-    await act(async () => {
-      await Promise.resolve()
-    })
-
-    expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled()
-
-    await act(async () => {
-      resolvePatch({ ...orderA, fulfillmentStatus: 'Confirmed' })
-      await Promise.resolve()
-    })
-  })
-
-  it('marks an order Paid and keeps it visible with updated status', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([orderA])
+  it('marks a Pending order Paid in place — stays on the Pending tab, modal stays open', async () => {
+    mockTabs({ pending: [orderA] })
     vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, paymentStatus: 'Paid' })
-    render(<PendingOrdersDashboard role="staff" />)
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Mark Paid' }))
     })
 
     expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/pay', { paymentStatus: 'Paid' })
-    expect(screen.getByText('#101')).toBeInTheDocument()
-    expect(screen.getByText('Paid')).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog', { name: 'Order 101' })
+    expect(dialog).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Mark Unpaid' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Pending (1)' })).toBeInTheDocument()
   })
 
-  it('shows a static Paid label (no revert button) for staff on a Paid order', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([{ ...orderA, paymentStatus: 'Paid' }])
-    render(<PendingOrdersDashboard role="staff" />)
+  it('marks a Confirmed order Paid in place — stays on the Confirmed tab, modal stays open', async () => {
+    mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed' }] })
+    vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Paid' })
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (1)' }))
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
 
-    expect(screen.getByText('Paid')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Mark Unpaid' })).not.toBeInTheDocument()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Mark Paid' }))
+    })
+
+    expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/pay', { paymentStatus: 'Paid' })
+    const dialog = screen.getByRole('dialog', { name: 'Order 101' })
+    expect(dialog).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Mark Unpaid' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Confirmed (1)' })).toBeInTheDocument()
   })
 
-  it('allows an admin to revert a Paid order back to Unpaid', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([{ ...orderA, paymentStatus: 'Paid' }])
-    vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, paymentStatus: 'Unpaid' })
-    render(<PendingOrdersDashboard role="admin" />)
+  it('reverts a Paid Confirmed order back to Unpaid, in place', async () => {
+    mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Paid' }] })
+    vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid' })
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (1)' }))
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Mark Unpaid' }))
@@ -231,81 +311,76 @@ describe('PendingOrdersDashboard', () => {
 
     expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/pay', { paymentStatus: 'Unpaid' })
     expect(screen.getByRole('button', { name: 'Mark Paid' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Confirmed (1)' })).toBeInTheDocument()
   })
 
-  it('shows an inline error and re-enables the button when marking Paid fails', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([orderA])
-    vi.mocked(apiClient.patch).mockRejectedValue(new ApiError('NOT_FOUND', 'Order not found'))
-    render(<PendingOrdersDashboard role="staff" />)
+  it('closes the modal on backdrop click without calling any mutation', async () => {
+    mockTabs({ pending: [orderA] })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('order-detail-modal-backdrop'))
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(apiClient.patch).not.toHaveBeenCalled()
+  })
+
+  it('does not let a stale close timer from order A clobber a modal reopened for order B', async () => {
+    mockTabs({ pending: [orderA, orderB] })
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
 
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
+
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Mark Paid' }))
+      fireEvent.click(screen.getByTestId('order-detail-modal-backdrop'))
     })
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Order not found')
-    expect(screen.getByRole('button', { name: 'Mark Paid' })).not.toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: /Order 102/ }))
+    expect(screen.getByRole('dialog', { name: 'Order 102' })).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    expect(screen.getByRole('dialog', { name: 'Order 102' })).toBeInTheDocument()
   })
 
-  it('disables the Mark Paid button while the request is in flight and clears a prior error on success', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([orderA])
-    let rejectFirst: (err: unknown) => void = () => {}
-    vi.mocked(apiClient.patch).mockReturnValueOnce(
-      new Promise((_resolve, reject) => {
-        rejectFirst = reject
-      }),
-    )
-    render(<PendingOrdersDashboard role="staff" />)
+  it('does not let a stale close timer clobber order A after it is reopened before the timer fires', async () => {
+    mockTabs({ pending: [orderA] })
+    render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mark Paid' }))
-    await act(async () => {
-      await Promise.resolve()
-    })
-    expect(screen.getByRole('button', { name: 'Mark Paid' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
 
     await act(async () => {
-      rejectFirst(new ApiError('NOT_FOUND', 'Order not found'))
-      await Promise.resolve()
-    })
-    expect(screen.getByRole('alert')).toHaveTextContent('Order not found')
-
-    vi.mocked(apiClient.patch).mockResolvedValueOnce({ ...orderA, paymentStatus: 'Paid' })
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Mark Paid' }))
-      await Promise.resolve()
+      fireEvent.click(screen.getByTestId('order-detail-modal-backdrop'))
     })
 
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.getByText('Paid')).toBeInTheDocument()
-  })
-
-  it('shows the customer name on the order card when present', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([{ ...orderA, customerName: 'Edward' }])
-    render(<PendingOrdersDashboard role="staff" />)
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(200)
     })
 
-    expect(screen.getByText(/· Edward/)).toBeInTheDocument()
-  })
-
-  it('shows no name segment when the order has none', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue([{ ...orderA, customerName: null }])
-    render(<PendingOrdersDashboard role="staff" />)
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0)
-    })
-
-    expect(screen.getByText('Table 4')).toBeInTheDocument()
-    expect(screen.queryByText(/·/)).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
   })
 })

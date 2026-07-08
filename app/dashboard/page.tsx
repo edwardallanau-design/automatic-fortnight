@@ -22,7 +22,7 @@ export default async function DashboardPage() {
           )}
         </div>
       </header>
-      <PendingOrdersDashboard role={role} />
+      <PendingOrdersDashboard />
     </main>
   )
 }

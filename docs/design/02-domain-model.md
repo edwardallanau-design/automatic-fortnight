@@ -36,7 +36,7 @@
 - `INV-6` An Order may be cancelled only while `fulfillmentStatus = Pending`.
 - `INV-7` A MenuItem with `available = false` (sold out) cannot be added as a new OrderItem to any order. Existing OrderItems referencing it are unaffected (their snapshot already exists — see `INV-3`).
 - `INV-8` `paymentStatus` transitions independently of `fulfillmentStatus` — an order can be marked Paid while Pending or while Confirmed. There is no rule tying payment timing to confirmation.
-- `INV-9` Reverting `paymentStatus` from Paid back to Unpaid may only be performed by Owner/Admin (correcting a staff error) — Staff cannot un-mark a payment.
+- `INV-9` Reverting `paymentStatus` from Paid back to Unpaid may be performed by any authenticated staff or admin session — no role restriction. (Originally Owner/Admin-only; relaxed 2026-07-08 so staff can self-correct a mis-marked payment without needing an admin.)
 
 **State machines.**
 

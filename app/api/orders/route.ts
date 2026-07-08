@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import type { FulfillmentStatus } from '@prisma/client'
+import type { FulfillmentStatus, PaymentStatus } from '@prisma/client'
 import { createOrder, listOrders } from '@/lib/orderService'
 import { requireApiRole } from '@/lib/authGuard'
 import { handleApiError } from '@/lib/handleApiError'
@@ -11,12 +11,19 @@ const STATUS_PARAM_MAP: Record<string, FulfillmentStatus> = {
   cancelled: 'Cancelled',
 }
 
+const PAYMENT_STATUS_PARAM_MAP: Record<string, PaymentStatus> = {
+  paid: 'Paid',
+  unpaid: 'Unpaid',
+}
+
 export async function GET(request: Request) {
   try {
     await requireApiRole('staff')
 
     const { searchParams } = new URL(request.url)
     const statusParam = searchParams.get('status')
+    const paymentStatusParam = searchParams.get('paymentStatus')
+    const dateParam = searchParams.get('date')
 
     let status: FulfillmentStatus | undefined
     if (statusParam !== null) {
@@ -26,7 +33,23 @@ export async function GET(request: Request) {
       }
     }
 
-    const orders = await listOrders({ status })
+    let paymentStatus: PaymentStatus | undefined
+    if (paymentStatusParam !== null) {
+      paymentStatus = PAYMENT_STATUS_PARAM_MAP[paymentStatusParam]
+      if (!paymentStatus) {
+        throw new ValidationError(`Invalid paymentStatus: ${paymentStatusParam}`)
+      }
+    }
+
+    let date: 'today' | undefined
+    if (dateParam !== null) {
+      if (dateParam !== 'today') {
+        throw new ValidationError(`Invalid date: ${dateParam}`)
+      }
+      date = dateParam
+    }
+
+    const orders = await listOrders({ status, paymentStatus, date })
     return NextResponse.json(orders, { status: 200 })
   } catch (error) {
     return handleApiError(error)

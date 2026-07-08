@@ -1,9 +1,8 @@
-import type { Order, OrderItem, Table, FulfillmentStatus, PaymentStatus } from '@prisma/client'
+import type { Order, OrderItem, Table, FulfillmentStatus, PaymentStatus, Prisma } from '@prisma/client'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
-import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from './errors'
-import type { Role } from './types'
+import { NotFoundError, ConflictError, ValidationError } from './errors'
 
 export type CartItemInput = { menuItemId: string; quantity: number }
 export type OrderWithItems = Order & { items: OrderItem[] }
@@ -54,9 +53,22 @@ export async function createOrder(
 
 export type OrderWithItemsAndTable = Order & { items: OrderItem[]; table: Table }
 
-export async function listOrders(options: { status?: FulfillmentStatus } = {}): Promise<OrderWithItemsAndTable[]> {
+export async function listOrders(
+  options: { status?: FulfillmentStatus; paymentStatus?: PaymentStatus; date?: 'today' } = {},
+): Promise<OrderWithItemsAndTable[]> {
+  const where: Prisma.OrderWhereInput = {}
+  if (options.status) where.fulfillmentStatus = options.status
+  if (options.paymentStatus) where.paymentStatus = options.paymentStatus
+  if (options.date === 'today') {
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+    const startOfNextDay = new Date(startOfDay)
+    startOfNextDay.setDate(startOfNextDay.getDate() + 1)
+    where.confirmedAt = { gte: startOfDay, lt: startOfNextDay }
+  }
+
   return prisma.order.findMany({
-    where: options.status ? { fulfillmentStatus: options.status } : {},
+    where,
     include: { items: true, table: true },
     orderBy: { createdAt: 'asc' },
   })
@@ -78,17 +90,10 @@ export async function confirmOrder(orderId: string): Promise<OrderWithItems> {
   })
 }
 
-export async function setPaymentStatus(
-  orderId: string,
-  paymentStatus: PaymentStatus,
-  role: Role,
-): Promise<OrderWithItems> {
+export async function setPaymentStatus(orderId: string, paymentStatus: PaymentStatus): Promise<OrderWithItems> {
   const order = await prisma.order.findUnique({ where: { id: orderId } })
   if (!order) {
     throw new NotFoundError('Order not found')
-  }
-  if (paymentStatus === 'Unpaid' && order.paymentStatus === 'Paid' && role !== 'admin') {
-    throw new ForbiddenError('Only admin may revert payment status to Unpaid')
   }
 
   return prisma.order.update({

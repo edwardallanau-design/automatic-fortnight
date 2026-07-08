@@ -142,4 +142,11 @@ describe('OrderTicket', () => {
 
     expect(screen.queryByText(/^For /)).not.toBeInTheDocument()
   })
+
+  it('does not claim the order is confirmed while it is still Pending', () => {
+    render(<OrderTicket order={twoLineOrder()} />)
+
+    expect(screen.getByText('Order #47')).toBeInTheDocument()
+    expect(screen.queryByText(/confirmed/i)).not.toBeInTheDocument()
+  })
 })
