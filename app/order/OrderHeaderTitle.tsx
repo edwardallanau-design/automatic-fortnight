@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { readOrderName } from './orderNameStorage'
+import { formatTableLabel } from '@/lib/tableDisplay'
 
 export function OrderHeaderTitle({ tableId, tableNumber }: { tableId: string; tableNumber: number }) {
   // Read in an effect, not during render: sessionStorage does not exist on the server,
@@ -14,7 +15,7 @@ export function OrderHeaderTitle({ tableId, tableNumber }: { tableId: string; ta
 
   return (
     <h1 className="order-header__title">
-      Table {tableNumber}
+      {formatTableLabel(tableNumber)}
       {name && <span className="order-header__name"> · {name}</span>}
     </h1>
   )

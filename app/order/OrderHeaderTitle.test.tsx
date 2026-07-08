@@ -28,4 +28,10 @@ describe('OrderHeaderTitle', () => {
 
     expect(screen.getByRole('heading', { level: 1 }).textContent).not.toContain('Edward')
   })
+
+  it('renders "Counter" instead of "Table 0" when tableNumber is 0', () => {
+    render(<OrderHeaderTitle tableId="t0" tableNumber={0} />)
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Counter')
+  })
 })
