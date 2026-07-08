@@ -23,6 +23,15 @@
 
 **Maintaining ISSUES.md.** Any bug or unexpected behaviour found — whether you caused it, found it while building something else, or the user reports it — gets logged before or alongside the fix, not skipped because it was quick to fix. Closed issues stay in the file (moved to a Resolved section), not deleted — they're a record of what already bit this project once.
 
+**Deployment pipeline.** Three long-lived branches, each with a stable Vercel domain, publicly viewable (Deployment Protection is disabled for Preview):
+- `main` (production) → `https://automatic-fortnight-lyart.vercel.app/`
+- `preprod` (final check before release) → `https://automatic-fortnight-preprod.vercel.app/`
+- `dev` (integration branch for in-progress work) → `https://automatic-fortnight-dev.vercel.app/`
+
+New work branches off `dev` and PRs back into `dev` (not `main`). Promoting `dev` → `preprod` and `preprod` → `main` is a direct merge and push, no PR required — the code was already reviewed when it landed on `dev`. Design: `docs/superpowers/specs/2026-07-08-dev-preprod-prod-pipeline-design.md`.
+
+`dev`, `preprod`, and feature-branch previews all share the single production Neon database (per-environment DB isolation is a known, deliberately deferred gap — see that spec's "Backlog" note). Don't treat data on `dev`/`preprod` as disposable-and-isolated; it's the same database production reads from. This also means concurrent deploys across branches can transiently fail on a Postgres advisory-lock timeout in `prisma migrate deploy` (`Error: P1002`) — the fix is just to redeploy once the colliding build finishes, not a real bug.
+
 **Stop rules (ask before doing).**
 
 - Touching anything in `02-domain-model.md`'s invariants or state machines — these are one-way doors.
