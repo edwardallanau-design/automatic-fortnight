@@ -34,3 +34,9 @@ export async function requireApiRole(minRole: Role): Promise<{ role: Role }> {
 
   return session
 }
+
+export async function peekSession(): Promise<{ role: Role } | null> {
+  const cookieStore = await cookies()
+  const cookie = cookieStore.get(SESSION_COOKIE_NAME)
+  return cookie ? verifySession(cookie.value) : null
+}
