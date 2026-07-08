@@ -1,6 +1,7 @@
 'use client'
 
 import { Modal } from '@/app/components/Modal'
+import { formatTableLabel } from '@/lib/tableDisplay'
 import type { OrderCardItem, OrderCardOrder } from './OrderCard'
 
 function lineTotal(item: OrderCardItem): number {
@@ -35,7 +36,7 @@ export function OrderDetailModal({
       onClose={onClose}
     >
       <h2 className="order-detail-modal__title">
-        Table {order.table.number} · #{order.orderNumber}
+        {formatTableLabel(order.table.number)} · #{order.orderNumber}
       </h2>
       {order.customerName && <p className="order-detail-modal__customer">{order.customerName}</p>}
 

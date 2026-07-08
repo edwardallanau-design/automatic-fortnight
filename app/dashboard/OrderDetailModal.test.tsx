@@ -110,4 +110,21 @@ describe('OrderDetailModal', () => {
     expect(screen.getByRole('button', { name: 'Confirm order' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Mark Paid' })).toBeDisabled()
   })
+
+  it('renders "Counter" instead of "Table 0" for a table number 0 order', () => {
+    render(
+      <OrderDetailModal
+        order={{ ...pendingOrder, table: { number: 0 } }}
+        busy={false}
+        error={null}
+        exiting={false}
+        onConfirm={vi.fn()}
+        onSetPaymentStatus={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Counter', { exact: false })).toBeInTheDocument()
+    expect(screen.queryByText('Table 0', { exact: false })).not.toBeInTheDocument()
+  })
 })
