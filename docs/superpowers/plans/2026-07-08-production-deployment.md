@@ -37,7 +37,7 @@ No other files change. This plan is infrastructure/config work, not a feature.
 
 **Interfaces:**
 - Consumes: nothing from other tasks.
-- Produces: a `vercel-build` npm script that Vercel will auto-detect and run in place of the default `build` script (Task 6 depends on this being merged to `main` before the first deploy).
+- Produces: a `vercel-build` npm script that Vercel will auto-detect and run in place of the default `build` script (Task 6 depends on this being merged to `main` before the first deploy) — but see Task 4 Step 3 / the vercel.json fix: auto-detection does not apply under a recognized framework preset.
 
 - [ ] **Step 1: Add the script**
 
@@ -140,7 +140,7 @@ These are the real login passwords staff and the admin/owner will use in product
 
 - [ ] **Step 1:** In the Vercel dashboard, import this repo's GitHub remote as a new project.
 - [ ] **Step 2:** Confirm the framework preset auto-detects as **Next.js** and the root directory is the repo root (no monorepo subfolder).
-- [ ] **Step 3 (correction, verified against a real deploy attempt):** Vercel's `vercel-build`-script auto-pickup does **not** apply when a recognized framework preset (Next.js) is selected — with a recognized framework, Vercel runs `npm run build` directly and ignores `vercel-build` unless the Build Command is explicitly overridden. In Settings → Build and Development Settings, toggle the Build Command override on and set it to `npm run vercel-build`. Save. Without this, the build runs plain `next build`, `prisma generate` never executes, and the build fails with `Module '"@prisma/client"' has no exported member 'Prisma'` (or similar missing-type errors) since the generated client is absent.
+- [ ] **Step 3 (correction, verified against a real deploy attempt):** Vercel's `vercel-build`-script auto-pickup does **not** apply when a recognized framework preset (Next.js) is selected — with a recognized framework, Vercel runs `npm run build` directly and ignores `vercel-build` unless the Build Command is explicitly overridden. In Settings → Build and Development Settings, toggle the Build Command override on and set it to `npm run vercel-build`. Save. Without this, the build runs plain `next build`, `prisma generate` never executes, and the build fails with `Module '"@prisma/client"' has no exported member 'Prisma'` (or similar missing-type errors) since the generated client is absent. **Superseded/backed up by a version-controlled fix:** the dashboard override above is project-only state, lost if the Vercel project is ever recreated. A root-level `vercel.json` (`{ "buildCommand": "npm run vercel-build" }`) was added to the repo so this fix survives project recreation — Vercel honors `vercel.json`'s `buildCommand` regardless of the recognized framework preset. The dashboard override is now redundant (harmless to leave set) rather than the sole source of truth.
 - [ ] **Step 4:** Do not trigger a deploy yet — env vars (Task 5) need to be in place first, otherwise the first build will fail at `prisma migrate deploy` with a missing/invalid `DATABASE_URL`.
 
 ---
