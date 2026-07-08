@@ -89,9 +89,9 @@ No commit step here — this task only creates branches, it doesn't change file 
 - Produces: two stable, non-ephemeral URLs, needed by Task 3's verification.
 
 - [ ] **Step 1:** In the Vercel dashboard, go to the project → Settings → Domains → Add.
-- [ ] **Step 2:** Add `automatic-fortnight-dev.vercel.app` (or the next available name if taken — Vercel's `*.vercel.app` subdomains are global, not per-project). When prompted for the target, choose "Assign to a Git Branch" and select `dev`.
-- [ ] **Step 3:** Repeat Step 2 for `automatic-fortnight-preprod.vercel.app`, assigned to branch `preprod`.
-- [ ] **Step 4:** If either desired subdomain name is already taken by another Vercel user, choose an available variant (e.g. append a short suffix) and note the actual URL used — it's needed verbatim in Task 3 and Task 4.
+- [ ] **Step 2 (corrected — see the design spec's Correction note; no "Assign to a Git Branch" picker exists on Hobby):** Add `automatic-fortnight-dev.vercel.app` (or the next available name if taken — Vercel's `*.vercel.app` subdomains are global, not per-project) from the `dev` branch's own deployment page (not the generic project-level Domains screen), choosing "Preview" as the environment. Assigning it from that specific deployment's page is what pins it to `dev` — verified empirically via a marker-file test.
+- [ ] **Step 3:** Repeat Step 2 for `automatic-fortnight-preprod.vercel.app`, from the `preprod` branch's own deployment page.
+- [ ] **Step 4:** If either desired subdomain name is already taken by another Vercel user, choose an available variant (e.g. append a short suffix) and note the actual URL used — it's needed verbatim in Task 3 and Task 4. If domain isolation is ever in doubt, Vercel's auto-generated per-branch alias (`automatic-fortnight-git-<branch>-edwardallanau-designs-projects.vercel.app`) is a guaranteed-correct fallback with no setup required.
 
 ---
 

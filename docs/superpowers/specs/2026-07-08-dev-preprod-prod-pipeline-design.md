@@ -26,7 +26,7 @@ A second, related idea was raised alongside this: eventually different restauran
 
 ### 1. Branches and stable URLs
 
-Three long-lived branches, each with a fixed Vercel domain assignment (Project Settings → Domains → Add → "Assign to a Git branch"):
+Three long-lived branches, each with a fixed Vercel domain assignment (Project Settings → Domains → Add → "Assign to a Git branch" — but see the Correction below, this exact picker doesn't exist on Hobby):
 
 | Branch | Purpose | Domain |
 |---|---|---|

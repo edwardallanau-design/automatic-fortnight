@@ -55,7 +55,7 @@ Live at `https://automatic-fortnight-lyart.vercel.app/`. Deployment design/plan:
 - Preprod: `https://automatic-fortnight-preprod.vercel.app/` (branch `preprod`)
 - Dev: `https://automatic-fortnight-dev.vercel.app/` (branch `dev`)
 
-All three are publicly viewable (Vercel Deployment Protection/SSO disabled for Preview). `dev`/`preprod`/feature-branch previews share the production Neon database — per-environment DB isolation is deferred, tracked in the pipeline design's Backlog note. Promotion workflow and rationale: `docs/superpowers/specs/2026-07-08-dev-preprod-prod-pipeline-design.md`.
+All three are publicly viewable (Vercel Deployment Protection/SSO disabled for Preview) — this also applies to every future feature-branch preview, not just `dev`/`preprod`. `dev`/`preprod`/feature-branch previews share the production Neon database — per-environment DB isolation is deferred, tracked in the pipeline design's Backlog note. Combined, this widens where `ISSUE-12`'s accepted weak-credential/no-rate-limit surface (above) is reachable: any PR's preview now exposes the same weak-password admin login against the same production database, with no login wall in front of it. No new credential or data is exposed that production didn't already expose — but revisit this alongside rotating `ISSUE-12`'s credentials before a real pilot. Promotion workflow and rationale: `docs/superpowers/specs/2026-07-08-dev-preprod-prod-pipeline-design.md`.
 
 ## Validation gate (fill in once the pilot is live)
 
