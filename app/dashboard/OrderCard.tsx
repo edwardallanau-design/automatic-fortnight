@@ -1,5 +1,7 @@
 'use client'
 
+import { formatTableLabel } from '@/lib/tableDisplay'
+
 export type OrderCardItem = { id: string; nameSnapshot: string; priceSnapshot: string; quantity: number }
 
 export type OrderCardOrder = {
@@ -47,12 +49,12 @@ export function OrderCard({
       <button
         type="button"
         className={`order-card${exiting ? ' order-card--exiting' : ''}`}
-        aria-label={`Order ${order.orderNumber}, table ${order.table.number}`}
+        aria-label={`Order ${order.orderNumber}, ${formatTableLabel(order.table.number)}`}
         onClick={onOpen}
       >
         <span className="order-card__stub">#{order.orderNumber}</span>
         <span className="order-card__table">
-          Table {order.table.number}
+          {formatTableLabel(order.table.number)}
           {order.customerName && <span className="order-card__customer"> · {order.customerName}</span>}
         </span>
         <span className="order-card__meta">
