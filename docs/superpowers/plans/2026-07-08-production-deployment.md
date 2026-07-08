@@ -13,7 +13,7 @@
 - `DATABASE_URL` for production must be Neon's **pooled** connection string (hostname contains `-pooler`), not the direct one — spec §1.
 - `AUTH_SECRET` for production must be a newly generated value, never the one in `.env.docker`/`.env.local` — spec §2, closes ISSUE-7.
 - `SEED_STAFF_PASSWORD` / `SEED_ADMIN_PASSWORD` for production must be real credentials chosen by the project owner, never the dev/Docker placeholder values — spec §2.
-- `ENABLE_TEST_PICKER` must stay unset in both the Production and Preview Vercel environments — spec §2.
+- `ENABLE_TEST_PICKER` must stay unset in both the Production and Preview Vercel environments — spec §2. **Superseded 2026-07-08:** this env var and `/order/test` no longer exist, replaced by the staff-authenticated `/order/new` route — see `docs/superpowers/specs/2026-07-08-staff-assisted-table-ordering-design.md`.
 - No secret value (connection string, `AUTH_SECRET`, seed passwords) gets written to any file tracked by git, committed, or logged in a plan/spec doc — standard secret hygiene, not stated explicitly in the spec but implied by ISSUE-7's remediation.
 - Preview deployments intentionally share the production Neon database — spec §4 (Decision 4). This is a deliberate MVP-scale tradeoff, not an oversight.
 
