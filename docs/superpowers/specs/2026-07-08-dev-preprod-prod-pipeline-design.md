@@ -36,6 +36,8 @@ Three long-lived branches, each with a fixed Vercel domain assignment (Project S
 
 Feature branches keep Vercel's normal ephemeral per-commit preview link — unaffected by this change.
 
+**Correction (verified during execution):** Vercel Hobby's "Add Domain" dialog offers only Production/Preview, with no explicit "assign to Git branch" picker. Despite that, assigning a domain from a specific branch's deployment page does pin it to that branch — verified empirically by pushing a marker file to `dev` only and confirming it 404s on the `preprod` URL. Also: all non-Production deployments are behind Vercel's Deployment Protection (SSO wall) by default; this was disabled project-wide for Preview so `dev`/`preprod` are publicly viewable, matching production's access model. Vercel also auto-generates a permanent, unambiguous per-branch alias for every branch (`automatic-fortnight-git-<branch>-edwardallanau-designs-projects.vercel.app`) with no setup required — a safe fallback reference if the custom domains are ever reassigned by mistake.
+
 ### 2. Environment variables and build config
 
 No new environment-variable scoping is needed this round, since `dev`/`preprod` share the existing Preview-scoped `DATABASE_URL`/`AUTH_SECRET`/`SEED_*` values that already apply to any non-production branch. Vercel's "Production Branch" project setting stays `main`. `vercel.json`'s `buildCommand` (from the first production deployment) applies to every branch's build the same way, so `dev`/`preprod` builds run the same `vercel-build` pipeline (migrate + seed + build) as production.
