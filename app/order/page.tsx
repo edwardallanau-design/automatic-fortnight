@@ -1,5 +1,6 @@
 import { getTableOrThrow } from '@/lib/tableService'
 import { listMenuItems } from '@/lib/menuService'
+import { getVenueSettings } from '@/lib/venueSettingsService'
 import { NotFoundError } from '@/lib/errors'
 import { Cart } from './Cart'
 import { OrderHeaderTitle } from './OrderHeaderTitle'
@@ -23,6 +24,18 @@ export default async function OrderPage({
 
   try {
     const table = await getTableOrThrow(tableId)
+    const settings = await getVenueSettings()
+
+    if (!settings.acceptingOrders) {
+      return (
+        <main className="order-page">
+          <p role="alert" className="order-page__error">
+            We&apos;re not accepting orders right now. Please check back later.
+          </p>
+        </main>
+      )
+    }
+
     const items = await listMenuItems()
 
     return (
