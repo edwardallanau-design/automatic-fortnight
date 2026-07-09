@@ -23,19 +23,47 @@ describe('MenuItemRow', () => {
   })
 
   describe('read-only (non-editable) session', () => {
-    it('shows name, price, and availability badge with no Edit button', () => {
+    it('shows name and price with no Edit button', () => {
       render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} />)
 
       expect(screen.getByText('Burger')).toBeInTheDocument()
       expect(screen.getByText('$12.50')).toBeInTheDocument()
-      expect(screen.getByText('Available')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     })
 
-    it('shows "Sold out" when unavailable', () => {
+    it('shows an availability toggle checked and labeled Available when available', () => {
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} />)
+
+      expect(screen.getByRole('switch')).toBeChecked()
+      expect(screen.getByText('Available')).toBeInTheDocument()
+    })
+
+    it('shows the availability toggle unchecked and labeled Sold out when unavailable', () => {
       render(<MenuItemRow id="m1" name="Burger" price="12.50" available={false} editable={false} />)
 
+      expect(screen.getByRole('switch')).not.toBeChecked()
       expect(screen.getByText('Sold out')).toBeInTheDocument()
+    })
+
+    it('toggling availability calls the availability endpoint and does not open edit mode', async () => {
+      vi.mocked(apiClient.patch).mockResolvedValue({})
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} />)
+
+      fireEvent.click(screen.getByRole('switch'))
+
+      expect(apiClient.patch).toHaveBeenCalledWith('/api/menu-items/m1/availability', { available: false })
+      await waitFor(() => expect(refresh).toHaveBeenCalled())
+      expect(screen.queryByLabelText('Name for Burger')).not.toBeInTheDocument()
+    })
+
+    it('reverts the toggle and shows an error when the availability request fails', async () => {
+      vi.mocked(apiClient.patch).mockRejectedValue(new ApiError('FORBIDDEN', 'Insufficient role for this action'))
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} />)
+
+      fireEvent.click(screen.getByRole('switch'))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Insufficient role for this action')
+      expect(screen.getByRole('switch')).toBeChecked()
     })
   })
 
@@ -47,13 +75,15 @@ describe('MenuItemRow', () => {
       expect(screen.queryByLabelText('Name for Burger')).not.toBeInTheDocument()
     })
 
-    it('reveals inputs and Save/Cancel/Archive after clicking Edit', () => {
+    it('reveals inputs, the availability toggle, and Save/Cancel/Archive after clicking Edit', () => {
       render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
       expect(screen.getByLabelText('Name for Burger')).toBeInTheDocument()
       expect(screen.getByLabelText('Price for Burger')).toBeInTheDocument()
+      expect(screen.getByRole('switch')).toBeInTheDocument()
+      expect(screen.queryByRole('checkbox', { name: 'Available' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument()
@@ -76,7 +106,7 @@ describe('MenuItemRow', () => {
   })
 
   describe('Save', () => {
-    it('calls PATCH with the edited fields and returns to read-only on success', async () => {
+    it('calls PATCH with the edited name/price (no available field) and returns to read-only on success', async () => {
       vi.mocked(apiClient.patch).mockResolvedValue({})
       render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
 
@@ -87,7 +117,6 @@ describe('MenuItemRow', () => {
       expect(apiClient.patch).toHaveBeenCalledWith('/api/menu-items/m1', {
         name: 'Cheeseburger',
         price: 12.5,
-        available: true,
       })
 
       expect(await screen.findByText('Burger')).toBeInTheDocument()

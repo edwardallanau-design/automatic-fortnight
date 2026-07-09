@@ -68,3 +68,9 @@ model OrderItem {
   priceSnapshot Decimal  @db.Decimal(10, 2)
   quantity      Int
 }
+
+model VenueSettings {
+  id              String   @id @default(uuid())
+  acceptingOrders Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}

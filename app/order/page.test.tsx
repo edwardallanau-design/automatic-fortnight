@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import OrderPage from './page'
 import { getTableOrThrow } from '@/lib/tableService'
 import { listMenuItems } from '@/lib/menuService'
+import { getVenueSettings } from '@/lib/venueSettingsService'
 import { NotFoundError } from '@/lib/errors'
 
 vi.mock('next/navigation', () => ({
@@ -17,6 +18,10 @@ vi.mock('@/lib/menuService', () => ({
   listMenuItems: vi.fn(),
 }))
 
+vi.mock('@/lib/venueSettingsService', () => ({
+  getVenueSettings: vi.fn(),
+}))
+
 function priceOf(value: string) {
   return { toString: () => value } as never
 }
@@ -24,6 +29,7 @@ function priceOf(value: string) {
 describe('OrderPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: true, updatedAt: new Date() } as never)
   })
 
   it('shows an error when the table id is missing', async () => {
@@ -44,6 +50,19 @@ describe('OrderPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       "This table link isn't valid. Please ask staff for help.",
     )
+  })
+
+  it('shows a closed message instead of the menu when the venue is not accepting orders', async () => {
+    vi.mocked(getTableOrThrow).mockResolvedValue({ id: 't1', number: 5, createdAt: new Date() } as never)
+    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: false, updatedAt: new Date() } as never)
+
+    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 't1' }) })
+    render(ui)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "We're not accepting orders right now. Please check back later.",
+    )
+    expect(listMenuItems).not.toHaveBeenCalled()
   })
 
   it('renders available items as enabled buttons and sold-out items as disabled', async () => {

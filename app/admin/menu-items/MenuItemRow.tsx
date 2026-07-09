@@ -20,12 +20,15 @@ export function MenuItemRow({ id, name, price, available, editable }: MenuItemRo
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(name)
   const [editPrice, setEditPrice] = useState(price)
-  const [editAvailable, setEditAvailable] = useState(available)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmClosing, setConfirmClosing] = useState(false)
   const confirmCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const [checkedAvailable, setCheckedAvailable] = useState(available)
+  const [availabilitySubmitting, setAvailabilitySubmitting] = useState(false)
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null)
 
   useEffect(() => {
     return () => {
@@ -65,7 +68,6 @@ export function MenuItemRow({ id, name, price, available, editable }: MenuItemRo
   function startEditing() {
     setEditName(name)
     setEditPrice(price)
-    setEditAvailable(available)
     setError(null)
     setIsEditing(true)
   }
@@ -73,7 +75,6 @@ export function MenuItemRow({ id, name, price, available, editable }: MenuItemRo
   function cancelEditing() {
     setEditName(name)
     setEditPrice(price)
-    setEditAvailable(available)
     setError(null)
     setIsEditing(false)
   }
@@ -85,7 +86,6 @@ export function MenuItemRow({ id, name, price, available, editable }: MenuItemRo
       await apiClient.patch(`/api/menu-items/${id}`, {
         name: editName,
         price: Number(editPrice),
-        available: editAvailable,
       })
       setIsEditing(false)
       router.refresh()
@@ -96,10 +96,36 @@ export function MenuItemRow({ id, name, price, available, editable }: MenuItemRo
     }
   }
 
-  const badge = (
-    <span className={`menu-admin-row__badge${available ? '' : ' menu-admin-row__badge--sold-out'}`}>
-      {available ? 'Available' : 'Sold out'}
-    </span>
+  async function handleAvailabilityChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const next = e.target.checked
+    setCheckedAvailable(next)
+    setAvailabilityError(null)
+    setAvailabilitySubmitting(true)
+    try {
+      await apiClient.patch(`/api/menu-items/${id}/availability`, { available: next })
+      router.refresh()
+    } catch (err) {
+      setCheckedAvailable(!next)
+      setAvailabilityError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
+    } finally {
+      setAvailabilitySubmitting(false)
+    }
+  }
+
+  const availabilityToggle = (
+    <label className="slider-toggle">
+      <input
+        type="checkbox"
+        role="switch"
+        className="slider-toggle__input"
+        checked={checkedAvailable}
+        disabled={availabilitySubmitting}
+        onChange={handleAvailabilityChange}
+        aria-label={`Available: ${name}`}
+      />
+      <span className="slider-toggle__track" aria-hidden="true" />
+      <span className="slider-toggle__label">{checkedAvailable ? 'Available' : 'Sold out'}</span>
+    </label>
   )
 
   if (!editable || !isEditing) {
@@ -108,13 +134,18 @@ export function MenuItemRow({ id, name, price, available, editable }: MenuItemRo
         <div className="menu-admin-row__view">
           <span className="menu-admin-row__name">{name}</span>
           <span className="menu-admin-row__price">${price}</span>
-          {badge}
+          {availabilityToggle}
           {editable && (
             <button type="button" className="menu-admin-row__edit" onClick={startEditing}>
               Edit
             </button>
           )}
         </div>
+        {availabilityError && (
+          <p role="alert" className="menu-admin-row__error">
+            {availabilityError}
+          </p>
+        )}
       </li>
     )
   }
@@ -137,14 +168,7 @@ export function MenuItemRow({ id, name, price, available, editable }: MenuItemRo
           aria-label={`Price for ${name}`}
           className="menu-admin-row__input menu-admin-row__input--price"
         />
-        <label className="menu-admin-row__checkbox-label">
-          <input
-            type="checkbox"
-            checked={editAvailable}
-            onChange={(e) => setEditAvailable(e.target.checked)}
-          />
-          Available
-        </label>
+        {availabilityToggle}
         <div className="menu-admin-row__actions">
           <button type="button" className="menu-admin-row__save" onClick={handleSave} disabled={submitting}>
             Save
@@ -159,6 +183,11 @@ export function MenuItemRow({ id, name, price, available, editable }: MenuItemRo
         {error && (
           <p role="alert" className="menu-admin-row__error">
             {error}
+          </p>
+        )}
+        {availabilityError && (
+          <p role="alert" className="menu-admin-row__error">
+            {availabilityError}
           </p>
         )}
       </div>
