@@ -11,7 +11,7 @@
 
 **High-level flow.**
 
-*Customer:* scans table QR (identifies the table) → views menu (available items only shown as orderable; sold-out items visible but disabled) → adds items to cart, may add/remove/adjust freely → submits order → order is created as **Pending**, customer receives an order number → customer may still cancel the order or remove items **while it remains Pending** → pays at the cashier (before or after staff confirmation, per this venue's flow) → once staff confirms, the order is locked from customer-side changes.
+*Customer:* scans table QR (identifies the table) → views menu (available items only shown as orderable; sold-out items visible but disabled) → adds items to cart, may add/remove/adjust freely before submitting → submits order → order is created as **Pending**, customer receives an order number → customer may still cancel the order **while it remains Pending**, but item-level changes (add/remove/adjust) are staff/admin-only from this point on → pays at the cashier (before or after staff confirmation, per this venue's flow) → once staff confirms, the order is locked from customer-side changes entirely (no cancel either).
 
 *Staff:* watches a real-time dashboard of incoming Pending orders → reviews an order → confirms it (Pending → Confirmed), after which the customer/staff can no longer add or remove items → independently marks the order Paid once payment is received (this can happen before or after confirmation) → cannot modify a Confirmed order's contents.
 
@@ -33,7 +33,7 @@
 - `INV-1` An Order must reference exactly one existing Table.
 - `INV-2` An Order must contain at least one OrderItem to be submitted — empty orders cannot be created.
 - `INV-3` An OrderItem's `priceSnapshot` and `nameSnapshot` are captured at the moment it is added to the Order and never change afterward, regardless of subsequent MenuItem price or name edits.
-- `INV-4` OrderItems may be added, removed, or have their quantity changed **only while** the parent Order's `fulfillmentStatus = Pending`.
+- `INV-4` OrderItems may be added, removed, or have their quantity changed **only by Staff or Owner/Admin**, and **only while** the parent Order's `fulfillmentStatus = Pending`. The customer's only self-service action on their own order after submission is cancellation (`INV-6`).
 - `INV-5` Once an Order's `fulfillmentStatus = Confirmed`, its OrderItems are immutable to Customer and Staff. Only Owner/Admin may modify a Confirmed order.
 - `INV-6` An Order may be cancelled only while `fulfillmentStatus = Pending`.
 - `INV-7` A MenuItem with `available = false` (sold out) cannot be added as a new OrderItem to any order. Existing OrderItems referencing it are unaffected (their snapshot already exists — see `INV-3`).

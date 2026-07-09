@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server'
 import { removeOrderItem, updateOrderItemQuantity } from '@/lib/orderService'
 import { handleApiError } from '@/lib/handleApiError'
-import { peekSession } from '@/lib/authGuard'
+import { requireApiRole } from '@/lib/authGuard'
 import { ValidationError } from '@/lib/errors'
 
 type RouteContext = { params: Promise<{ id: string; itemId: string }> }
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
+    const session = await requireApiRole('staff')
     const { id, itemId } = await context.params
-    const session = await peekSession()
-    await removeOrderItem(id, itemId, session?.role)
+    await removeOrderItem(id, itemId, session.role)
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     return handleApiError(error)
@@ -19,6 +19,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
+    const session = await requireApiRole('staff')
     const { id, itemId } = await context.params
     const body = await request.json()
 
@@ -26,8 +27,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       throw new ValidationError('quantity must be a positive integer')
     }
 
-    const session = await peekSession()
-    const order = await updateOrderItemQuantity(id, itemId, body.quantity, session?.role)
+    const order = await updateOrderItemQuantity(id, itemId, body.quantity, session.role)
     return NextResponse.json(order, { status: 200 })
   } catch (error) {
     return handleApiError(error)

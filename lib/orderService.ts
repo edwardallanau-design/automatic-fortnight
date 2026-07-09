@@ -133,7 +133,7 @@ function assertOrderEditable(order: { fulfillmentStatus: FulfillmentStatus }, ac
   }
 }
 
-export async function removeOrderItem(orderId: string, orderItemId: string, actorRole?: Role): Promise<OrderWithItems> {
+export async function removeOrderItem(orderId: string, orderItemId: string, actorRole: Role): Promise<OrderWithItems> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { items: true },
@@ -161,7 +161,7 @@ export async function addOrderItem(
   orderId: string,
   menuItemId: string,
   quantity: number,
-  actorRole?: Role,
+  actorRole: Role,
 ): Promise<OrderWithItems> {
   if (!Number.isInteger(quantity) || quantity < 1) {
     throw new ValidationError('quantity must be a positive integer')
@@ -212,7 +212,7 @@ export async function updateOrderItemQuantity(
   orderId: string,
   orderItemId: string,
   quantity: number,
-  actorRole?: Role,
+  actorRole: Role,
 ): Promise<OrderWithItems> {
   if (!Number.isInteger(quantity) || quantity < 1) {
     throw new ValidationError('quantity must be a positive integer')

@@ -384,7 +384,7 @@ describe('orderService.removeOrderItem', () => {
   it('throws NotFoundError when the order does not exist', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue(null)
 
-    await expect(removeOrderItem('missing', 'oi1')).rejects.toThrow(NotFoundError)
+    await expect(removeOrderItem('missing', 'oi1', 'staff')).rejects.toThrow(NotFoundError)
     expect(prisma.orderItem.delete).not.toHaveBeenCalled()
   })
 
@@ -395,21 +395,21 @@ describe('orderService.removeOrderItem', () => {
       items: [{ id: 'oi1', orderId: 'o1' }, { id: 'oi2', orderId: 'o1' }],
     } as never)
 
-    await expect(removeOrderItem('o1', 'oi1')).rejects.toThrow(ConflictError)
+    await expect(removeOrderItem('o1', 'oi1', 'staff')).rejects.toThrow(ConflictError)
     expect(prisma.orderItem.delete).not.toHaveBeenCalled()
   })
 
   it('throws NotFoundError when the item does not belong to the order', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue(pendingOrder(['oi1', 'oi2']) as never)
 
-    await expect(removeOrderItem('o1', 'other')).rejects.toThrow(NotFoundError)
+    await expect(removeOrderItem('o1', 'other', 'staff')).rejects.toThrow(NotFoundError)
     expect(prisma.orderItem.delete).not.toHaveBeenCalled()
   })
 
   it('throws ConflictError when removing the only remaining item (INV-2)', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue(pendingOrder(['oi1']) as never)
 
-    await expect(removeOrderItem('o1', 'oi1')).rejects.toThrow(ConflictError)
+    await expect(removeOrderItem('o1', 'oi1', 'staff')).rejects.toThrow(ConflictError)
     expect(prisma.orderItem.delete).not.toHaveBeenCalled()
   })
 
@@ -420,7 +420,7 @@ describe('orderService.removeOrderItem', () => {
       .mockResolvedValueOnce(reloaded as never)
     vi.mocked(prisma.orderItem.delete).mockResolvedValue({ id: 'oi1' } as never)
 
-    const result = await removeOrderItem('o1', 'oi1')
+    const result = await removeOrderItem('o1', 'oi1', 'staff')
 
     expect(prisma.orderItem.delete).toHaveBeenCalledWith({ where: { id: 'oi1' } })
     expect(result).toEqual(reloaded)
@@ -504,14 +504,14 @@ describe('orderService.addOrderItem', () => {
   })
 
   it('throws ValidationError for a non-positive-integer quantity', async () => {
-    await expect(addOrderItem('o1', 'm1', 0)).rejects.toThrow(ValidationError)
+    await expect(addOrderItem('o1', 'm1', 0, 'staff')).rejects.toThrow(ValidationError)
     expect(prisma.order.findUnique).not.toHaveBeenCalled()
   })
 
   it('throws NotFoundError when the order does not exist', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue(null)
 
-    await expect(addOrderItem('missing', 'm1', 1)).rejects.toThrow(NotFoundError)
+    await expect(addOrderItem('missing', 'm1', 1, 'staff')).rejects.toThrow(NotFoundError)
   })
 
   it('throws ConflictError when the order is Confirmed and the actor is not admin', async () => {
@@ -528,7 +528,7 @@ describe('orderService.addOrderItem', () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Pending', items: [] } as never)
     vi.mocked(findMenuItemsByIds).mockResolvedValue([])
 
-    await expect(addOrderItem('o1', 'missing', 1)).rejects.toThrow(NotFoundError)
+    await expect(addOrderItem('o1', 'missing', 1, 'staff')).rejects.toThrow(NotFoundError)
   })
 
   it('throws ConflictError when the menu item is sold out', async () => {
@@ -537,7 +537,7 @@ describe('orderService.addOrderItem', () => {
       { id: 'm1', name: 'Fries', price: new Prisma.Decimal('4.00'), available: false, archived: false, createdAt: new Date() },
     ] as never)
 
-    await expect(addOrderItem('o1', 'm1', 1)).rejects.toThrow(ConflictError)
+    await expect(addOrderItem('o1', 'm1', 1, 'staff')).rejects.toThrow(ConflictError)
     expect(prisma.orderItem.create).not.toHaveBeenCalled()
   })
 
@@ -553,7 +553,7 @@ describe('orderService.addOrderItem', () => {
       { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
     ] as never)
 
-    const result = await addOrderItem('o1', 'm1', 2)
+    const result = await addOrderItem('o1', 'm1', 2, 'staff')
 
     expect(prisma.orderItem.create).toHaveBeenCalledWith({
       data: { orderId: 'o1', menuItemId: 'm1', quantity: 2, nameSnapshot: 'Burger', priceSnapshot: new Prisma.Decimal('12.50') },
@@ -581,7 +581,7 @@ describe('orderService.addOrderItem', () => {
       { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
     ] as never)
 
-    const result = await addOrderItem('o1', 'm1', 1)
+    const result = await addOrderItem('o1', 'm1', 1, 'staff')
 
     expect(prisma.orderItem.update).toHaveBeenCalledWith({ where: { id: 'oi1' }, data: { quantity: 3 } })
     expect(prisma.orderItem.create).not.toHaveBeenCalled()
@@ -617,14 +617,14 @@ describe('orderService.updateOrderItemQuantity', () => {
   })
 
   it('throws ValidationError for a non-positive-integer quantity', async () => {
-    await expect(updateOrderItemQuantity('o1', 'oi1', 0)).rejects.toThrow(ValidationError)
+    await expect(updateOrderItemQuantity('o1', 'oi1', 0, 'staff')).rejects.toThrow(ValidationError)
     expect(prisma.order.findUnique).not.toHaveBeenCalled()
   })
 
   it('throws NotFoundError when the order does not exist', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue(null)
 
-    await expect(updateOrderItemQuantity('missing', 'oi1', 2)).rejects.toThrow(NotFoundError)
+    await expect(updateOrderItemQuantity('missing', 'oi1', 2, 'staff')).rejects.toThrow(NotFoundError)
   })
 
   it('throws ConflictError when the order is Confirmed and the actor is not admin', async () => {
@@ -645,7 +645,7 @@ describe('orderService.updateOrderItemQuantity', () => {
       items: [{ id: 'oi1', quantity: 1 }],
     } as never)
 
-    await expect(updateOrderItemQuantity('o1', 'other', 2)).rejects.toThrow(NotFoundError)
+    await expect(updateOrderItemQuantity('o1', 'other', 2, 'staff')).rejects.toThrow(NotFoundError)
     expect(prisma.orderItem.update).not.toHaveBeenCalled()
   })
 
@@ -654,7 +654,7 @@ describe('orderService.updateOrderItemQuantity', () => {
       .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', items: [{ id: 'oi1', quantity: 1 }] } as never)
       .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', items: [{ id: 'oi1', quantity: 3 }] } as never)
 
-    const result = await updateOrderItemQuantity('o1', 'oi1', 3)
+    const result = await updateOrderItemQuantity('o1', 'oi1', 3, 'staff')
 
     expect(prisma.orderItem.update).toHaveBeenCalledWith({ where: { id: 'oi1' }, data: { quantity: 3 } })
     expect(result).toEqual({ id: 'o1', fulfillmentStatus: 'Pending', items: [{ id: 'oi1', quantity: 3 }] })

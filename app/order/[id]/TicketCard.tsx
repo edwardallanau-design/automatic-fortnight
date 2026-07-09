@@ -5,7 +5,6 @@ export type TicketCardLine = {
   nameSnapshot: string
   priceSnapshot: string
   quantity: number
-  onRemove?: () => void
 }
 
 export function TicketCard({
@@ -13,14 +12,12 @@ export function TicketCard({
   customerName,
   items,
   statusNote,
-  busy = false,
   footer,
 }: {
   heading: string
   customerName: string | null
   items: TicketCardLine[]
   statusNote: string
-  busy?: boolean
   footer?: ReactNode
 }) {
   const total = items.reduce((sum, item) => sum + Number(item.priceSnapshot) * item.quantity, 0)
@@ -39,17 +36,6 @@ export function TicketCard({
               <span className="ticket__line-price">
                 ${(Number(item.priceSnapshot) * item.quantity).toFixed(2)}
               </span>
-              {item.onRemove && (
-                <button
-                  type="button"
-                  className="ticket__remove"
-                  aria-label={`Remove ${item.nameSnapshot}`}
-                  disabled={busy}
-                  onClick={item.onRemove}
-                >
-                  ×
-                </button>
-              )}
             </li>
           ))}
         </ul>

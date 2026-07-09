@@ -1,6 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { TicketCard } from './TicketCard'
 
 const items = [
@@ -33,39 +32,9 @@ describe('TicketCard', () => {
     expect(screen.queryByText(/^For /)).not.toBeInTheDocument()
   })
 
-  it('does not render a remove button for lines with no onRemove', () => {
+  it('never renders a remove button for any line', () => {
     render(<TicketCard heading="Order #47" customerName={null} items={items} statusNote="Note" />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
-  })
-
-  it('renders a remove button for lines with onRemove and calls it on click', async () => {
-    const onRemove = vi.fn()
-    const user = userEvent.setup()
-    render(
-      <TicketCard
-        heading="Order #47"
-        customerName={null}
-        items={[{ ...items[0], onRemove }]}
-        statusNote="Note"
-      />,
-    )
-
-    await user.click(screen.getByRole('button', { name: 'Remove Burger' }))
-    expect(onRemove).toHaveBeenCalledTimes(1)
-  })
-
-  it('disables remove buttons when busy', () => {
-    render(
-      <TicketCard
-        heading="Order #47"
-        customerName={null}
-        items={[{ ...items[0], onRemove: vi.fn() }]}
-        statusNote="Note"
-        busy
-      />,
-    )
-
-    expect(screen.getByRole('button', { name: 'Remove Burger' })).toBeDisabled()
   })
 
   it('renders footer content between the total and the status note', () => {

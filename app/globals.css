@@ -993,43 +993,6 @@ a {
   font-size: 0.85rem;
 }
 
-.ticket__remove {
-  min-width: 44px;
-  min-height: 44px;
-  border: 1px solid var(--clay-faint);
-  border-radius: 8px;
-  background: none;
-  color: var(--danger);
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.1s ease;
-}
-
-.ticket__remove:hover:not(:disabled) {
-  border-color: var(--danger);
-}
-
-.ticket__remove:active:not(:disabled) {
-  transform: scale(0.92);
-}
-
-.ticket__remove:focus-visible {
-  outline: 2px solid var(--copper-bright);
-  outline-offset: 2px;
-}
-
-.ticket__remove:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ticket__remove:active:not(:disabled) {
-    transform: none;
-  }
-}
-
 .ticket__cancel {
   display: block;
   width: 100%;

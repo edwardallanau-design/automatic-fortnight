@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from './route'
-import { ConflictError, NotFoundError } from '@/lib/errors'
+import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/errors'
 
 vi.mock('@/lib/orderService', () => ({
   addOrderItem: vi.fn(),
 }))
 
 vi.mock('@/lib/authGuard', () => ({
-  peekSession: vi.fn(),
+  requireApiRole: vi.fn(),
 }))
 
 import { addOrderItem } from '@/lib/orderService'
-import { peekSession } from '@/lib/authGuard'
+import { requireApiRole } from '@/lib/authGuard'
 
 function makeContext(id: string) {
   return { params: Promise.resolve({ id }) }
@@ -28,7 +28,7 @@ function makeRequest(body: unknown): Request {
 describe('POST /api/orders/[id]/items', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(peekSession).mockResolvedValue(null)
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff' })
   })
 
   it('returns 201 with the updated order on success', async () => {
@@ -37,16 +37,25 @@ describe('POST /api/orders/[id]/items', () => {
     const res = await POST(makeRequest({ menuItemId: 'm1', quantity: 2 }), makeContext('o1'))
 
     expect(res.status).toBe(201)
-    expect(addOrderItem).toHaveBeenCalledWith('o1', 'm1', 2, undefined)
+    expect(addOrderItem).toHaveBeenCalledWith('o1', 'm1', 2, 'staff')
   })
 
   it('passes the session role through to the service call', async () => {
-    vi.mocked(peekSession).mockResolvedValue({ role: 'admin' })
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
     vi.mocked(addOrderItem).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Confirmed', items: [] } as never)
 
     await POST(makeRequest({ menuItemId: 'm1', quantity: 1 }), makeContext('o1'))
 
     expect(addOrderItem).toHaveBeenCalledWith('o1', 'm1', 1, 'admin')
+  })
+
+  it('returns 403 when the caller is not staff or admin', async () => {
+    vi.mocked(requireApiRole).mockRejectedValue(new ForbiddenError('Insufficient role for this action'))
+
+    const res = await POST(makeRequest({ menuItemId: 'm1', quantity: 1 }), makeContext('o1'))
+
+    expect(res.status).toBe(403)
+    expect(addOrderItem).not.toHaveBeenCalled()
   })
 
   it('returns 400 when menuItemId is missing', async () => {

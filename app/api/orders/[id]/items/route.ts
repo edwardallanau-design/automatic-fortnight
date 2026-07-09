@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { addOrderItem } from '@/lib/orderService'
 import { handleApiError } from '@/lib/handleApiError'
-import { peekSession } from '@/lib/authGuard'
+import { requireApiRole } from '@/lib/authGuard'
 import { ValidationError } from '@/lib/errors'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 export async function POST(request: Request, context: RouteContext) {
   try {
+    const session = await requireApiRole('staff')
     const { id } = await context.params
     const body = await request.json()
 
@@ -18,8 +19,7 @@ export async function POST(request: Request, context: RouteContext) {
       throw new ValidationError('quantity must be a positive integer')
     }
 
-    const session = await peekSession()
-    const order = await addOrderItem(id, body.menuItemId, body.quantity, session?.role)
+    const order = await addOrderItem(id, body.menuItemId, body.quantity, session.role)
     return NextResponse.json(order, { status: 201 })
   } catch (error) {
     return handleApiError(error)

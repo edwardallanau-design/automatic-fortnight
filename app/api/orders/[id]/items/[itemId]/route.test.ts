@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DELETE, PATCH } from './route'
-import { ConflictError, NotFoundError } from '@/lib/errors'
+import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/errors'
 
 vi.mock('@/lib/orderService', () => ({
   removeOrderItem: vi.fn(),
@@ -8,11 +8,11 @@ vi.mock('@/lib/orderService', () => ({
 }))
 
 vi.mock('@/lib/authGuard', () => ({
-  peekSession: vi.fn(),
+  requireApiRole: vi.fn(),
 }))
 
 import { removeOrderItem, updateOrderItemQuantity } from '@/lib/orderService'
-import { peekSession } from '@/lib/authGuard'
+import { requireApiRole } from '@/lib/authGuard'
 
 function makeContext(id: string, itemId: string) {
   return { params: Promise.resolve({ id, itemId }) }
@@ -25,25 +25,34 @@ function makeRequest(): Request {
 describe('DELETE /api/orders/[id]/items/[itemId]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(peekSession).mockResolvedValue(null)
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff' })
   })
 
-  it('returns 204 on successful removal, passing undefined role for an unauthenticated caller', async () => {
+  it('returns 204 on successful removal', async () => {
     vi.mocked(removeOrderItem).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Pending', items: [] } as never)
 
     const res = await DELETE(makeRequest(), makeContext('o1', 'oi1'))
 
     expect(res.status).toBe(204)
-    expect(removeOrderItem).toHaveBeenCalledWith('o1', 'oi1', undefined)
+    expect(removeOrderItem).toHaveBeenCalledWith('o1', 'oi1', 'staff')
   })
 
   it('passes the session role through to the service call', async () => {
-    vi.mocked(peekSession).mockResolvedValue({ role: 'admin' })
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
     vi.mocked(removeOrderItem).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Confirmed', items: [] } as never)
 
     await DELETE(makeRequest(), makeContext('o1', 'oi1'))
 
     expect(removeOrderItem).toHaveBeenCalledWith('o1', 'oi1', 'admin')
+  })
+
+  it('returns 403 when the caller is not staff or admin', async () => {
+    vi.mocked(requireApiRole).mockRejectedValue(new ForbiddenError('Insufficient role for this action'))
+
+    const res = await DELETE(makeRequest(), makeContext('o1', 'oi1'))
+
+    expect(res.status).toBe(403)
+    expect(removeOrderItem).not.toHaveBeenCalled()
   })
 
   it('returns 404 when the order or item does not exist', async () => {
@@ -74,7 +83,7 @@ function makePatchRequest(body: unknown): Request {
 describe('PATCH /api/orders/[id]/items/[itemId]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(peekSession).mockResolvedValue(null)
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff' })
   })
 
   it('returns 200 with the updated order on success', async () => {
@@ -83,16 +92,25 @@ describe('PATCH /api/orders/[id]/items/[itemId]', () => {
     const res = await PATCH(makePatchRequest({ quantity: 3 }), makeContext('o1', 'oi1'))
 
     expect(res.status).toBe(200)
-    expect(updateOrderItemQuantity).toHaveBeenCalledWith('o1', 'oi1', 3, undefined)
+    expect(updateOrderItemQuantity).toHaveBeenCalledWith('o1', 'oi1', 3, 'staff')
   })
 
   it('passes the session role through to the service call', async () => {
-    vi.mocked(peekSession).mockResolvedValue({ role: 'admin' })
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
     vi.mocked(updateOrderItemQuantity).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Confirmed', items: [] } as never)
 
     await PATCH(makePatchRequest({ quantity: 2 }), makeContext('o1', 'oi1'))
 
     expect(updateOrderItemQuantity).toHaveBeenCalledWith('o1', 'oi1', 2, 'admin')
+  })
+
+  it('returns 403 when the caller is not staff or admin', async () => {
+    vi.mocked(requireApiRole).mockRejectedValue(new ForbiddenError('Insufficient role for this action'))
+
+    const res = await PATCH(makePatchRequest({ quantity: 2 }), makeContext('o1', 'oi1'))
+
+    expect(res.status).toBe(403)
+    expect(updateOrderItemQuantity).not.toHaveBeenCalled()
   })
 
   it('returns 400 when quantity is not a positive integer', async () => {
