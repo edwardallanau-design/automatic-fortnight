@@ -2,6 +2,7 @@ import type { Order, OrderItem, Table, FulfillmentStatus, PaymentStatus, Prisma 
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
+import { getVenueSettings } from './venueSettingsService'
 import { NotFoundError, ConflictError, ValidationError } from './errors'
 import type { Role } from './types'
 
@@ -13,6 +14,11 @@ export async function createOrder(
   items: CartItemInput[],
   customerName?: string,
 ): Promise<OrderWithItems> {
+  const settings = await getVenueSettings()
+  if (!settings.acceptingOrders) {
+    throw new ConflictError('Not accepting orders right now')
+  }
+
   if (items.length === 0) {
     throw new ValidationError('Cart must contain at least one item')
   }

@@ -5,6 +5,7 @@ import { NotFoundError, ConflictError, ValidationError } from './errors'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
+import { getVenueSettings } from './venueSettingsService'
 
 vi.mock('./prisma', () => ({
   prisma: {
@@ -30,14 +31,29 @@ vi.mock('./menuService', () => ({
   findMenuItemsByIds: vi.fn(),
 }))
 
+vi.mock('./venueSettingsService', () => ({
+  getVenueSettings: vi.fn(),
+}))
+
 describe('orderService.createOrder', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getTableOrThrow).mockResolvedValue({ id: 't1', number: 5, createdAt: new Date() } as never)
+    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: true, updatedAt: new Date() } as never)
   })
 
   it('throws ValidationError when items is empty', async () => {
     await expect(createOrder('t1', [])).rejects.toThrow(ValidationError)
+    expect(getTableOrThrow).not.toHaveBeenCalled()
+    expect(prisma.order.create).not.toHaveBeenCalled()
+  })
+
+  it('throws ConflictError when the venue is not accepting orders', async () => {
+    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: false, updatedAt: new Date() } as never)
+
+    await expect(
+      createOrder('t1', [{ menuItemId: 'm1', quantity: 1 }]),
+    ).rejects.toThrow(ConflictError)
     expect(getTableOrThrow).not.toHaveBeenCalled()
     expect(prisma.order.create).not.toHaveBeenCalled()
   })
