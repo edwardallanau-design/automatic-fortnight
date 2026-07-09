@@ -73,4 +73,16 @@ describe('AdminMenuItemsPage', () => {
 
     expect(screen.getByText('Burger')).toBeInTheDocument()
   })
+
+  it('shows an interactive availability toggle for a staff (non-admin) session', async () => {
+    vi.mocked(requireRole).mockResolvedValue({ role: 'staff' })
+    vi.mocked(listMenuItems).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: { toString: () => '12.50' }, available: true, archived: false, createdAt: new Date() },
+    ] as never)
+
+    const ui = await AdminMenuItemsPage()
+    render(ui)
+
+    expect(screen.getByRole('switch')).not.toBeDisabled()
+  })
 })

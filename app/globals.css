@@ -2381,13 +2381,6 @@ a {
   width: 90px;
 }
 
-.menu-admin-row__checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-}
-
 .menu-admin-row__actions {
   display: flex;
   gap: 0.5rem;
