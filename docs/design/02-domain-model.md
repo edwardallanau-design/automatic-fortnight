@@ -7,6 +7,7 @@
 - **Order Item** — one line within an order: a reference to a menu item, a quantity, and a **price snapshot** captured at the moment it was added.
 - **Fulfillment status** — where an order stands in the kitchen/staff workflow: Pending → Confirmed, or Pending → Cancelled.
 - **Payment status** — whether an order has been paid: Unpaid → Paid. Tracked independently of fulfillment status, because the restaurant supports both pay-as-you-order and pay-at-the-end.
+- **Venue Settings** — venue-wide operational state, currently a single `acceptingOrders` flag controlling whether new orders may be created at all, regardless of who submits them.
 
 **High-level flow.**
 
@@ -14,13 +15,14 @@
 
 *Staff:* watches a real-time dashboard of incoming Pending orders → reviews an order → confirms it (Pending → Confirmed), after which the customer/staff can no longer add or remove items → independently marks the order Paid once payment is received (this can happen before or after confirmation) → cannot modify a Confirmed order's contents.
 
-*Owner/Admin:* manages the menu — adds/removes menu items, sets prices, toggles an item Available ↔ Sold Out → has all Staff capabilities → is the **only** actor who may modify a Confirmed order (correcting a staff/customer mistake after the fact).
+*Owner/Admin:* manages the menu — adds/removes menu items, sets prices, toggles an item Available ↔ Sold Out → has all Staff capabilities → is the **only** actor who may modify a Confirmed order (correcting a staff/customer mistake after the fact) → is the **only** actor who may open or close the venue for new orders (`acceptingOrders`).
 
 **Entities.**
 - **Table** — `number` (unique), `qrCode` — identifies where an order originated; no lifecycle of its own.
 - **MenuItem** — `name`, `price`, `available` (boolean) — the sellable item; price changes and sold-out toggles apply only to *future* order items, never retroactively.
 - **Order** — `table` (ref), `fulfillmentStatus`, `paymentStatus`, `orderNumber`, `customerName` (optional, captured at submission, immutable afterward), `createdAt`, `confirmedAt` — the aggregate root for a customer's visit.
 - **OrderItem** — `menuItem` (ref), `nameSnapshot`, `priceSnapshot`, `quantity` — a line item belonging to exactly one Order.
+- **VenueSettings** — a singleton, `acceptingOrders` (boolean) — venue-wide operational state, no lifecycle beyond this one flag today. Owner/Admin is the only actor who may change it.
 
 **Aggregates.**
 - **Order** (root) → contains its OrderItems. Everything inside — item list, quantities, fulfillment status, payment status — is consistent together and mutated only through the Order. OrderItems never exist independent of an Order and are never shared across orders.
@@ -37,6 +39,7 @@
 - `INV-7` A MenuItem with `available = false` (sold out) cannot be added as a new OrderItem to any order. Existing OrderItems referencing it are unaffected (their snapshot already exists — see `INV-3`).
 - `INV-8` `paymentStatus` transitions independently of `fulfillmentStatus` — an order can be marked Paid while Pending or while Confirmed. There is no rule tying payment timing to confirmation.
 - `INV-9` Reverting `paymentStatus` from Paid back to Unpaid may be performed by any authenticated staff or admin session — no role restriction. (Originally Owner/Admin-only; relaxed 2026-07-08 so staff can self-correct a mis-marked payment without needing an admin.)
+- `INV-10` A new Order may be created only while `VenueSettings.acceptingOrders = true`. This applies uniformly regardless of who submits it (customer QR or staff-assisted) — there is no role-based override.
 
 **State machines.**
 
@@ -57,3 +60,8 @@
 *MenuItem — `available`*
 - States: `Available`, `SoldOut`
 - `Available → SoldOut` and `SoldOut → Available` (trigger: Staff or Owner/Admin toggles) — freely reversible, no restriction.
+
+*VenueSettings — `acceptingOrders`*
+- States: `Open` (true), `Closed` (false)
+- `Open → Closed` and `Closed → Open` (trigger: Owner/Admin only) — freely reversible, no restriction.
+- No other actor may transition this flag; Staff may view it but not change it.
