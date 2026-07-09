@@ -10,21 +10,32 @@ export default async function AdminMenuItemsPage() {
   const items = await listMenuItems()
 
   return (
-    <main>
-      <h1>Menu Management</h1>
-      {isAdmin && <CreateMenuItemForm />}
-      <ul>
-        {items.map((item) => (
-          <MenuItemRow
-            key={item.id}
-            id={item.id}
-            name={item.name}
-            price={item.price.toString()}
-            available={item.available}
-            editable={isAdmin}
-          />
-        ))}
-      </ul>
+    <main className="admin-page">
+      <header className="admin-header">
+        <span className="admin-header__eyebrow">Admin</span>
+        <h1 className="admin-header__title">Menu Management</h1>
+      </header>
+      {isAdmin && (
+        <div className="admin-panel">
+          <CreateMenuItemForm />
+        </div>
+      )}
+      {items.length === 0 ? (
+        <p className="admin-empty">No menu items yet — add one above.</p>
+      ) : (
+        <ul className="menu-admin-list">
+          {items.map((item) => (
+            <MenuItemRow
+              key={item.id}
+              id={item.id}
+              name={item.name}
+              price={item.price.toString()}
+              available={item.available}
+              editable={isAdmin}
+            />
+          ))}
+        </ul>
+      )}
     </main>
   )
 }

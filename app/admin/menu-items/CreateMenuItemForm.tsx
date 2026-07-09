@@ -33,25 +33,43 @@ export function CreateMenuItemForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label htmlFor="name">Name</label>
-      <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
-
-      <label htmlFor="price">Price</label>
-      <input
-        id="price"
-        type="number"
-        step="0.01"
-        min="0.01"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        required
-      />
-
-      <button type="submit" disabled={submitting}>
+    <form onSubmit={handleSubmit} className="admin-panel__form">
+      <div>
+        <label htmlFor="name" className="admin-panel__label">
+          Name
+        </label>
+        <input
+          id="name"
+          type="text"
+          className="admin-panel__input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="price" className="admin-panel__label">
+          Price
+        </label>
+        <input
+          id="price"
+          type="number"
+          step="0.01"
+          min="0.01"
+          className="admin-panel__input"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          required
+        />
+      </div>
+      <button type="submit" className="admin-panel__submit" disabled={submitting}>
         {submitting ? 'Adding…' : 'Add menu item'}
       </button>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className="admin-panel__error">
+          {error}
+        </p>
+      )}
     </form>
   )
 }

@@ -34,6 +34,15 @@ describe('AdminMenuItemsPage', () => {
     expect(requireRole).toHaveBeenCalledWith('staff')
   })
 
+  it('shows an empty state when there are no menu items', async () => {
+    vi.mocked(requireRole).mockResolvedValue({ role: 'staff' })
+
+    const ui = await AdminMenuItemsPage()
+    render(ui)
+
+    expect(screen.getByText('No menu items yet — add one above.')).toBeInTheDocument()
+  })
+
   it('shows the Menu Management heading for a staff session, without the create form', async () => {
     vi.mocked(requireRole).mockResolvedValue({ role: 'staff' })
 

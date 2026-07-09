@@ -31,22 +31,32 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
-      <h1>Staff / Admin Login</h1>
-      <form onSubmit={handleSubmit}>
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Logging in…' : 'Log in'}
-        </button>
-        {error && <p role="alert">{error}</p>}
-      </form>
+    <main className="login-page">
+      <div className="login-card">
+        <span className="login-card__eyebrow">Staff Access</span>
+        <h1 className="login-card__title">Welcome back</h1>
+        <form onSubmit={handleSubmit}>
+          <label htmlFor="password" className="login-card__label">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            className="login-card__input"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button type="submit" className="login-card__submit" disabled={submitting}>
+            {submitting ? 'Logging in…' : 'Log in'}
+          </button>
+          {error && (
+            <p role="alert" className="login-card__error">
+              {error}
+            </p>
+          )}
+        </form>
+      </div>
     </main>
   )
 }

@@ -54,9 +54,9 @@ export function StaffBar({ role }: { role: Role }) {
   if (collapsed) {
     return (
       <div className="staff-strip staff-strip--collapsed">
+        <div className="staff-strip__hairline" aria-hidden="true" />
         <button type="button" className="staff-bar__toggle" onClick={toggleCollapsed} aria-label="Show staff bar">
-          <span className="staff-bar__dot" aria-hidden="true" />
-          Staff
+          ▾
         </button>
       </div>
     )

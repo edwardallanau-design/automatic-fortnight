@@ -39,6 +39,13 @@ describe('AdminTablesPage', () => {
     expect(requireRole).toHaveBeenCalledWith('admin')
   })
 
+  it('shows an empty state when there are no tables', async () => {
+    const ui = await AdminTablesPage()
+    render(ui)
+
+    expect(screen.getByText('No tables yet — add one above.')).toBeInTheDocument()
+  })
+
   it('shows the Table Setup heading and create form', async () => {
     const ui = await AdminTablesPage()
     render(ui)

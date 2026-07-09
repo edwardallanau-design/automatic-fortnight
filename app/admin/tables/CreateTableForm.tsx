@@ -31,19 +31,28 @@ export function CreateTableForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label htmlFor="number">Table number</label>
-      <input
-        id="number"
-        type="number"
-        value={number}
-        onChange={(e) => setNumber(e.target.value)}
-        required
-      />
-      <button type="submit" disabled={submitting}>
+    <form onSubmit={handleSubmit} className="admin-panel__form">
+      <div>
+        <label htmlFor="number" className="admin-panel__label">
+          Table number
+        </label>
+        <input
+          id="number"
+          type="number"
+          className="admin-panel__input"
+          value={number}
+          onChange={(e) => setNumber(e.target.value)}
+          required
+        />
+      </div>
+      <button type="submit" className="admin-panel__submit" disabled={submitting}>
         {submitting ? 'Adding…' : 'Add table'}
       </button>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className="admin-panel__error">
+          {error}
+        </p>
+      )}
     </form>
   )
 }
