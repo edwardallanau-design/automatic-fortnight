@@ -63,7 +63,7 @@ export function StaffBar({ role }: { role: Role }) {
   }
 
   const showDashboardLink = pathname !== '/dashboard'
-  const showMenuManagementLink = role === 'admin' && pathname !== '/admin/menu-items'
+  const showMenuManagementLink = pathname !== '/admin/menu-items'
   const showTableSetupLink = role === 'admin' && pathname !== '/admin/tables'
   const showSettingsLink = role === 'admin' && pathname !== '/admin/settings'
 

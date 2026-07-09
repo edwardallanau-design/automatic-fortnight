@@ -43,12 +43,24 @@ describe('StaffBar', () => {
     expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument()
   })
 
-  it('does not show admin nav links for a staff session', () => {
+  it('does not show admin-only nav links for a staff session', () => {
+    render(<StaffBar role="staff" />)
+
+    expect(screen.queryByRole('link', { name: 'Table Setup' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+  })
+
+  it('shows a Menu Management link for a staff session', () => {
+    render(<StaffBar role="staff" />)
+
+    expect(screen.getByRole('link', { name: 'Menu Management' })).toHaveAttribute('href', '/admin/menu-items')
+  })
+
+  it('hides the Menu Management link for a staff session when already on that page', () => {
+    mockPathname = '/admin/menu-items'
     render(<StaffBar role="staff" />)
 
     expect(screen.queryByRole('link', { name: 'Menu Management' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Table Setup' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
   })
 
   it('shows Menu Management and Table Setup links for an admin session', () => {
