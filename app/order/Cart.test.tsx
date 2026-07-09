@@ -287,6 +287,26 @@ describe('Cart', () => {
     await waitFor(() => expect(container.querySelector('.cart-summary__line--removing')).not.toBeInTheDocument())
   })
 
+  it('cancels the pending removal and applies the re-add when the menu item is tapped again during the removal fade', async () => {
+    vi.useFakeTimers()
+    const { container } = render(<Cart tableId="t1" items={items} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /^Burger/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Decrease Burger quantity' }))
+    expect(container.querySelector('.cart-summary__line--removing')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Burger/ }))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250)
+    })
+
+    const order = screen.getByRole('region', { name: 'Your order' })
+    expect(within(order).getByText('2')).toBeInTheDocument()
+    expect(container.querySelector('.cart-summary__line--removing')).not.toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
   it('auto-dismisses the toast after 4 seconds', async () => {
     vi.useFakeTimers()
     render(<Cart tableId="t1" items={items} />)

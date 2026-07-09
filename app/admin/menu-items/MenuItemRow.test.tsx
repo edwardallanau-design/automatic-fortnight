@@ -148,7 +148,7 @@ describe('MenuItemRow', () => {
     })
 
     it('calls DELETE only after the dialog is confirmed', () => {
-      vi.mocked(apiClient.del).mockResolvedValue({})
+      vi.mocked(apiClient.del).mockResolvedValue(undefined)
       render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
