@@ -2573,9 +2573,21 @@ a {
   gap: 0.75rem;
 }
 
-.payment-method-admin-row__name {
+.payment-method-admin-row__info {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  gap: 0.15rem;
+}
+
+.payment-method-admin-row__name {
   font-weight: 500;
+}
+
+.payment-method-admin-row__account {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8rem;
+  color: var(--clay);
 }
 
 .payment-method-admin-row__qr-preview {

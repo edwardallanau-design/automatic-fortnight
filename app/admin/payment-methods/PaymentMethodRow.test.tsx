@@ -66,6 +66,11 @@ describe('PaymentMethodRow', () => {
     expect(screen.getByRole('switch', { name: 'Active: GCash' })).toBeChecked()
   })
 
+  it('shows the account info in view mode', () => {
+    renderRow()
+    expect(screen.getByText('0917x')).toBeInTheDocument()
+  })
+
   it('entering edit mode shows name and accountInfo inputs, Save cancels back to view on success', async () => {
     vi.mocked(apiClient.patch).mockResolvedValue({})
     const user = userEvent.setup()

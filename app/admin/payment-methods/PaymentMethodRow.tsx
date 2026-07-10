@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
+import { toBase64 } from './toBase64'
 
 type PaymentMethodRowProps = {
   id: string
@@ -11,15 +12,6 @@ type PaymentMethodRowProps = {
   qrImageUrl: string | null
   active: boolean
   editable: boolean
-}
-
-function toBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
 }
 
 export function PaymentMethodRow({ id, name, accountInfo, qrImageUrl, active, editable }: PaymentMethodRowProps) {
@@ -119,7 +111,10 @@ export function PaymentMethodRow({ id, name, accountInfo, qrImageUrl, active, ed
             // eslint-disable-next-line @next/next/no-img-element
             <img src={qrImageUrl} alt={`${name} QR code`} className="payment-method-admin-row__qr-preview" />
           )}
-          <span className="payment-method-admin-row__name">{name}</span>
+          <div className="payment-method-admin-row__info">
+            <span className="payment-method-admin-row__name">{name}</span>
+            {accountInfo && <span className="payment-method-admin-row__account">{accountInfo}</span>}
+          </div>
           {activeToggle}
           {editable && (
             <button type="button" className="payment-method-admin-row__edit" onClick={startEditing}>

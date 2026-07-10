@@ -11,7 +11,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/apiClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/apiClient')>()
-  return { ...actual, apiClient: { ...actual.apiClient, post: vi.fn() } }
+  return { ...actual, apiClient: { ...actual.apiClient, post: vi.fn(), patch: vi.fn() } }
 })
 
 describe('CreatePaymentMethodForm', () => {
@@ -40,5 +40,33 @@ describe('CreatePaymentMethodForm', () => {
     await user.click(screen.getByRole('button', { name: 'Add payment method' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('name is required')
+  })
+
+  it('uploads a QR image after creating, via a second PATCH call', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 'p1', name: 'GCash', active: true, qrImageUrl: null, accountInfo: null })
+    vi.mocked(apiClient.patch).mockResolvedValue({})
+    const user = userEvent.setup()
+    render(<CreatePaymentMethodForm />)
+
+    const file = new File(['fake-image-content'], 'qr.png', { type: 'image/png' })
+    await user.type(screen.getByLabelText('Name'), 'GCash')
+    await user.upload(screen.getByLabelText('QR image (optional)'), file)
+    await user.click(screen.getByRole('button', { name: 'Add payment method' }))
+
+    expect(apiClient.post).toHaveBeenCalledWith('/api/payment-methods', { name: 'GCash', accountInfo: '' })
+    expect(apiClient.patch).toHaveBeenCalledWith('/api/payment-methods/p1', { qrImage: expect.stringMatching(/^data:image\/png;base64,/) })
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('does not call PATCH when no QR image was selected', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 'p1', name: 'GCash', active: true, qrImageUrl: null, accountInfo: null })
+    const user = userEvent.setup()
+    render(<CreatePaymentMethodForm />)
+
+    await user.type(screen.getByLabelText('Name'), 'GCash')
+    await user.click(screen.getByRole('button', { name: 'Add payment method' }))
+
+    expect(apiClient.patch).not.toHaveBeenCalled()
+    expect(refresh).toHaveBeenCalled()
   })
 })
