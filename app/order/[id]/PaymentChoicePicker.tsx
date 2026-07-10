@@ -91,19 +91,23 @@ export function PaymentChoicePicker({
       <form onSubmit={submitOnline} className="payment-choice__form">
         <div className="payment-choice__methods" role="radiogroup" aria-label="Payment method">
           {paymentMethods.map((method) => (
-            <label key={method.id} className="payment-choice__method">
+            <label
+              key={method.id}
+              className={`payment-choice__method${selectedMethodId === method.id ? ' payment-choice__method--selected' : ''}`}
+            >
               <input
                 type="radio"
                 name="paymentMethod"
                 value={method.id}
                 checked={selectedMethodId === method.id}
                 onChange={() => setSelectedMethodId(method.id)}
+                className="payment-choice__method-input"
               />
-              <span className="payment-choice__method-name">{method.name}</span>
               {method.qrImageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={method.qrImageUrl} alt={`${method.name} QR code`} className="payment-choice__qr" />
               )}
+              <span className="payment-choice__method-name">{method.name}</span>
               {method.accountInfo && <span className="payment-choice__account">{method.accountInfo}</span>}
             </label>
           ))}

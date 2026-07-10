@@ -86,4 +86,15 @@ describe('PaymentChoicePicker', () => {
     expect(screen.getByRole('button', { name: 'Pay at counter' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Pay online' })).not.toBeInTheDocument()
   })
+
+  it('marks the selected method with a selected class', async () => {
+    const user = userEvent.setup()
+    render(<PaymentChoicePicker orderId="o1" paymentMethods={methods} />)
+
+    await user.click(screen.getByRole('button', { name: 'Pay online' }))
+    await user.click(screen.getByText('GCash'))
+
+    const gcashLabel = screen.getByText('GCash').closest('label')
+    expect(gcashLabel).toHaveClass('payment-choice__method--selected')
+  })
 })

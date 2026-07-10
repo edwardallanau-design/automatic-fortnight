@@ -1035,7 +1035,7 @@ a {
 
 .payment-choice {
   width: 100%;
-  max-width: 480px;
+  max-width: 640px;
   margin: 2rem auto;
   padding: 0 1.25rem;
 }
@@ -1078,28 +1078,91 @@ a {
 .payment-choice__methods {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .payment-choice__method {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  border: 1px solid var(--clay-faint);
-  border-radius: 10px;
-  padding: 0.75rem;
+  align-items: center;
+  gap: 0.6rem;
+  border: 2px solid var(--clay-faint);
+  border-radius: 14px;
+  padding: 1.5rem 1.25rem;
   cursor: pointer;
+  background: var(--paper);
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+
+.payment-choice__method:hover {
+  border-color: var(--copper);
+}
+
+.payment-choice__method:focus-within {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.payment-choice__method:active {
+  transform: scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-choice__method:active {
+    transform: none;
+  }
+}
+
+.payment-choice__method--selected {
+  border-color: var(--copper);
+  background: color-mix(in srgb, var(--copper) 10%, var(--paper));
+}
+
+.payment-choice__method--selected::after {
+  content: '✓';
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--copper);
+  color: var(--paper);
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.payment-choice__method-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
 }
 
 .payment-choice__method-name {
+  font-family: var(--font-display), Georgia, serif;
+  font-style: italic;
   font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--espresso);
 }
 
 .payment-choice__qr {
-  width: 120px;
-  height: 120px;
+  width: 100%;
+  max-width: 200px;
+  aspect-ratio: 1;
   object-fit: contain;
+  background: var(--paper);
+  border: 1px solid var(--clay-faint);
+  border-radius: 10px;
+  padding: 0.5rem;
 }
 
 .payment-choice__account {
