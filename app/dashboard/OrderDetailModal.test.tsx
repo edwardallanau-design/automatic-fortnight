@@ -14,7 +14,7 @@ const pendingOrder: OrderCardOrder = {
   paymentMethodNameSnapshot: null,
   paymentReference: null,
   customerName: 'Edward',
-  table: { number: 4 },
+  orderingPoint: { label: 'Table 4' },
   items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
 }
 
@@ -123,8 +123,8 @@ describe('OrderDetailModal', () => {
     expect(screen.getByRole('button', { name: 'Cancel order' })).toBeDisabled()
   })
 
-  it('renders "Counter" instead of "Table 0" for a table number 0 order', () => {
-    render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, table: { number: 0 } } })} />)
+  it('renders the Counter ordering point by its stored label', () => {
+    render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, orderingPoint: { label: 'Counter' } } })} />)
 
     expect(screen.getByText('Counter', { exact: false })).toBeInTheDocument()
     expect(screen.queryByText('Table 0', { exact: false })).not.toBeInTheDocument()

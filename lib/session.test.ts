@@ -16,6 +16,18 @@ describe('session', () => {
     expect(result).toEqual({ role: 'admin' })
   })
 
+  it('signs and verifies a role + branchId round-trip', () => {
+    const token = signSession('staff', 'branch-1')
+    const result = verifySession(token)
+    expect(result).toEqual({ role: 'staff', branchId: 'branch-1' })
+  })
+
+  it('omits branchId from the result when the session has none (e.g. admin)', () => {
+    const token = signSession('admin')
+    const result = verifySession(token)
+    expect(result).toEqual({ role: 'admin' })
+  })
+
   it('returns null for an invalid token', () => {
     expect(verifySession('not-a-real-token')).toBeNull()
   })

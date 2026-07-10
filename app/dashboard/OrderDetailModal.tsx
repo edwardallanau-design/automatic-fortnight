@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { Modal } from '@/app/components/Modal'
 import { ConfirmDialog } from '@/app/components/ConfirmDialog'
-import { formatTableLabel } from '@/lib/tableDisplay'
 import type { Role } from '@/lib/types'
 import type { OrderCardItem, OrderCardOrder } from './OrderCard'
 import { OrderItemsEditor } from './OrderItemsEditor'
@@ -61,7 +60,7 @@ export function OrderDetailModal({
         onClose={onClose}
       >
         <h2 className="order-detail-modal__title">
-          {formatTableLabel(order.table.number)} · #{order.orderNumber}
+          {order.orderingPoint.label} · #{order.orderNumber}
         </h2>
         {order.customerName && <p className="order-detail-modal__customer">{order.customerName}</p>}
 

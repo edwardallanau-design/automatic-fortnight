@@ -1,5 +1,6 @@
 import { requireRole } from '@/lib/authGuard'
-import { listMenuItems } from '@/lib/menuService'
+import { listMenuItemsWithAvailability } from '@/lib/menuService'
+import { resolveBranchId } from '@/lib/branchService'
 import { CreateMenuItemForm } from './CreateMenuItemForm'
 import { MenuItemRow } from './MenuItemRow'
 
@@ -7,7 +8,8 @@ export default async function AdminMenuItemsPage() {
   const session = await requireRole('staff')
   const isAdmin = session.role === 'admin'
 
-  const items = await listMenuItems()
+  const branchId = await resolveBranchId(session)
+  const items = await listMenuItemsWithAvailability(branchId)
 
   return (
     <main className="admin-page">

@@ -2,14 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import AdminMenuItemsPage from './page'
 import { requireRole } from '@/lib/authGuard'
-import { listMenuItems } from '@/lib/menuService'
+import { listMenuItemsWithAvailability } from '@/lib/menuService'
+import { resolveBranchId } from '@/lib/branchService'
 
 vi.mock('@/lib/authGuard', () => ({
   requireRole: vi.fn(),
 }))
 
 vi.mock('@/lib/menuService', () => ({
-  listMenuItems: vi.fn(),
+  listMenuItemsWithAvailability: vi.fn(),
+}))
+
+vi.mock('@/lib/branchService', () => ({
+  resolveBranchId: vi.fn(),
 }))
 
 vi.mock('./CreateMenuItemForm', () => ({
@@ -23,7 +28,8 @@ vi.mock('next/navigation', () => ({
 describe('AdminMenuItemsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(listMenuItems).mockResolvedValue([])
+    vi.mocked(resolveBranchId).mockResolvedValue('b1')
+    vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([])
   })
 
   it('is gated behind at least a staff session', async () => {
@@ -64,7 +70,7 @@ describe('AdminMenuItemsPage', () => {
 
   it('renders each menu item', async () => {
     vi.mocked(requireRole).mockResolvedValue({ role: 'staff' })
-    vi.mocked(listMenuItems).mockResolvedValue([
+    vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([
       { id: 'm1', name: 'Burger', price: { toString: () => '12.50' }, available: true, archived: false, createdAt: new Date() },
     ] as never)
 
@@ -76,7 +82,7 @@ describe('AdminMenuItemsPage', () => {
 
   it('shows an interactive availability toggle for a staff (non-admin) session', async () => {
     vi.mocked(requireRole).mockResolvedValue({ role: 'staff' })
-    vi.mocked(listMenuItems).mockResolvedValue([
+    vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([
       { id: 'm1', name: 'Burger', price: { toString: () => '12.50' }, available: true, archived: false, createdAt: new Date() },
     ] as never)
 

@@ -28,7 +28,7 @@ const orderA = {
   fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
   customerName: null,
-  table: { number: 4 },
+  orderingPoint: { label: 'Table 4' },
   items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
 }
 
@@ -39,7 +39,7 @@ const orderB = {
   fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
   customerName: null,
-  table: { number: 7 },
+  orderingPoint: { label: 'Table 7' },
   items: [{ id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
 }
 

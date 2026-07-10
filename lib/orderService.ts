@@ -1,7 +1,8 @@
-import type { Order, OrderItem, Table, FulfillmentStatus, PaymentStatus, Prisma } from '@prisma/client'
+import type { Order, OrderItem, OrderingPoint, FulfillmentStatus, PaymentStatus, Prisma } from '@prisma/client'
 import { prisma } from './prisma'
-import { getTableOrThrow } from './tableService'
-import { findMenuItemsByIds } from './menuService'
+import { getOrderingPointOrThrow } from './orderingPointService'
+import { getBranchOrThrow } from './branchService'
+import { findMenuItemsByIds, listSoldOutMenuItemIds } from './menuService'
 import { getVenueSettings } from './venueSettingsService'
 import { getActivePaymentMethodById } from './paymentMethodService'
 import { NotFoundError, ConflictError, ValidationError } from './errors'
@@ -11,7 +12,7 @@ export type CartItemInput = { menuItemId: string; quantity: number }
 export type OrderWithItems = Order & { items: OrderItem[] }
 
 export async function createOrder(
-  tableId: string,
+  orderingPointId: string,
   items: CartItemInput[],
   customerName?: string,
 ): Promise<OrderWithItems> {
@@ -24,24 +25,30 @@ export async function createOrder(
     throw new ValidationError('Cart must contain at least one item')
   }
 
-  await getTableOrThrow(tableId)
+  const orderingPoint = await getOrderingPointOrThrow(orderingPointId)
+  const branch = await getBranchOrThrow(orderingPoint.branchId)
+  if (!branch.acceptingOrders) {
+    throw new ConflictError('This branch is not accepting orders right now')
+  }
 
   const menuItems = await findMenuItemsByIds(items.map((item) => item.menuItemId))
   const menuItemsById = new Map(menuItems.map((menuItem) => [menuItem.id, menuItem]))
+  const soldOutIds = await listSoldOutMenuItemIds(branch.id)
 
   for (const item of items) {
     const menuItem = menuItemsById.get(item.menuItemId)
     if (!menuItem) {
       throw new NotFoundError(`Menu item ${item.menuItemId} not found`)
     }
-    if (!menuItem.available) {
+    if (soldOutIds.has(menuItem.id)) {
       throw new ConflictError(`${menuItem.name} is no longer available`)
     }
   }
 
   return prisma.order.create({
     data: {
-      tableId,
+      orderingPointId,
+      branchId: branch.id,
       customerName: customerName?.trim() || null,
       items: {
         create: items.map((item) => {
@@ -59,11 +66,11 @@ export async function createOrder(
   })
 }
 
-export type OrderWithItemsAndTable = Order & { items: OrderItem[]; table: Table }
+export type OrderWithItemsAndOrderingPoint = Order & { items: OrderItem[]; orderingPoint: OrderingPoint }
 
 export async function listOrders(
   options: { status?: FulfillmentStatus; paymentStatus?: PaymentStatus; date?: 'today' } = {},
-): Promise<OrderWithItemsAndTable[]> {
+): Promise<OrderWithItemsAndOrderingPoint[]> {
   const where: Prisma.OrderWhereInput = {}
   if (options.status) where.fulfillmentStatus = options.status
   if (options.paymentStatus) where.paymentStatus = options.paymentStatus
@@ -77,7 +84,7 @@ export async function listOrders(
 
   return prisma.order.findMany({
     where,
-    include: { items: true, table: true },
+    include: { items: true, orderingPoint: true },
     orderBy: { createdAt: 'asc' },
   })
 }
@@ -181,7 +188,8 @@ export async function addOrderItem(
   if (!menuItem) {
     throw new NotFoundError('Menu item not found')
   }
-  if (!menuItem.available) {
+  const soldOutIds = await listSoldOutMenuItemIds(order.branchId)
+  if (soldOutIds.has(menuItem.id)) {
     throw new ConflictError(`${menuItem.name} is no longer available`)
   }
 
@@ -239,10 +247,10 @@ export async function updateOrderItemQuantity(
   }) as Promise<OrderWithItems>
 }
 
-export async function getOrderById(orderId: string): Promise<OrderWithItemsAndTable> {
+export async function getOrderById(orderId: string): Promise<OrderWithItemsAndOrderingPoint> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, table: true },
+    include: { items: true, orderingPoint: true },
   })
   if (!order) {
     throw new NotFoundError('Order not found')

@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server'
-import { updateMenuItem } from '@/lib/menuService'
+import { findMenuItemsByIds, setMenuItemSoldOut } from '@/lib/menuService'
+import { resolveBranchId } from '@/lib/branchService'
 import { handleApiError } from '@/lib/handleApiError'
 import { requireApiRole } from '@/lib/authGuard'
-import { ValidationError } from '@/lib/errors'
+import { NotFoundError, ValidationError } from '@/lib/errors'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireApiRole('staff')
+    const session = await requireApiRole('staff')
 
     const { id } = await context.params
     const body = await request.json()
@@ -17,8 +18,15 @@ export async function PATCH(request: Request, context: RouteContext) {
       throw new ValidationError('available must be a boolean')
     }
 
-    const item = await updateMenuItem(id, { available: body.available })
-    return NextResponse.json(item, { status: 200 })
+    const [item] = await findMenuItemsByIds([id])
+    if (!item) {
+      throw new NotFoundError('Menu item not found')
+    }
+
+    const branchId = await resolveBranchId(session)
+    await setMenuItemSoldOut(id, branchId, !body.available)
+
+    return NextResponse.json({ ...item, available: body.available }, { status: 200 })
   } catch (error) {
     return handleApiError(error)
   }

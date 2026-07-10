@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
 
-export function CreateTableForm() {
+export function CreateOrderingPointForm() {
   const router = useRouter()
-  const [number, setNumber] = useState('')
+  const [label, setLabel] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -16,12 +16,12 @@ export function CreateTableForm() {
     setSubmitting(true)
 
     try {
-      await apiClient.post('/api/tables', { number: Number(number) })
-      setNumber('')
+      await apiClient.post('/api/ordering-points', { label })
+      setLabel('')
       router.refresh()
     } catch (err) {
       if (err instanceof ApiError && err.code === 'CONFLICT') {
-        setError('A table with that number already exists')
+        setError('A table with that label already exists')
       } else {
         setError('Something went wrong. Please try again.')
       }
@@ -33,15 +33,15 @@ export function CreateTableForm() {
   return (
     <form onSubmit={handleSubmit} className="admin-panel__form">
       <div>
-        <label htmlFor="number" className="admin-panel__label">
-          Table number
+        <label htmlFor="label" className="admin-panel__label">
+          Table label
         </label>
         <input
-          id="number"
-          type="number"
+          id="label"
+          type="text"
           className="admin-panel__input"
-          value={number}
-          onChange={(e) => setNumber(e.target.value)}
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
           required
         />
       </div>

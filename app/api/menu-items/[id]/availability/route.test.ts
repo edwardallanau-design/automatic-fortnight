@@ -1,16 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { PATCH } from './route'
-import { ForbiddenError, NotFoundError } from '@/lib/errors'
+import { ForbiddenError } from '@/lib/errors'
 
 vi.mock('@/lib/menuService', () => ({
-  updateMenuItem: vi.fn(),
+  setMenuItemSoldOut: vi.fn(),
+  findMenuItemsByIds: vi.fn(),
+}))
+
+vi.mock('@/lib/branchService', () => ({
+  resolveBranchId: vi.fn(),
 }))
 
 vi.mock('@/lib/authGuard', () => ({
   requireApiRole: vi.fn(),
 }))
 
-import { updateMenuItem } from '@/lib/menuService'
+import { setMenuItemSoldOut, findMenuItemsByIds } from '@/lib/menuService'
+import { resolveBranchId } from '@/lib/branchService'
 import { requireApiRole } from '@/lib/authGuard'
 
 function makePatchRequest(body: unknown): Request {
@@ -27,44 +33,53 @@ function makeContext(id: string) {
 describe('PATCH /api/menu-items/[id]/availability', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff' })
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff', branchId: 'b1' })
+    vi.mocked(resolveBranchId).mockResolvedValue('b1')
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: { toString: () => '12.50' }, archived: false, createdAt: new Date() },
+    ] as never)
   })
 
-  it('returns 200 with the updated item on success for a staff session', async () => {
-    const updated = { id: 'm1', name: 'Burger', available: false }
-    vi.mocked(updateMenuItem).mockResolvedValue(updated as never)
-
+  it('marks the item sold out in the resolved branch on success', async () => {
     const res = await PATCH(makePatchRequest({ available: false }), makeContext('m1'))
 
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.available).toBe(false)
-    expect(updateMenuItem).toHaveBeenCalledWith('m1', { available: false })
+    expect(setMenuItemSoldOut).toHaveBeenCalledWith('m1', 'b1', true)
     expect(requireApiRole).toHaveBeenCalledWith('staff')
   })
 
-  it('allows an admin session too', async () => {
+  it('marks the item available in the resolved branch on success', async () => {
+    const res = await PATCH(makePatchRequest({ available: true }), makeContext('m1'))
+
+    expect(res.status).toBe(200)
+    expect(setMenuItemSoldOut).toHaveBeenCalledWith('m1', 'b1', false)
+  })
+
+  it('allows an admin session too, resolving branch via resolveBranchId', async () => {
     vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
-    vi.mocked(updateMenuItem).mockResolvedValue({ id: 'm1', available: true } as never)
 
     const res = await PATCH(makePatchRequest({ available: true }), makeContext('m1'))
 
     expect(res.status).toBe(200)
+    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'admin' })
   })
 
   it('returns 400 when available is not a boolean', async () => {
     const res = await PATCH(makePatchRequest({ available: 'nope' }), makeContext('m1'))
 
     expect(res.status).toBe(400)
-    expect(updateMenuItem).not.toHaveBeenCalled()
+    expect(setMenuItemSoldOut).not.toHaveBeenCalled()
   })
 
   it('returns 404 when the item does not exist', async () => {
-    vi.mocked(updateMenuItem).mockRejectedValue(new NotFoundError('Menu item not found'))
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([])
 
     const res = await PATCH(makePatchRequest({ available: false }), makeContext('missing'))
 
     expect(res.status).toBe(404)
+    expect(setMenuItemSoldOut).not.toHaveBeenCalled()
   })
 
   it('returns 403 when there is no valid staff/admin session', async () => {
@@ -73,6 +88,6 @@ describe('PATCH /api/menu-items/[id]/availability', () => {
     const res = await PATCH(makePatchRequest({ available: false }), makeContext('m1'))
 
     expect(res.status).toBe(403)
-    expect(updateMenuItem).not.toHaveBeenCalled()
+    expect(setMenuItemSoldOut).not.toHaveBeenCalled()
   })
 })

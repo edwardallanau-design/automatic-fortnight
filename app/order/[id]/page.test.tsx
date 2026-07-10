@@ -41,7 +41,7 @@ function order(fulfillmentStatus: string) {
     paymentMethodNameSnapshot: null,
     paymentReference: null,
     items: [{ id: 'oi1', nameSnapshot: 'Burger', priceSnapshot: priceOf('12.50'), quantity: 1 }],
-    table: { id: 't1', number: 4, createdAt: new Date() },
+    orderingPoint: { id: 't1', branchId: 'b1', label: 'Table 4', isCounter: false, createdAt: new Date() },
   }
 }
 
@@ -129,7 +129,7 @@ describe('OrderDetailPage', () => {
       items: [
         { id: 'i1', nameSnapshot: 'Burger', priceSnapshot: { toString: () => '12.50' }, quantity: 1 },
       ],
-      table: { id: 't1', number: 4, createdAt: new Date() },
+      orderingPoint: { id: 't1', branchId: 'b1', label: 'Table 4', isCounter: false, createdAt: new Date() },
     } as never)
 
     const ui = await OrderDetailPage({ params: Promise.resolve({ id: 'o1' }) })
@@ -138,10 +138,10 @@ describe('OrderDetailPage', () => {
     expect(screen.getByText('For Edward')).toBeInTheDocument()
   })
 
-  it('renders "Counter" instead of "Table 0" when the order is for table number 0', async () => {
+  it('renders the Counter ordering point by its stored label', async () => {
     vi.mocked(getOrderById).mockResolvedValue({
       ...order('Pending'),
-      table: { id: 't0', number: 0, createdAt: new Date() },
+      orderingPoint: { id: 't0', branchId: 'b1', label: 'Counter', isCounter: true, createdAt: new Date() },
     } as never)
 
     const ui = await OrderDetailPage({ params: Promise.resolve({ id: 'o1' }) })
@@ -161,11 +161,11 @@ describe('OrderDetailPage', () => {
     expect(screen.queryByTestId('order-ticket')).not.toBeInTheDocument()
   })
 
-  it('skips the picker for a staff-assisted order (table number 0)', async () => {
+  it('skips the picker for a staff-assisted order at a Counter ordering point', async () => {
     vi.mocked(getOrderById).mockResolvedValue({
       ...order('Pending'),
       paymentChoice: 'None',
-      table: { id: 't0', number: 0, createdAt: new Date() },
+      orderingPoint: { id: 't0', branchId: 'b1', label: 'Counter', isCounter: true, createdAt: new Date() },
     } as never)
 
     const ui = await OrderDetailPage({ params: Promise.resolve({ id: 'o1' }) })

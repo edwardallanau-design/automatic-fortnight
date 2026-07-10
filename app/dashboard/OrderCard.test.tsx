@@ -13,7 +13,7 @@ const order: OrderCardOrder = {
   paymentMethodNameSnapshot: null,
   paymentReference: null,
   customerName: 'Edward',
-  table: { number: 4 },
+  orderingPoint: { label: 'Table 4' },
   items: [
     { id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 },
     { id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 },
@@ -136,8 +136,8 @@ describe('OrderCard', () => {
     expect(screen.queryByText(/· Edward/)).not.toBeInTheDocument()
   })
 
-  it('renders "Counter" instead of "Table 0" for a table number 0 order', () => {
-    render(<OrderCard order={{ ...order, table: { number: 0 } }} exiting={false} onOpen={vi.fn()} />)
+  it('renders the Counter ordering point by its stored label', () => {
+    render(<OrderCard order={{ ...order, orderingPoint: { label: 'Counter' } }} exiting={false} onOpen={vi.fn()} />)
 
     expect(screen.getByText('Counter')).toBeInTheDocument()
     expect(screen.queryByText('Table 0')).not.toBeInTheDocument()

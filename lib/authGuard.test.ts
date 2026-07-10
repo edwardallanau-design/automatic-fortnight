@@ -79,6 +79,14 @@ describe('requireApiRole', () => {
     expect(result).toEqual({ role: 'admin' })
   })
 
+  it('passes through the branchId from the session', async () => {
+    const token = signSession('staff', 'branch-1')
+    mockCookieGet.mockReturnValue({ name: SESSION_COOKIE_NAME, value: token })
+
+    const result = await requireApiRole('staff')
+    expect(result).toEqual({ role: 'staff', branchId: 'branch-1' })
+  })
+
   it('throws ForbiddenError when no cookie is present', async () => {
     mockCookieGet.mockReturnValue(undefined)
 

@@ -2,23 +2,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import AdminTablesPage from './page'
 import { requireRole } from '@/lib/authGuard'
-import { listTables } from '@/lib/tableService'
+import { listOrderingPoints } from '@/lib/orderingPointService'
+import { resolveBranchId } from '@/lib/branchService'
 import { generateQrDataUrl } from '@/lib/qrCode'
 
 vi.mock('@/lib/authGuard', () => ({
   requireRole: vi.fn(),
 }))
 
-vi.mock('@/lib/tableService', () => ({
-  listTables: vi.fn(),
+vi.mock('@/lib/orderingPointService', () => ({
+  listOrderingPoints: vi.fn(),
+}))
+
+vi.mock('@/lib/branchService', () => ({
+  resolveBranchId: vi.fn(),
 }))
 
 vi.mock('@/lib/qrCode', () => ({
   generateQrDataUrl: vi.fn(),
 }))
 
-vi.mock('./CreateTableForm', () => ({
-  CreateTableForm: () => <div>Create Table Form</div>,
+vi.mock('./CreateOrderingPointForm', () => ({
+  CreateOrderingPointForm: () => <div>Create Table Form</div>,
 }))
 
 vi.mock('next/headers', () => ({
@@ -29,7 +34,8 @@ describe('AdminTablesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(requireRole).mockResolvedValue({ role: 'admin' })
-    vi.mocked(listTables).mockResolvedValue([])
+    vi.mocked(resolveBranchId).mockResolvedValue('b1')
+    vi.mocked(listOrderingPoints).mockResolvedValue([])
     vi.mocked(generateQrDataUrl).mockResolvedValue('data:image/png;base64,x')
   })
 
@@ -39,7 +45,7 @@ describe('AdminTablesPage', () => {
     expect(requireRole).toHaveBeenCalledWith('admin')
   })
 
-  it('shows an empty state when there are no tables', async () => {
+  it('shows an empty state when there are no ordering points', async () => {
     const ui = await AdminTablesPage()
     render(ui)
 
@@ -54,14 +60,16 @@ describe('AdminTablesPage', () => {
     expect(screen.getByText('Create Table Form')).toBeInTheDocument()
   })
 
-  it('renders each table with its QR code', async () => {
-    vi.mocked(listTables).mockResolvedValue([{ id: 't1', number: 3, createdAt: new Date() }] as never)
+  it('renders each ordering point with its QR code', async () => {
+    vi.mocked(listOrderingPoints).mockResolvedValue([
+      { id: 'op1', branchId: 'b1', label: 'Table 3', isCounter: false, createdAt: new Date() },
+    ] as never)
 
     const ui = await AdminTablesPage()
     render(ui)
 
     expect(screen.getByText('Table 3')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'QR code for table 3' })).toHaveAttribute(
+    expect(screen.getByRole('img', { name: 'QR code for Table 3' })).toHaveAttribute(
       'src',
       'data:image/png;base64,x',
     )

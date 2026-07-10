@@ -3,8 +3,9 @@ import { Prisma } from '@prisma/client'
 import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder, removeOrderItem, addOrderItem, updateOrderItemQuantity, getOrderById, setPaymentChoiceCounter, setPaymentChoiceOnline } from './orderService'
 import { NotFoundError, ConflictError, ValidationError } from './errors'
 import { prisma } from './prisma'
-import { getTableOrThrow } from './tableService'
-import { findMenuItemsByIds } from './menuService'
+import { getOrderingPointOrThrow } from './orderingPointService'
+import { getBranchOrThrow } from './branchService'
+import { findMenuItemsByIds, listSoldOutMenuItemIds } from './menuService'
 import { getVenueSettings } from './venueSettingsService'
 import { getActivePaymentMethodById } from './paymentMethodService'
 
@@ -24,12 +25,17 @@ vi.mock('./prisma', () => ({
   },
 }))
 
-vi.mock('./tableService', () => ({
-  getTableOrThrow: vi.fn(),
+vi.mock('./orderingPointService', () => ({
+  getOrderingPointOrThrow: vi.fn(),
+}))
+
+vi.mock('./branchService', () => ({
+  getBranchOrThrow: vi.fn(),
 }))
 
 vi.mock('./menuService', () => ({
   findMenuItemsByIds: vi.fn(),
+  listSoldOutMenuItemIds: vi.fn(),
 }))
 
 vi.mock('./venueSettingsService', () => ({
@@ -43,13 +49,15 @@ vi.mock('./paymentMethodService', () => ({
 describe('orderService.createOrder', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(getTableOrThrow).mockResolvedValue({ id: 't1', number: 5, createdAt: new Date() } as never)
+    vi.mocked(getOrderingPointOrThrow).mockResolvedValue({ id: 'op1', branchId: 'b1', label: 'Table 5', isCounter: false, createdAt: new Date() } as never)
+    vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() } as never)
     vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: true, updatedAt: new Date() } as never)
+    vi.mocked(listSoldOutMenuItemIds).mockResolvedValue(new Set())
   })
 
   it('throws ValidationError when items is empty', async () => {
-    await expect(createOrder('t1', [])).rejects.toThrow(ValidationError)
-    expect(getTableOrThrow).not.toHaveBeenCalled()
+    await expect(createOrder('op1', [])).rejects.toThrow(ValidationError)
+    expect(getOrderingPointOrThrow).not.toHaveBeenCalled()
     expect(prisma.order.create).not.toHaveBeenCalled()
   })
 
@@ -57,17 +65,26 @@ describe('orderService.createOrder', () => {
     vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: false, updatedAt: new Date() } as never)
 
     await expect(
-      createOrder('t1', [{ menuItemId: 'm1', quantity: 1 }]),
+      createOrder('op1', [{ menuItemId: 'm1', quantity: 1 }]),
     ).rejects.toThrow(ConflictError)
-    expect(getTableOrThrow).not.toHaveBeenCalled()
+    expect(getOrderingPointOrThrow).not.toHaveBeenCalled()
     expect(prisma.order.create).not.toHaveBeenCalled()
   })
 
-  it('throws NotFoundError when the table does not exist', async () => {
-    vi.mocked(getTableOrThrow).mockRejectedValue(new NotFoundError('Table not found'))
+  it('throws ConflictError when the branch is not accepting orders', async () => {
+    vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b1', name: 'Main', acceptingOrders: false, createdAt: new Date() } as never)
 
     await expect(
-      createOrder('missing-table', [{ menuItemId: 'm1', quantity: 1 }]),
+      createOrder('op1', [{ menuItemId: 'm1', quantity: 1 }]),
+    ).rejects.toThrow(ConflictError)
+    expect(prisma.order.create).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when the ordering point does not exist', async () => {
+    vi.mocked(getOrderingPointOrThrow).mockRejectedValue(new NotFoundError('Ordering point not found'))
+
+    await expect(
+      createOrder('missing-op', [{ menuItemId: 'm1', quantity: 1 }]),
     ).rejects.toThrow(NotFoundError)
     expect(findMenuItemsByIds).not.toHaveBeenCalled()
   })
@@ -76,30 +93,32 @@ describe('orderService.createOrder', () => {
     vi.mocked(findMenuItemsByIds).mockResolvedValue([])
 
     await expect(
-      createOrder('t1', [{ menuItemId: 'missing', quantity: 1 }]),
+      createOrder('op1', [{ menuItemId: 'missing', quantity: 1 }]),
     ).rejects.toThrow(NotFoundError)
     expect(prisma.order.create).not.toHaveBeenCalled()
   })
 
-  it('throws ConflictError when a menu item is sold out', async () => {
+  it('throws ConflictError when a menu item is sold out in this branch', async () => {
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
-      { id: 'm1', name: 'Fries', price: new Prisma.Decimal('4.00'), available: false, archived: false, createdAt: new Date() },
+      { id: 'm1', name: 'Fries', price: new Prisma.Decimal('4.00'), archived: false, createdAt: new Date() },
     ] as never)
+    vi.mocked(listSoldOutMenuItemIds).mockResolvedValue(new Set(['m1']))
 
     await expect(
-      createOrder('t1', [{ menuItemId: 'm1', quantity: 1 }]),
+      createOrder('op1', [{ menuItemId: 'm1', quantity: 1 }]),
     ).rejects.toThrow(ConflictError)
     expect(prisma.order.create).not.toHaveBeenCalled()
   })
 
-  it('creates an order with snapshotted name/price for each item', async () => {
+  it('creates an order with snapshotted name/price for each item and the resolved branchId', async () => {
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
-      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), archived: false, createdAt: new Date() },
     ] as never)
     const created = {
       id: 'o1',
       orderNumber: 1,
-      tableId: 't1',
+      orderingPointId: 'op1',
+      branchId: 'b1',
       fulfillmentStatus: 'Pending',
       paymentStatus: 'Unpaid',
       createdAt: new Date(),
@@ -110,12 +129,13 @@ describe('orderService.createOrder', () => {
     }
     vi.mocked(prisma.order.create).mockResolvedValue(created as never)
 
-    const result = await createOrder('t1', [{ menuItemId: 'm1', quantity: 2 }])
+    const result = await createOrder('op1', [{ menuItemId: 'm1', quantity: 2 }])
 
     expect(result).toEqual(created)
     expect(prisma.order.create).toHaveBeenCalledWith({
       data: {
-        tableId: 't1',
+        orderingPointId: 'op1',
+        branchId: 'b1',
         customerName: null,
         items: {
           create: [
@@ -129,11 +149,11 @@ describe('orderService.createOrder', () => {
 
   it('persists a trimmed customerName', async () => {
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
-      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), archived: false, createdAt: new Date() },
     ] as never)
     vi.mocked(prisma.order.create).mockResolvedValue({} as never)
 
-    await createOrder('t1', [{ menuItemId: 'm1', quantity: 1 }], '  Edward  ')
+    await createOrder('op1', [{ menuItemId: 'm1', quantity: 1 }], '  Edward  ')
 
     expect(prisma.order.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -144,11 +164,11 @@ describe('orderService.createOrder', () => {
 
   it('coerces an empty or whitespace-only customerName to null', async () => {
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
-      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), archived: false, createdAt: new Date() },
     ] as never)
     vi.mocked(prisma.order.create).mockResolvedValue({} as never)
 
-    await createOrder('t1', [{ menuItemId: 'm1', quantity: 1 }], '   ')
+    await createOrder('op1', [{ menuItemId: 'm1', quantity: 1 }], '   ')
 
     expect(prisma.order.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -163,18 +183,19 @@ describe('orderService.listOrders', () => {
     vi.clearAllMocks()
   })
 
-  it('queries with a status filter, ordered oldest-first, including items and table', async () => {
+  it('queries with a status filter, ordered oldest-first, including items and orderingPoint', async () => {
     const orders = [
       {
         id: 'o1',
         orderNumber: 1,
-        tableId: 't1',
+        orderingPointId: 'op1',
+        branchId: 'b1',
         fulfillmentStatus: 'Pending',
         paymentStatus: 'Unpaid',
         createdAt: new Date('2026-07-04T12:00:00.000Z'),
         confirmedAt: null,
         items: [],
-        table: { id: 't1', number: 4, createdAt: new Date() },
+        orderingPoint: { id: 'op1', branchId: 'b1', label: 'Table 4', isCounter: false, createdAt: new Date() },
       },
     ]
     vi.mocked(prisma.order.findMany).mockResolvedValue(orders as never)
@@ -184,7 +205,7 @@ describe('orderService.listOrders', () => {
     expect(result).toEqual(orders)
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Pending' },
-      include: { items: true, table: true },
+      include: { items: true, orderingPoint: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -196,7 +217,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: {},
-      include: { items: true, table: true },
+      include: { items: true, orderingPoint: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -208,7 +229,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid' },
-      include: { items: true, table: true },
+      include: { items: true, orderingPoint: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -240,7 +261,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Pending' },
-      include: { items: true, table: true },
+      include: { items: true, orderingPoint: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -483,13 +504,15 @@ describe('orderService.getOrderById', () => {
     await expect(getOrderById('missing')).rejects.toThrow(NotFoundError)
   })
 
-  it('returns the order with items and table', async () => {
+  it('returns the order with items and orderingPoint', async () => {
     const order = {
       id: 'o1',
       orderNumber: 7,
+      orderingPointId: 'op1',
+      branchId: 'b1',
       fulfillmentStatus: 'Pending',
       items: [{ id: 'oi1', orderId: 'o1' }],
-      table: { id: 't1', number: 4, createdAt: new Date() },
+      orderingPoint: { id: 'op1', branchId: 'b1', label: 'Table 4', isCounter: false, createdAt: new Date() },
     }
     vi.mocked(prisma.order.findUnique).mockResolvedValue(order as never)
 
@@ -498,7 +521,7 @@ describe('orderService.getOrderById', () => {
     expect(result).toEqual(order)
     expect(prisma.order.findUnique).toHaveBeenCalledWith({
       where: { id: 'o1' },
-      include: { items: true, table: true },
+      include: { items: true, orderingPoint: true },
     })
   })
 })
@@ -506,6 +529,7 @@ describe('orderService.getOrderById', () => {
 describe('orderService.addOrderItem', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(listSoldOutMenuItemIds).mockResolvedValue(new Set())
   })
 
   it('throws ValidationError for a non-positive-integer quantity', async () => {
@@ -522,6 +546,7 @@ describe('orderService.addOrderItem', () => {
   it('throws ConflictError when the order is Confirmed and the actor is not admin', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue({
       id: 'o1',
+      branchId: 'b1',
       fulfillmentStatus: 'Confirmed',
       items: [],
     } as never)
@@ -530,17 +555,18 @@ describe('orderService.addOrderItem', () => {
   })
 
   it('throws NotFoundError when the menu item does not exist', async () => {
-    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Pending', items: [] } as never)
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', branchId: 'b1', fulfillmentStatus: 'Pending', items: [] } as never)
     vi.mocked(findMenuItemsByIds).mockResolvedValue([])
 
     await expect(addOrderItem('o1', 'missing', 1, 'staff')).rejects.toThrow(NotFoundError)
   })
 
   it('throws ConflictError when the menu item is sold out', async () => {
-    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', fulfillmentStatus: 'Pending', items: [] } as never)
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', branchId: 'b1', fulfillmentStatus: 'Pending', items: [] } as never)
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
-      { id: 'm1', name: 'Fries', price: new Prisma.Decimal('4.00'), available: false, archived: false, createdAt: new Date() },
+      { id: 'm1', name: 'Fries', price: new Prisma.Decimal('4.00'), archived: false, createdAt: new Date() },
     ] as never)
+    vi.mocked(listSoldOutMenuItemIds).mockResolvedValue(new Set(['m1']))
 
     await expect(addOrderItem('o1', 'm1', 1, 'staff')).rejects.toThrow(ConflictError)
     expect(prisma.orderItem.create).not.toHaveBeenCalled()
@@ -548,14 +574,15 @@ describe('orderService.addOrderItem', () => {
 
   it('creates a new line with a snapshot when the item is not already on the order', async () => {
     vi.mocked(prisma.order.findUnique)
-      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', items: [] } as never)
+      .mockResolvedValueOnce({ id: 'o1', branchId: 'b1', fulfillmentStatus: 'Pending', items: [] } as never)
       .mockResolvedValueOnce({
         id: 'o1',
+        branchId: 'b1',
         fulfillmentStatus: 'Pending',
         items: [{ id: 'oi1', menuItemId: 'm1', quantity: 2 }],
       } as never)
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
-      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), archived: false, createdAt: new Date() },
     ] as never)
 
     const result = await addOrderItem('o1', 'm1', 2, 'staff')
@@ -565,6 +592,7 @@ describe('orderService.addOrderItem', () => {
     })
     expect(result).toEqual({
       id: 'o1',
+      branchId: 'b1',
       fulfillmentStatus: 'Pending',
       items: [{ id: 'oi1', menuItemId: 'm1', quantity: 2 }],
     })
@@ -574,16 +602,18 @@ describe('orderService.addOrderItem', () => {
     vi.mocked(prisma.order.findUnique)
       .mockResolvedValueOnce({
         id: 'o1',
+        branchId: 'b1',
         fulfillmentStatus: 'Pending',
         items: [{ id: 'oi1', menuItemId: 'm1', quantity: 2 }],
       } as never)
       .mockResolvedValueOnce({
         id: 'o1',
+        branchId: 'b1',
         fulfillmentStatus: 'Pending',
         items: [{ id: 'oi1', menuItemId: 'm1', quantity: 3 }],
       } as never)
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
-      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), archived: false, createdAt: new Date() },
     ] as never)
 
     const result = await addOrderItem('o1', 'm1', 1, 'staff')
@@ -592,6 +622,7 @@ describe('orderService.addOrderItem', () => {
     expect(prisma.orderItem.create).not.toHaveBeenCalled()
     expect(result).toEqual({
       id: 'o1',
+      branchId: 'b1',
       fulfillmentStatus: 'Pending',
       items: [{ id: 'oi1', menuItemId: 'm1', quantity: 3 }],
     })
@@ -599,14 +630,15 @@ describe('orderService.addOrderItem', () => {
 
   it('allows an admin to add an item to a Confirmed order', async () => {
     vi.mocked(prisma.order.findUnique)
-      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Confirmed', items: [] } as never)
+      .mockResolvedValueOnce({ id: 'o1', branchId: 'b1', fulfillmentStatus: 'Confirmed', items: [] } as never)
       .mockResolvedValueOnce({
         id: 'o1',
+        branchId: 'b1',
         fulfillmentStatus: 'Confirmed',
         items: [{ id: 'oi1', menuItemId: 'm1', quantity: 1 }],
       } as never)
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
-      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), archived: false, createdAt: new Date() },
     ] as never)
 
     const result = await addOrderItem('o1', 'm1', 1, 'admin')

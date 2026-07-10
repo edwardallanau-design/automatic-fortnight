@@ -1,13 +1,14 @@
 // app/order/new/page.tsx
 import Link from 'next/link'
 import { requireRole } from '@/lib/authGuard'
-import { listTables } from '@/lib/tableService'
-import { formatTableLabel } from '@/lib/tableDisplay'
+import { listOrderingPoints } from '@/lib/orderingPointService'
+import { resolveBranchId } from '@/lib/branchService'
 
 export default async function NewOrderPage() {
-  await requireRole('staff')
+  const session = await requireRole('staff')
 
-  const tables = await listTables()
+  const branchId = await resolveBranchId(session)
+  const orderingPoints = await listOrderingPoints(branchId)
 
   return (
     <main className="table-picker">
@@ -16,16 +17,16 @@ export default async function NewOrderPage() {
         <h1 className="order-header__title">Choose a table</h1>
       </header>
 
-      {tables.length === 0 ? (
+      {orderingPoints.length === 0 ? (
         <p className="table-picker__empty">
           No tables yet. Create one in <Link href="/admin/tables">Table setup</Link>.
         </p>
       ) : (
         <ul className="table-picker__list">
-          {tables.map((table) => (
-            <li key={table.id}>
-              <Link className="table-picker__row" href={`/order?table=${table.id}`}>
-                <span className="table-picker__row-label">{formatTableLabel(table.number)}</span>
+          {orderingPoints.map((point) => (
+            <li key={point.id}>
+              <Link className="table-picker__row" href={`/order?table=${point.id}`}>
+                <span className="table-picker__row-label">{point.label}</span>
                 <span className="table-picker__chevron" aria-hidden="true">
                   →
                 </span>
