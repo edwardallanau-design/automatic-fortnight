@@ -16,7 +16,7 @@ Kill criteria: Measured over one month of live operation at the pilot restaurant
 - **Owner/Admin** — manages menu (add/remove items, pricing), has staff capabilities
 
 **Non-goals.**
-- No in-app payment — customer orders, gets a number, pays staff at the counter/table
+- No payment *processing* or verification in-app — the customer may declare a payment method (counter, or a self-reported online reference), but the app never handles money or confirms a transaction actually occurred; staff always make the final Paid determination.
 - No delivery or takeout logistics
 - No multi-tenant support (single restaurant only — see `03-tenancy-model.md`)
 - No loyalty programs, reservations, or reviews

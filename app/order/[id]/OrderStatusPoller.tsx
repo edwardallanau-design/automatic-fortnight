@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/apiClient'
 import { OrderTicket, type OrderTicketProps } from './OrderTicket'
-import { TicketCard } from './TicketCard'
+import { TicketCard, formatPaymentChoiceNote } from './TicketCard'
 
 const POLL_INTERVAL_MS = 3500
 
@@ -41,6 +41,7 @@ export function OrderStatusPoller({ order }: { order: OrderTicketProps }) {
         customerName={order.customerName}
         items={order.items}
         statusNote="Confirmed by staff — ask staff to change anything."
+        paymentNote={formatPaymentChoiceNote(order.paymentChoice, order.paymentMethodNameSnapshot, order.paymentReference)}
       />
     )
   }

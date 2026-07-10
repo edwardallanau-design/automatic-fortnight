@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
-import { TicketCard } from './TicketCard'
+import { TicketCard, formatPaymentChoiceNote, type PaymentChoice } from './TicketCard'
 import { ConfirmDialog } from '@/app/components/ConfirmDialog'
 
 export type OrderTicketLine = {
@@ -17,6 +17,9 @@ export type OrderTicketProps = {
   id: string
   orderNumber: number
   customerName: string | null
+  paymentChoice: PaymentChoice
+  paymentMethodNameSnapshot: string | null
+  paymentReference: string | null
   items: OrderTicketLine[]
 }
 
@@ -79,6 +82,7 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
         customerName={order.customerName}
         items={order.items}
         statusNote="Contact staff to change your order, or cancel it below."
+        paymentNote={formatPaymentChoiceNote(order.paymentChoice, order.paymentMethodNameSnapshot, order.paymentReference)}
         footer={
           <>
             {error && (

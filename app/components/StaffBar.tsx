@@ -65,6 +65,7 @@ export function StaffBar({ role }: { role: Role }) {
   const showDashboardLink = pathname !== '/dashboard'
   const showMenuManagementLink = pathname !== '/admin/menu-items'
   const showTableSetupLink = role === 'admin' && pathname !== '/admin/tables'
+  const showPaymentMethodsLink = role === 'admin' && pathname !== '/admin/payment-methods'
   const showSettingsLink = role === 'admin' && pathname !== '/admin/settings'
 
   return (
@@ -99,6 +100,16 @@ export function StaffBar({ role }: { role: Role }) {
             <>
               <Link href="/admin/tables" className="staff-bar__action">
                 Table Setup
+              </Link>
+              <span className="staff-bar__sep" aria-hidden="true">
+                ·
+              </span>
+            </>
+          )}
+          {showPaymentMethodsLink && (
+            <>
+              <Link href="/admin/payment-methods" className="staff-bar__action">
+                Payment Methods
               </Link>
               <span className="staff-bar__sep" aria-hidden="true">
                 ·

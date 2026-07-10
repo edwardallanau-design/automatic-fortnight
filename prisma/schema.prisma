@@ -34,6 +34,16 @@ model MenuItem {
   orderItems OrderItem[]
 }
 
+model PaymentMethod {
+  id          String   @id @default(uuid())
+  name        String
+  active      Boolean  @default(true)
+  qrImageUrl  String?
+  accountInfo String?
+  createdAt   DateTime @default(now())
+  orders      Order[]
+}
+
 enum FulfillmentStatus {
   Pending
   Confirmed
@@ -45,17 +55,28 @@ enum PaymentStatus {
   Paid
 }
 
+enum PaymentChoice {
+  None
+  Counter
+  Online
+}
+
 model Order {
-  id                String            @id @default(uuid())
-  orderNumber       Int               @unique @default(autoincrement())
-  tableId           String
-  table             Table             @relation(fields: [tableId], references: [id])
-  fulfillmentStatus FulfillmentStatus @default(Pending)
-  paymentStatus     PaymentStatus     @default(Unpaid)
-  customerName      String?
-  createdAt         DateTime          @default(now())
-  confirmedAt       DateTime?
-  items             OrderItem[]
+  id                         String            @id @default(uuid())
+  orderNumber                Int               @unique @default(autoincrement())
+  tableId                    String
+  table                      Table             @relation(fields: [tableId], references: [id])
+  fulfillmentStatus          FulfillmentStatus @default(Pending)
+  paymentStatus              PaymentStatus     @default(Unpaid)
+  paymentChoice              PaymentChoice     @default(None)
+  paymentMethodId            String?
+  paymentMethod              PaymentMethod?    @relation(fields: [paymentMethodId], references: [id])
+  paymentMethodNameSnapshot  String?
+  paymentReference           String?
+  customerName               String?
+  createdAt                  DateTime          @default(now())
+  confirmedAt                DateTime?
+  items                      OrderItem[]
 }
 
 model OrderItem {

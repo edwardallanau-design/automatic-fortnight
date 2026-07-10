@@ -8,6 +8,8 @@
 - **Fulfillment status** — where an order stands in the kitchen/staff workflow: Pending → Confirmed, or Pending → Cancelled.
 - **Payment status** — whether an order has been paid: Unpaid → Paid. Tracked independently of fulfillment status, because the restaurant supports both pay-as-you-order and pay-at-the-end.
 - **Venue Settings** — venue-wide operational state, currently a single `acceptingOrders` flag controlling whether new orders may be created at all, regardless of who submits them.
+- **Payment Method** — an admin-managed way a customer can pay online (e.g. an e-wallet or bank transfer), each with a name and either a QR image, an account/wallet number, or both.
+- **Payment Choice** — how a customer said they'd pay for their own order: unset, at the counter, or online (with a chosen Payment Method + a self-reported reference number). Independent of, and never a substitute for, staff's own `paymentStatus` determination.
 
 **High-level flow.**
 
@@ -20,9 +22,10 @@
 **Entities.**
 - **Table** — `number` (unique), `qrCode` — identifies where an order originated; no lifecycle of its own.
 - **MenuItem** — `name`, `price`, `available` (boolean) — the sellable item; price changes and sold-out toggles apply only to *future* order items, never retroactively.
-- **Order** — `table` (ref), `fulfillmentStatus`, `paymentStatus`, `orderNumber`, `customerName` (optional, captured at submission, immutable afterward), `createdAt`, `confirmedAt` — the aggregate root for a customer's visit.
+- **Order** — `table` (ref), `fulfillmentStatus`, `paymentStatus`, `paymentChoice`, `paymentMethod` (ref, optional), `paymentMethodNameSnapshot` (optional), `paymentReference` (optional), `orderNumber`, `customerName` (optional, captured at submission, immutable afterward), `createdAt`, `confirmedAt` — the aggregate root for a customer's visit.
 - **OrderItem** — `menuItem` (ref), `nameSnapshot`, `priceSnapshot`, `quantity` — a line item belonging to exactly one Order.
 - **VenueSettings** — a singleton, `acceptingOrders` (boolean) — venue-wide operational state, no lifecycle beyond this one flag today. Owner/Admin is the only actor who may change it.
+- **PaymentMethod** — `name`, `active` (boolean), `qrImageUrl` (optional), `accountInfo` (optional) — admin-managed; deactivated (not deleted) once an Order references it, to preserve history.
 
 **Aggregates.**
 - **Order** (root) → contains its OrderItems. Everything inside — item list, quantities, fulfillment status, payment status — is consistent together and mutated only through the Order. OrderItems never exist independent of an Order and are never shared across orders.
@@ -40,6 +43,8 @@
 - `INV-8` `paymentStatus` transitions independently of `fulfillmentStatus` — an order can be marked Paid while Pending or while Confirmed. There is no rule tying payment timing to confirmation.
 - `INV-9` Reverting `paymentStatus` from Paid back to Unpaid may be performed by any authenticated staff or admin session — no role restriction. (Originally Owner/Admin-only; relaxed 2026-07-08 so staff can self-correct a mis-marked payment without needing an admin.)
 - `INV-10` A new Order may be created only while `VenueSettings.acceptingOrders = true`. This applies uniformly regardless of who submits it (customer QR or staff-assisted) — there is no role-based override.
+- `INV-11` An Order's `paymentChoice` transitions `None → Counter` or `None → Online` exactly once; attempting to set it again, or while `fulfillmentStatus = Cancelled`, is rejected.
+- `INV-12` Setting `paymentChoice = Online` requires a non-empty `paymentReference` and a `paymentMethodId` referencing an `active` PaymentMethod at request time; all four fields (`paymentChoice`, `paymentMethodId`, `paymentMethodNameSnapshot`, `paymentReference`) are written in the same database update. Note: the preceding read-then-write (checking `paymentChoice = None` and `fulfillmentStatus ≠ Cancelled`) is not wrapped in a transaction or guarded by a conditional-update clause, so a concurrent duplicate-choice race is theoretically possible but not prevented; acceptable for now given this is low-stakes choice-tracking, not a security or payment-processing operation.
 
 **State machines.**
 
@@ -65,3 +70,10 @@
 - States: `Open` (true), `Closed` (false)
 - `Open → Closed` and `Closed → Open` (trigger: Owner/Admin only) — freely reversible, no restriction.
 - No other actor may transition this flag; Staff may view it but not change it.
+
+*Order — `paymentChoice`* (independent axis, separate from `paymentStatus`)
+- States: `None`, `Counter`, `Online`
+- `None → Counter` (trigger: Customer, on the order confirmation page).
+- `None → Online` (trigger: Customer, selecting a Payment Method and supplying a reference number).
+- `Counter` and `Online` are terminal — no transitions out of either (`INV-11`).
+- This never sets `paymentStatus` — staff/admin still independently mark `paymentStatus = Paid` via the existing mechanism (`INV-8`/`INV-9`, unchanged).

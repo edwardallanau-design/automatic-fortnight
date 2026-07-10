@@ -19,6 +19,9 @@ function twoLineOrder() {
     id: 'o1',
     orderNumber: 47,
     customerName: null,
+    paymentChoice: 'Counter' as const,
+    paymentMethodNameSnapshot: null,
+    paymentReference: null,
     items: [
       { id: 'oi1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 },
       { id: 'oi2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 2 },
@@ -87,6 +90,9 @@ describe('OrderTicket', () => {
           id: 'o1',
           orderNumber: 7,
           customerName: 'Edward',
+          paymentChoice: 'Counter' as const,
+          paymentMethodNameSnapshot: null,
+          paymentReference: null,
           items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
         }}
       />,
@@ -102,6 +108,9 @@ describe('OrderTicket', () => {
           id: 'o1',
           orderNumber: 7,
           customerName: null,
+          paymentChoice: 'Counter' as const,
+          paymentMethodNameSnapshot: null,
+          paymentReference: null,
           items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
         }}
       />,
@@ -115,5 +124,11 @@ describe('OrderTicket', () => {
 
     expect(screen.getByText('Order #47')).toBeInTheDocument()
     expect(screen.queryByText(/confirmed/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the payment note for the choice already made', () => {
+    render(<OrderTicket order={{ ...twoLineOrder(), paymentChoice: 'Online', paymentMethodNameSnapshot: 'GCash', paymentReference: 'TXN123' }} />)
+
+    expect(screen.getByText('You chose to pay online via GCash. Reference: TXN123.')).toBeInTheDocument()
   })
 })

@@ -47,6 +47,7 @@ describe('StaffBar', () => {
     render(<StaffBar role="staff" />)
 
     expect(screen.queryByRole('link', { name: 'Table Setup' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Payment Methods' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
   })
 
@@ -63,11 +64,12 @@ describe('StaffBar', () => {
     expect(screen.queryByRole('link', { name: 'Menu Management' })).not.toBeInTheDocument()
   })
 
-  it('shows Menu Management and Table Setup links for an admin session', () => {
+  it('shows Menu Management, Table Setup, and Payment Methods links for an admin session', () => {
     render(<StaffBar role="admin" />)
 
     expect(screen.getByRole('link', { name: 'Menu Management' })).toHaveAttribute('href', '/admin/menu-items')
     expect(screen.getByRole('link', { name: 'Table Setup' })).toHaveAttribute('href', '/admin/tables')
+    expect(screen.getByRole('link', { name: 'Payment Methods' })).toHaveAttribute('href', '/admin/payment-methods')
   })
 
   it('hides the Menu Management link when already on that page', () => {

@@ -7,17 +7,33 @@ export type TicketCardLine = {
   quantity: number
 }
 
+export type PaymentChoice = 'None' | 'Counter' | 'Online'
+
+export function formatPaymentChoiceNote(
+  paymentChoice: PaymentChoice,
+  paymentMethodNameSnapshot: string | null,
+  paymentReference: string | null,
+): string | null {
+  if (paymentChoice === 'Counter') return 'You chose to pay at the counter.'
+  if (paymentChoice === 'Online') {
+    return `You chose to pay online via ${paymentMethodNameSnapshot}. Reference: ${paymentReference}.`
+  }
+  return null
+}
+
 export function TicketCard({
   heading,
   customerName,
   items,
   statusNote,
+  paymentNote,
   footer,
 }: {
   heading: string
   customerName: string | null
   items: TicketCardLine[]
   statusNote: string
+  paymentNote?: string | null
   footer?: ReactNode
 }) {
   const total = items.reduce((sum, item) => sum + Number(item.priceSnapshot) * item.quantity, 0)
@@ -44,6 +60,7 @@ export function TicketCard({
           <span className="ticket__total-price">${total.toFixed(2)}</span>
         </div>
         {footer}
+        {paymentNote && <p className="ticket__note">{paymentNote}</p>}
         <p className="ticket__note">{statusNote}</p>
       </div>
     </section>
