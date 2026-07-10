@@ -3,6 +3,7 @@ import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
 import { getVenueSettings } from './venueSettingsService'
+import { getActivePaymentMethodById } from './paymentMethodService'
 import { NotFoundError, ConflictError, ValidationError } from './errors'
 import type { Role } from './types'
 
@@ -247,4 +248,60 @@ export async function getOrderById(orderId: string): Promise<OrderWithItemsAndTa
     throw new NotFoundError('Order not found')
   }
   return order
+}
+
+export async function setPaymentChoiceCounter(orderId: string): Promise<OrderWithItems> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  if (order.paymentChoice !== 'None') {
+    throw new ConflictError('Payment choice has already been made for this order')
+  }
+  if (order.fulfillmentStatus === 'Cancelled') {
+    throw new ConflictError('Order is Cancelled')
+  }
+
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { paymentChoice: 'Counter' },
+    include: { items: true },
+  })
+}
+
+export async function setPaymentChoiceOnline(
+  orderId: string,
+  paymentMethodId: string,
+  reference: string,
+): Promise<OrderWithItems> {
+  if (typeof reference !== 'string' || reference.trim() === '') {
+    throw new ValidationError('reference is required')
+  }
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  if (order.paymentChoice !== 'None') {
+    throw new ConflictError('Payment choice has already been made for this order')
+  }
+  if (order.fulfillmentStatus === 'Cancelled') {
+    throw new ConflictError('Order is Cancelled')
+  }
+
+  const method = await getActivePaymentMethodById(paymentMethodId)
+  if (!method) {
+    throw new ConflictError('Selected payment method is no longer available')
+  }
+
+  return prisma.order.update({
+    where: { id: orderId },
+    data: {
+      paymentChoice: 'Online',
+      paymentMethodId: method.id,
+      paymentMethodNameSnapshot: method.name,
+      paymentReference: reference.trim(),
+    },
+    include: { items: true },
+  })
 }

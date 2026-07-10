@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
-import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder, removeOrderItem, addOrderItem, updateOrderItemQuantity, getOrderById } from './orderService'
+import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder, removeOrderItem, addOrderItem, updateOrderItemQuantity, getOrderById, setPaymentChoiceCounter, setPaymentChoiceOnline } from './orderService'
 import { NotFoundError, ConflictError, ValidationError } from './errors'
 import { prisma } from './prisma'
 import { getTableOrThrow } from './tableService'
 import { findMenuItemsByIds } from './menuService'
 import { getVenueSettings } from './venueSettingsService'
+import { getActivePaymentMethodById } from './paymentMethodService'
 
 vi.mock('./prisma', () => ({
   prisma: {
@@ -33,6 +34,10 @@ vi.mock('./menuService', () => ({
 
 vi.mock('./venueSettingsService', () => ({
   getVenueSettings: vi.fn(),
+}))
+
+vi.mock('./paymentMethodService', () => ({
+  getActivePaymentMethodById: vi.fn(),
 }))
 
 describe('orderService.createOrder', () => {
@@ -669,5 +674,108 @@ describe('orderService.updateOrderItemQuantity', () => {
 
     expect(prisma.orderItem.update).toHaveBeenCalledWith({ where: { id: 'oi1' }, data: { quantity: 2 } })
     expect(result.items[0].quantity).toBe(2)
+  })
+})
+
+describe('orderService.setPaymentChoiceCounter', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('sets paymentChoice to Counter and returns the updated order', async () => {
+    const existing = { id: 'o1', paymentChoice: 'None', fulfillmentStatus: 'Pending' }
+    const updated = { id: 'o1', paymentChoice: 'Counter', items: [] }
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(existing as never)
+    vi.mocked(prisma.order.update).mockResolvedValue(updated as never)
+
+    const result = await setPaymentChoiceCounter('o1')
+
+    expect(result).toEqual(updated)
+    expect(prisma.order.update).toHaveBeenCalledWith({
+      where: { id: 'o1' },
+      data: { paymentChoice: 'Counter' },
+      include: { items: true },
+    })
+  })
+
+  it('throws NotFoundError when the order does not exist', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(null as never)
+
+    await expect(setPaymentChoiceCounter('missing')).rejects.toThrow(NotFoundError)
+    expect(prisma.order.update).not.toHaveBeenCalled()
+  })
+
+  it('throws ConflictError when a choice has already been made', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', paymentChoice: 'Online', fulfillmentStatus: 'Pending' } as never)
+
+    await expect(setPaymentChoiceCounter('o1')).rejects.toThrow(ConflictError)
+    expect(prisma.order.update).not.toHaveBeenCalled()
+  })
+
+  it('throws ConflictError when the order is Cancelled', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', paymentChoice: 'None', fulfillmentStatus: 'Cancelled' } as never)
+
+    await expect(setPaymentChoiceCounter('o1')).rejects.toThrow(ConflictError)
+    expect(prisma.order.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('orderService.setPaymentChoiceOnline', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('sets paymentChoice, paymentMethodId, the name snapshot, and reference', async () => {
+    const existing = { id: 'o1', paymentChoice: 'None', fulfillmentStatus: 'Pending' }
+    const method = { id: 'p1', name: 'GCash', active: true, qrImageUrl: null, accountInfo: null, createdAt: new Date() }
+    const updated = { id: 'o1', paymentChoice: 'Online', items: [] }
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(existing as never)
+    vi.mocked(getActivePaymentMethodById).mockResolvedValue(method as never)
+    vi.mocked(prisma.order.update).mockResolvedValue(updated as never)
+
+    const result = await setPaymentChoiceOnline('o1', 'p1', 'TXN123')
+
+    expect(result).toEqual(updated)
+    expect(prisma.order.update).toHaveBeenCalledWith({
+      where: { id: 'o1' },
+      data: {
+        paymentChoice: 'Online',
+        paymentMethodId: 'p1',
+        paymentMethodNameSnapshot: 'GCash',
+        paymentReference: 'TXN123',
+      },
+      include: { items: true },
+    })
+  })
+
+  it('throws ValidationError when reference is empty', async () => {
+    await expect(setPaymentChoiceOnline('o1', 'p1', '   ')).rejects.toThrow(ValidationError)
+    expect(prisma.order.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when the order does not exist', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(null as never)
+
+    await expect(setPaymentChoiceOnline('missing', 'p1', 'TXN123')).rejects.toThrow(NotFoundError)
+  })
+
+  it('throws ConflictError when a choice has already been made', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', paymentChoice: 'Counter', fulfillmentStatus: 'Pending' } as never)
+
+    await expect(setPaymentChoiceOnline('o1', 'p1', 'TXN123')).rejects.toThrow(ConflictError)
+  })
+
+  it('throws ConflictError when the order is Cancelled', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', paymentChoice: 'None', fulfillmentStatus: 'Cancelled' } as never)
+
+    await expect(setPaymentChoiceOnline('o1', 'p1', 'TXN123')).rejects.toThrow(ConflictError)
+  })
+
+  it('throws ConflictError when the payment method is missing or inactive', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', paymentChoice: 'None', fulfillmentStatus: 'Pending' } as never)
+    vi.mocked(getActivePaymentMethodById).mockResolvedValue(null)
+
+    await expect(setPaymentChoiceOnline('o1', 'p1', 'TXN123')).rejects.toThrow(ConflictError)
+    expect(prisma.order.update).not.toHaveBeenCalled()
   })
 })
