@@ -2401,3 +2401,140 @@ a {
   font-size: 0.85rem;
   margin-top: 0.5rem;
 }
+
+/* Payment methods admin list */
+
+.payment-method-admin-list {
+  list-style: none;
+  width: 100%;
+  max-width: 640px;
+  margin: 1.5rem auto 0;
+  padding: 0 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.payment-method-admin-row {
+  background: var(--paper);
+  border: 1px solid var(--clay-faint);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+
+.payment-method-admin-row__view {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.payment-method-admin-row__name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.payment-method-admin-row__qr-preview {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+}
+
+.payment-method-admin-row__edit {
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+  background: none;
+  color: var(--espresso);
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.payment-method-admin-row__edit:hover {
+  border-color: var(--copper);
+}
+
+.payment-method-admin-row__edit:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.payment-method-admin-row__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.payment-method-admin-row__input {
+  min-height: 44px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.9rem;
+  color: var(--espresso);
+  background: none;
+}
+
+.payment-method-admin-row__input--name {
+  flex: 1;
+  min-width: 120px;
+}
+
+.payment-method-admin-row__input--account {
+  flex: 2;
+  min-width: 160px;
+}
+
+.payment-method-admin-row__actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.6rem;
+}
+
+.payment-method-admin-row__save,
+.payment-method-admin-row__cancel {
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: 8px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.payment-method-admin-row__save {
+  border: none;
+  background: var(--copper);
+  color: var(--paper);
+}
+
+.payment-method-admin-row__cancel {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  color: var(--espresso);
+}
+
+.payment-method-admin-row__save:disabled,
+.payment-method-admin-row__cancel:disabled,
+.payment-method-admin-row__edit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.payment-method-admin-row__save:focus-visible,
+.payment-method-admin-row__cancel:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.payment-method-admin-row__error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
