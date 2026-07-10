@@ -65,14 +65,16 @@ export function PaymentChoicePicker({
           <button type="button" className="payment-choice__option" disabled={busy} onClick={chooseCounter}>
             Pay at counter
           </button>
-          <button
-            type="button"
-            className="payment-choice__option"
-            disabled={busy}
-            onClick={() => setMode('online')}
-          >
-            Pay online
-          </button>
+          {paymentMethods.length > 0 && (
+            <button
+              type="button"
+              className="payment-choice__option"
+              disabled={busy}
+              onClick={() => setMode('online')}
+            >
+              Pay online
+            </button>
+          )}
         </div>
         {error && (
           <p role="alert" className="payment-choice__error">

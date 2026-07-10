@@ -79,4 +79,11 @@ describe('PaymentChoicePicker', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Payment choice has already been made for this order')
   })
+
+  it('hides the Pay online button when there are no active payment methods', () => {
+    render(<PaymentChoicePicker orderId="o1" paymentMethods={[]} />)
+
+    expect(screen.getByRole('button', { name: 'Pay at counter' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pay online' })).not.toBeInTheDocument()
+  })
 })

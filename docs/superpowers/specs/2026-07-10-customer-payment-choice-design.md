@@ -70,7 +70,7 @@ Follows `05-api-conventions.md` (flat `{error, message}` envelope, verb sub-reso
 | Route | Auth | Behavior |
 |---|---|---|
 | `POST /api/orders/:id/payment-choice/counter` | none (customer) | `INV-11`; 409 if already chosen or order Cancelled |
-| `POST /api/orders/:id/payment-choice/online` | none (customer) | body `{paymentMethodId, reference}`; 400 if reference empty or method missing/inactive; 409 if already chosen or Cancelled (`INV-12`) |
+| `POST /api/orders/:id/payment-choice/online` | none (customer) | body `{paymentMethodId, reference}`; 409 if reference empty or method missing/inactive; 409 if already chosen or Cancelled (`INV-12`) |
 | `GET /api/payment-methods` | none (customer) | returns only `active` methods, for the picker |
 | `GET /api/admin/payment-methods` | `requireApiRole('admin')` | list all (active + archived) |
 | `POST /api/admin/payment-methods` | `requireApiRole('admin')` | create |
