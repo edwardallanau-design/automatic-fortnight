@@ -45,6 +45,14 @@ describe('POST /api/ordering-points', () => {
     expect(requireApiRole).toHaveBeenCalledWith('admin')
   })
 
+  it('passes body.branchId through to resolveBranchId', async () => {
+    vi.mocked(createOrderingPoint).mockResolvedValue({ id: 'op1', branchId: 'b2', label: 'Patio 1', isCounter: false, createdAt: new Date() } as never)
+
+    await POST(makeRequest({ label: 'Patio 1', branchId: 'b2' }))
+
+    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'admin' }, 'b2')
+  })
+
   it('returns 400 when label is missing or blank', async () => {
     const res = await POST(makeRequest({ label: '  ' }))
 

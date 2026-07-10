@@ -1,14 +1,23 @@
 import { headers } from 'next/headers'
 import { requireRole } from '@/lib/authGuard'
 import { listOrderingPoints } from '@/lib/orderingPointService'
-import { resolveBranchId } from '@/lib/branchService'
+import { resolveBranchId, listBranches } from '@/lib/branchService'
 import { generateQrDataUrl } from '@/lib/qrCode'
+import { BranchSelector } from '@/app/components/BranchSelector'
 import { CreateOrderingPointForm } from './CreateOrderingPointForm'
 
-export default async function AdminTablesPage() {
+export default async function AdminTablesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ branch?: string }>
+}) {
   const session = await requireRole('admin')
+  const { branch: requestedBranchId } = await searchParams
 
-  const branchId = await resolveBranchId(session)
+  const [branchId, branches] = await Promise.all([
+    resolveBranchId(session, requestedBranchId),
+    listBranches(),
+  ])
   const orderingPoints = await listOrderingPoints(branchId)
   const headerList = await headers()
   const host = headerList.get('host')
@@ -29,8 +38,9 @@ export default async function AdminTablesPage() {
         <span className="admin-header__eyebrow">Admin</span>
         <h1 className="admin-header__title">Table Setup</h1>
       </header>
+      <BranchSelector branches={branches.map((b) => ({ id: b.id, name: b.name }))} selectedBranchId={branchId} />
       <div className="admin-panel">
-        <CreateOrderingPointForm />
+        <CreateOrderingPointForm branchId={branchId} />
       </div>
       {pointsWithQr.length === 0 ? (
         <p className="admin-empty">No tables yet — add one above.</p>

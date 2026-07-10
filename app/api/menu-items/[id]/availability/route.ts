@@ -23,7 +23,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       throw new NotFoundError('Menu item not found')
     }
 
-    const branchId = await resolveBranchId(session)
+    const branchId = await resolveBranchId(session, body.branchId)
     await setMenuItemSoldOut(id, branchId, !body.available)
 
     return NextResponse.json({ ...item, available: body.available }, { status: 200 })

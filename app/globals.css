@@ -2630,6 +2630,83 @@ a {
   margin-top: 0.5rem;
 }
 
+/* Branch list (admin) */
+
+.branch-list {
+  list-style: none;
+  width: 100%;
+  max-width: 640px;
+  margin: 1.5rem auto 0;
+  padding: 0 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.branch-row {
+  background: var(--paper);
+  border: 1px solid var(--clay-faint);
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.branch-row__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.branch-row__name {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.branch-row__password-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--copper);
+  cursor: pointer;
+}
+
+.branch-row__password-toggle:hover {
+  text-decoration: underline;
+}
+
+.branch-row__password-toggle:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.branch-row__password-form {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.branch-selector {
+  display: block;
+  max-width: 640px;
+  margin: 1.5rem auto 0;
+  padding: 0 1.5rem;
+}
+
+.branch-selector__select {
+  max-width: 280px;
+  cursor: pointer;
+}
+
 /* Payment methods admin list */
 
 .payment-method-admin-list {

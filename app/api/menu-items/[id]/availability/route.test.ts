@@ -57,13 +57,13 @@ describe('PATCH /api/menu-items/[id]/availability', () => {
     expect(setMenuItemSoldOut).toHaveBeenCalledWith('m1', 'b1', false)
   })
 
-  it('allows an admin session too, resolving branch via resolveBranchId', async () => {
+  it('allows an admin session too, resolving branch via resolveBranchId with body.branchId', async () => {
     vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
 
-    const res = await PATCH(makePatchRequest({ available: true }), makeContext('m1'))
+    const res = await PATCH(makePatchRequest({ available: true, branchId: 'b2' }), makeContext('m1'))
 
     expect(res.status).toBe(200)
-    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'admin' })
+    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'admin' }, 'b2')
   })
 
   it('returns 400 when available is not a boolean', async () => {

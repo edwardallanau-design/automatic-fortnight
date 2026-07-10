@@ -67,6 +67,7 @@ export function StaffBar({ role }: { role: Role }) {
   const showTableSetupLink = role === 'admin' && pathname !== '/admin/tables'
   const showPaymentMethodsLink = role === 'admin' && pathname !== '/admin/payment-methods'
   const showSettingsLink = role === 'admin' && pathname !== '/admin/settings'
+  const showBranchesLink = role === 'admin' && pathname !== '/admin/branches'
 
   return (
     <div className="staff-strip">
@@ -120,6 +121,16 @@ export function StaffBar({ role }: { role: Role }) {
             <>
               <Link href="/admin/settings" className="staff-bar__action">
                 Settings
+              </Link>
+              <span className="staff-bar__sep" aria-hidden="true">
+                ·
+              </span>
+            </>
+          )}
+          {showBranchesLink && (
+            <>
+              <Link href="/admin/branches" className="staff-bar__action">
+                Branches
               </Link>
               <span className="staff-bar__sep" aria-hidden="true">
                 ·

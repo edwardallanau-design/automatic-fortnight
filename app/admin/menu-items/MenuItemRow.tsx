@@ -13,9 +13,10 @@ type MenuItemRowProps = {
   price: string
   available: boolean
   editable: boolean
+  branchId: string
 }
 
-export function MenuItemRow({ id, name, price, available, editable }: MenuItemRowProps) {
+export function MenuItemRow({ id, name, price, available, editable, branchId }: MenuItemRowProps) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(name)
@@ -102,7 +103,7 @@ export function MenuItemRow({ id, name, price, available, editable }: MenuItemRo
     setAvailabilityError(null)
     setAvailabilitySubmitting(true)
     try {
-      await apiClient.patch(`/api/menu-items/${id}/availability`, { available: next })
+      await apiClient.patch(`/api/menu-items/${id}/availability`, { available: next, branchId })
       router.refresh()
     } catch (err) {
       setCheckedAvailable(!next)

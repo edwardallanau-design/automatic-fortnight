@@ -24,7 +24,7 @@ describe('MenuItemRow', () => {
 
   describe('read-only (non-editable) session', () => {
     it('shows name and price with no Edit button', () => {
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} branchId="b1" />)
 
       expect(screen.getByText('Burger')).toBeInTheDocument()
       expect(screen.getByText('$12.50')).toBeInTheDocument()
@@ -32,14 +32,14 @@ describe('MenuItemRow', () => {
     })
 
     it('shows an availability toggle checked and labeled Available when available', () => {
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} branchId="b1" />)
 
       expect(screen.getByRole('switch')).toBeChecked()
       expect(screen.getByText('Available')).toBeInTheDocument()
     })
 
     it('shows the availability toggle unchecked and labeled Sold out when unavailable', () => {
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={false} editable={false} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={false} editable={false} branchId="b1" />)
 
       expect(screen.getByRole('switch')).not.toBeChecked()
       expect(screen.getByText('Sold out')).toBeInTheDocument()
@@ -47,18 +47,18 @@ describe('MenuItemRow', () => {
 
     it('toggling availability calls the availability endpoint and does not open edit mode', async () => {
       vi.mocked(apiClient.patch).mockResolvedValue({})
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} branchId="b1" />)
 
       fireEvent.click(screen.getByRole('switch'))
 
-      expect(apiClient.patch).toHaveBeenCalledWith('/api/menu-items/m1/availability', { available: false })
+      expect(apiClient.patch).toHaveBeenCalledWith('/api/menu-items/m1/availability', { available: false, branchId: 'b1' })
       await waitFor(() => expect(refresh).toHaveBeenCalled())
       expect(screen.queryByLabelText('Name for Burger')).not.toBeInTheDocument()
     })
 
     it('reverts the toggle and shows an error when the availability request fails', async () => {
       vi.mocked(apiClient.patch).mockRejectedValue(new ApiError('FORBIDDEN', 'Insufficient role for this action'))
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={false} branchId="b1" />)
 
       fireEvent.click(screen.getByRole('switch'))
 
@@ -69,14 +69,14 @@ describe('MenuItemRow', () => {
 
   describe('editable session, read-only by default', () => {
     it('shows an Edit button and no input fields until Edit is clicked', () => {
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} branchId="b1" />)
 
       expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
       expect(screen.queryByLabelText('Name for Burger')).not.toBeInTheDocument()
     })
 
     it('reveals inputs, the availability toggle, and Save/Cancel/Archive after clicking Edit', () => {
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} branchId="b1" />)
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
@@ -92,7 +92,7 @@ describe('MenuItemRow', () => {
 
   describe('Cancel', () => {
     it('discards unsaved edits and returns to read-only without calling the API', () => {
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} branchId="b1" />)
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
       fireEvent.change(screen.getByLabelText('Name for Burger'), { target: { value: 'Cheeseburger' } })
@@ -108,7 +108,7 @@ describe('MenuItemRow', () => {
   describe('Save', () => {
     it('calls PATCH with the edited name/price (no available field) and returns to read-only on success', async () => {
       vi.mocked(apiClient.patch).mockResolvedValue({})
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} branchId="b1" />)
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
       fireEvent.change(screen.getByLabelText('Name for Burger'), { target: { value: 'Cheeseburger' } })
@@ -126,7 +126,7 @@ describe('MenuItemRow', () => {
 
     it('shows an error and stays in editing state when the save fails', async () => {
       vi.mocked(apiClient.patch).mockRejectedValue(new ApiError('VALIDATION', 'Price must be positive'))
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} branchId="b1" />)
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
       fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -138,7 +138,7 @@ describe('MenuItemRow', () => {
 
   describe('Archive', () => {
     it('opens a confirm dialog instead of calling DELETE immediately', () => {
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} branchId="b1" />)
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
       fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
@@ -149,7 +149,7 @@ describe('MenuItemRow', () => {
 
     it('calls DELETE only after the dialog is confirmed', () => {
       vi.mocked(apiClient.del).mockResolvedValue(undefined)
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} branchId="b1" />)
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
       fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
@@ -161,7 +161,7 @@ describe('MenuItemRow', () => {
     })
 
     it('does not call DELETE when "Never mind" is clicked', async () => {
-      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} />)
+      render(<MenuItemRow id="m1" name="Burger" price="12.50" available={true} editable={true} branchId="b1" />)
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
       fireEvent.click(screen.getByRole('button', { name: 'Archive' }))

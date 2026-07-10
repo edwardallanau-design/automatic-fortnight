@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       throw new ValidationError('label is required')
     }
 
-    const branchId = await resolveBranchId(session)
+    const branchId = await resolveBranchId(session, body.branchId)
     const orderingPoint = await createOrderingPoint(branchId, body.label.trim())
     return NextResponse.json(orderingPoint, { status: 201 })
   } catch (error) {

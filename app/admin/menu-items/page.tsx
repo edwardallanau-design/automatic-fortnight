@@ -1,15 +1,24 @@
 import { requireRole } from '@/lib/authGuard'
 import { listMenuItemsWithAvailability } from '@/lib/menuService'
-import { resolveBranchId } from '@/lib/branchService'
+import { resolveBranchId, listBranches } from '@/lib/branchService'
+import { BranchSelector } from '@/app/components/BranchSelector'
 import { CreateMenuItemForm } from './CreateMenuItemForm'
 import { MenuItemRow } from './MenuItemRow'
 
-export default async function AdminMenuItemsPage() {
+export default async function AdminMenuItemsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ branch?: string }>
+}) {
   const session = await requireRole('staff')
   const isAdmin = session.role === 'admin'
+  const { branch: requestedBranchId } = await searchParams
 
-  const branchId = await resolveBranchId(session)
-  const items = await listMenuItemsWithAvailability(branchId)
+  const branchId = await resolveBranchId(session, isAdmin ? requestedBranchId : undefined)
+  const [items, branches] = await Promise.all([
+    listMenuItemsWithAvailability(branchId),
+    isAdmin ? listBranches() : Promise.resolve([]),
+  ])
 
   return (
     <main className="admin-page">
@@ -17,6 +26,9 @@ export default async function AdminMenuItemsPage() {
         <span className="admin-header__eyebrow">Admin</span>
         <h1 className="admin-header__title">Menu Management</h1>
       </header>
+      {isAdmin && (
+        <BranchSelector branches={branches.map((b) => ({ id: b.id, name: b.name }))} selectedBranchId={branchId} />
+      )}
       {isAdmin && (
         <div className="admin-panel">
           <CreateMenuItemForm />
@@ -34,6 +46,7 @@ export default async function AdminMenuItemsPage() {
               price={item.price.toString()}
               available={item.available}
               editable={isAdmin}
+              branchId={branchId}
             />
           ))}
         </ul>

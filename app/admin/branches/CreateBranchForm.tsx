@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
 
-export function CreateOrderingPointForm({ branchId }: { branchId: string }) {
+export function CreateBranchForm() {
   const router = useRouter()
-  const [label, setLabel] = useState('')
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -16,15 +17,12 @@ export function CreateOrderingPointForm({ branchId }: { branchId: string }) {
     setSubmitting(true)
 
     try {
-      await apiClient.post('/api/ordering-points', { label, branchId })
-      setLabel('')
+      await apiClient.post('/api/branches', { name, password })
+      setName('')
+      setPassword('')
       router.refresh()
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'CONFLICT') {
-        setError('A table with that label already exists')
-      } else {
-        setError('Something went wrong. Please try again.')
-      }
+      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -33,20 +31,33 @@ export function CreateOrderingPointForm({ branchId }: { branchId: string }) {
   return (
     <form onSubmit={handleSubmit} className="admin-panel__form">
       <div>
-        <label htmlFor="label" className="admin-panel__label">
-          Table label
+        <label htmlFor="branch-name" className="admin-panel__label">
+          Branch name
         </label>
         <input
-          id="label"
+          id="branch-name"
           type="text"
           className="admin-panel__input"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="branch-password" className="admin-panel__label">
+          Staff password
+        </label>
+        <input
+          id="branch-password"
+          type="password"
+          className="admin-panel__input"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           required
         />
       </div>
       <button type="submit" className="admin-panel__submit" disabled={submitting}>
-        {submitting ? 'Adding…' : 'Add table'}
+        {submitting ? 'Adding…' : 'Add branch'}
       </button>
       {error && (
         <p role="alert" className="admin-panel__error">

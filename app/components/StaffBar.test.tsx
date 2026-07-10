@@ -49,6 +49,7 @@ describe('StaffBar', () => {
     expect(screen.queryByRole('link', { name: 'Table Setup' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Payment Methods' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Branches' })).not.toBeInTheDocument()
   })
 
   it('shows a Menu Management link for a staff session', () => {
@@ -99,6 +100,19 @@ describe('StaffBar', () => {
     render(<StaffBar role="admin" />)
 
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+  })
+
+  it('shows a Branches link for an admin session', () => {
+    render(<StaffBar role="admin" />)
+
+    expect(screen.getByRole('link', { name: 'Branches' })).toHaveAttribute('href', '/admin/branches')
+  })
+
+  it('hides the Branches link when already on that page', () => {
+    mockPathname = '/admin/branches'
+    render(<StaffBar role="admin" />)
+
+    expect(screen.queryByRole('link', { name: 'Branches' })).not.toBeInTheDocument()
   })
 
   it('logs out on click: calls the logout endpoint and redirects to /login', async () => {

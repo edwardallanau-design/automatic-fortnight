@@ -24,18 +24,20 @@ describe('CreateOrderingPointForm', () => {
 
   it('submits the label and refreshes on success', async () => {
     vi.mocked(apiClient.post).mockResolvedValue({})
-    render(<CreateOrderingPointForm />)
+    render(<CreateOrderingPointForm branchId="b1" />)
 
     fireEvent.change(screen.getByLabelText('Table label'), { target: { value: 'Patio 1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add table' }))
 
-    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/ordering-points', { label: 'Patio 1' }))
+    await waitFor(() =>
+      expect(apiClient.post).toHaveBeenCalledWith('/api/ordering-points', { label: 'Patio 1', branchId: 'b1' }),
+    )
     expect(refresh).toHaveBeenCalled()
   })
 
   it('shows a conflict-specific error when the label already exists', async () => {
     vi.mocked(apiClient.post).mockRejectedValue(new ApiError('CONFLICT', 'already exists'))
-    render(<CreateOrderingPointForm />)
+    render(<CreateOrderingPointForm branchId="b1" />)
 
     fireEvent.change(screen.getByLabelText('Table label'), { target: { value: 'Patio 1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add table' }))
