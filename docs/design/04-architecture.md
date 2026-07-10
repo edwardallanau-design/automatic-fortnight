@@ -29,7 +29,7 @@ Postgres (Neon)
 - **Auth.** Two shared credential sets — one for Staff, one for Owner/Admin (see ADR-003). Session via signed cookie (e.g. `next-auth` credentials provider or a minimal custom JWT-in-cookie). All authority checks live in one place (route middleware / a single `requireRole()` guard) — never inline per-handler.
 - **Errors & logging.** Governed by `06a-engineering-principles.md` (P2, P3) + this system's concrete shapes in `06b-engineering-decisions.md`.
 - **Config.** Environment variables: `DATABASE_URL` (Neon connection string), auth secret, deployed via Vercel project env settings — never committed.
-- **Integrations.** None. No payment gateway, no delivery/logistics integration (explicit non-goals, Artifact 01).
+- **Integrations.** Vercel Blob for payment-method QR image storage (ADR-005). No payment gateway, no delivery/logistics integration (explicit non-goals, Artifact 01).
 
 ---
 
@@ -60,3 +60,10 @@ Postgres (Neon)
 - **Alternatives rejected.** A NoSQL store — the domain is inherently relational (orders reference tables and menu items with real foreign-key integrity needs); schemaless flexibility isn't a requirement here.
 - **Assumption that makes this right.** Data volume stays small (tens of tables/items, hundreds of orders/day) — well within Postgres/Neon's comfortable range without tuning.
 - **What would invalidate it.** None expected at this scale; revisit only if data volume or query patterns change substantially post-validation.
+
+**ADR-005: Vercel Blob for payment-method QR images**
+- **Context.** Admin needs to upload a small number of rarely-changing QR code images for payment methods. No file-storage integration exists in this codebase (this file's "Integrations" line previously stated "None").
+- **Decision.** Use Vercel Blob — admin uploads store the image in Blob, `PaymentMethod.qrImageUrl` stores the returned URL.
+- **Alternatives rejected.** Base64-in-Postgres — avoids a new integration, but bloats rows and has no CDN delivery for customer-facing image content.
+- **Assumption that makes this right.** Small number of images (one per payment method, single venue), infrequent writes (admin-only), Vercel-native so no new vendor relationship.
+- **What would invalidate it.** Multi-tenant support requiring per-venue asset isolation at a scale where Blob's flat namespace becomes unwieldy — reassess then.
