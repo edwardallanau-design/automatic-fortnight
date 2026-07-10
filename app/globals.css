@@ -1711,10 +1711,30 @@ a {
 }
 
 .order-detail-modal__payment-note {
-  font-family: var(--font-mono), monospace;
-  font-size: 0.8rem;
-  color: var(--sage);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  border-left: 4px solid var(--sage);
+  background: color-mix(in srgb, var(--sage) 8%, var(--paper));
+  padding: 0.6rem 0.85rem;
+  border-radius: 0 8px 8px 0;
   margin-bottom: 0.75rem;
+}
+
+.order-detail-modal__payment-note-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sage);
+}
+
+.order-detail-modal__payment-note-reference {
+  font-family: var(--font-mono), monospace;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--espresso);
 }
 
 /* Dashboard tabs */

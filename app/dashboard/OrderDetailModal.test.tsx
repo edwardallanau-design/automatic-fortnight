@@ -173,7 +173,7 @@ describe('OrderDetailModal', () => {
     expect(screen.getByText('Awaiting payment · Counter')).toBeInTheDocument()
   })
 
-  it('shows a Paid line with method and reference once paymentStatus is Paid', () => {
+  it('shows a Paid label and a prominent reference line once paymentStatus is Paid', () => {
     render(
       <OrderDetailModal
         {...baseProps({
@@ -188,6 +188,13 @@ describe('OrderDetailModal', () => {
       />,
     )
 
-    expect(screen.getByText('Paid · Online (GCash) · ref: TXN123')).toBeInTheDocument()
+    expect(screen.getByText('Paid · Online (GCash)')).toBeInTheDocument()
+    expect(screen.getByText('ref: TXN123')).toBeInTheDocument()
+  })
+
+  it('does not show a reference line for a Counter choice', () => {
+    render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, paymentChoice: 'Counter' } })} />)
+
+    expect(screen.queryByText(/^ref:/)).not.toBeInTheDocument()
   })
 })

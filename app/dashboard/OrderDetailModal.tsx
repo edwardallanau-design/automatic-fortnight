@@ -66,12 +66,15 @@ export function OrderDetailModal({
         {order.customerName && <p className="order-detail-modal__customer">{order.customerName}</p>}
 
         {order.paymentChoice !== 'None' && (
-          <p className="order-detail-modal__payment-note">
-            {order.paymentStatus === 'Paid' ? 'Paid' : 'Awaiting payment'} ·{' '}
-            {order.paymentChoice === 'Counter'
-              ? 'Counter'
-              : `Online (${order.paymentMethodNameSnapshot}) · ref: ${order.paymentReference}`}
-          </p>
+          <div className="order-detail-modal__payment-note">
+            <span className="order-detail-modal__payment-note-label">
+              {order.paymentStatus === 'Paid' ? 'Paid' : 'Awaiting payment'} ·{' '}
+              {order.paymentChoice === 'Counter' ? 'Counter' : `Online (${order.paymentMethodNameSnapshot})`}
+            </span>
+            {order.paymentChoice === 'Online' && (
+              <span className="order-detail-modal__payment-note-reference">ref: {order.paymentReference}</span>
+            )}
+          </div>
         )}
 
         {editable ? (
