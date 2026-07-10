@@ -28,20 +28,35 @@ export function CreatePaymentMethodForm() {
     setError(null)
     setSubmitting(true)
 
+    let created: { id: string }
     try {
-      const created = await apiClient.post<{ id: string }>('/api/payment-methods', { name, accountInfo })
-      if (pendingQrImage) {
-        await apiClient.patch(`/api/payment-methods/${created.id}`, { qrImage: pendingQrImage })
-      }
-      setName('')
-      setAccountInfo('')
-      setPendingQrImage(null)
-      router.refresh()
+      created = await apiClient.post<{ id: string }>('/api/payment-methods', { name, accountInfo })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
-    } finally {
       setSubmitting(false)
+      return
     }
+
+    const qrImage = pendingQrImage
+    setName('')
+    setAccountInfo('')
+    setPendingQrImage(null)
+    router.refresh()
+
+    if (qrImage) {
+      try {
+        await apiClient.patch(`/api/payment-methods/${created.id}`, { qrImage })
+        router.refresh()
+      } catch (err) {
+        setError(
+          `Payment method created, but the QR image failed to upload (${
+            err instanceof ApiError ? err.message : 'something went wrong'
+          }). Edit it to retry.`,
+        )
+      }
+    }
+
+    setSubmitting(false)
   }
 
   return (

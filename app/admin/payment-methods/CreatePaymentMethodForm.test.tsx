@@ -69,4 +69,22 @@ describe('CreatePaymentMethodForm', () => {
     expect(apiClient.patch).not.toHaveBeenCalled()
     expect(refresh).toHaveBeenCalled()
   })
+
+  it('resets the form and refreshes even when the QR upload PATCH fails, with a distinguishing error', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 'p1', name: 'GCash', active: true, qrImageUrl: null, accountInfo: null })
+    vi.mocked(apiClient.patch).mockRejectedValue(new ApiError('VALIDATION', 'qrImage must be smaller than 2MB'))
+    const user = userEvent.setup()
+    render(<CreatePaymentMethodForm />)
+
+    const file = new File(['fake-image-content'], 'qr.png', { type: 'image/png' })
+    await user.type(screen.getByLabelText('Name'), 'GCash')
+    await user.upload(screen.getByLabelText('QR image (optional)'), file)
+    await user.click(screen.getByRole('button', { name: 'Add payment method' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Payment method created, but the QR image failed to upload (qrImage must be smaller than 2MB). Edit it to retry.',
+    )
+    expect(screen.getByLabelText('Name')).toHaveValue('')
+    expect(refresh).toHaveBeenCalled()
+  })
 })
