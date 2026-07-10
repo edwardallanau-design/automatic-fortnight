@@ -10,6 +10,9 @@ const pendingOrder: OrderCardOrder = {
   createdAt: '2026-07-04T12:00:00.000Z',
   fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
+  paymentChoice: 'None',
+  paymentMethodNameSnapshot: null,
+  paymentReference: null,
   customerName: 'Edward',
   table: { number: 4 },
   items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
@@ -162,5 +165,29 @@ describe('OrderDetailModal', () => {
 
     expect(onCancelOrder).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: 'Cancel this order?' })).not.toBeInTheDocument()
+  })
+
+  it('shows an Awaiting payment line for a Counter choice', () => {
+    render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, paymentChoice: 'Counter' } })} />)
+
+    expect(screen.getByText('Awaiting payment · Counter')).toBeInTheDocument()
+  })
+
+  it('shows a Paid line with method and reference once paymentStatus is Paid', () => {
+    render(
+      <OrderDetailModal
+        {...baseProps({
+          order: {
+            ...pendingOrder,
+            paymentStatus: 'Paid',
+            paymentChoice: 'Online',
+            paymentMethodNameSnapshot: 'GCash',
+            paymentReference: 'TXN123',
+          },
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Paid · Online (GCash) · ref: TXN123')).toBeInTheDocument()
   })
 })

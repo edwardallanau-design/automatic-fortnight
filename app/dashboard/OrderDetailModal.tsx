@@ -65,6 +65,15 @@ export function OrderDetailModal({
         </h2>
         {order.customerName && <p className="order-detail-modal__customer">{order.customerName}</p>}
 
+        {order.paymentChoice !== 'None' && (
+          <p className="order-detail-modal__payment-note">
+            {order.paymentStatus === 'Paid' ? 'Paid' : 'Awaiting payment'} ·{' '}
+            {order.paymentChoice === 'Counter'
+              ? 'Counter'
+              : `Online (${order.paymentMethodNameSnapshot}) · ref: ${order.paymentReference}`}
+          </p>
+        )}
+
         {editable ? (
           <OrderItemsEditor
             items={order.items}

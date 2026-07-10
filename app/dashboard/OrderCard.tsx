@@ -11,6 +11,9 @@ export type OrderCardOrder = {
   confirmedAt?: string | null
   fulfillmentStatus: 'Pending' | 'Confirmed'
   paymentStatus: 'Unpaid' | 'Paid'
+  paymentChoice: 'None' | 'Counter' | 'Online'
+  paymentMethodNameSnapshot: string | null
+  paymentReference: string | null
   customerName: string | null
   table: { number: number }
   items: OrderCardItem[]

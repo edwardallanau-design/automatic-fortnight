@@ -1647,6 +1647,13 @@ a {
   outline-offset: 2px;
 }
 
+.order-detail-modal__payment-note {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8rem;
+  color: var(--sage);
+  margin-bottom: 0.75rem;
+}
+
 /* Dashboard tabs */
 
 .order-rail__tabs {
