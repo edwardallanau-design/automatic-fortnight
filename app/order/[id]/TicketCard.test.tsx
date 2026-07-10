@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { TicketCard } from './TicketCard'
+import { TicketCard, formatPaymentChoiceNote } from './TicketCard'
 
 const items = [
   { id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 },
@@ -49,5 +49,39 @@ describe('TicketCard', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Cancel order' })).toBeInTheDocument()
+  })
+
+  it('renders the paymentNote between the footer and the status note when provided', () => {
+    render(
+      <TicketCard
+        heading="Order #47"
+        customerName={null}
+        items={items}
+        statusNote="Note text"
+        paymentNote="You chose to pay at the counter."
+      />,
+    )
+    expect(screen.getByText('You chose to pay at the counter.')).toBeInTheDocument()
+  })
+
+  it('renders nothing extra when paymentNote is null', () => {
+    render(<TicketCard heading="Order #47" customerName={null} items={items} statusNote="Note text" paymentNote={null} />)
+    expect(screen.queryByText(/chose to pay/)).not.toBeInTheDocument()
+  })
+})
+
+describe('formatPaymentChoiceNote', () => {
+  it('returns a counter note', () => {
+    expect(formatPaymentChoiceNote('Counter', null, null)).toBe('You chose to pay at the counter.')
+  })
+
+  it('returns an online note with method and reference', () => {
+    expect(formatPaymentChoiceNote('Online', 'GCash', 'TXN123')).toBe(
+      'You chose to pay online via GCash. Reference: TXN123.',
+    )
+  })
+
+  it('returns null when no choice has been made', () => {
+    expect(formatPaymentChoiceNote('None', null, null)).toBeNull()
   })
 })
