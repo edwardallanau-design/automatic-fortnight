@@ -43,8 +43,8 @@
 - `INV-8` `paymentStatus` transitions independently of `fulfillmentStatus` — an order can be marked Paid while Pending or while Confirmed. There is no rule tying payment timing to confirmation.
 - `INV-9` Reverting `paymentStatus` from Paid back to Unpaid may be performed by any authenticated staff or admin session — no role restriction. (Originally Owner/Admin-only; relaxed 2026-07-08 so staff can self-correct a mis-marked payment without needing an admin.)
 - `INV-10` A new Order may be created only while `VenueSettings.acceptingOrders = true`. This applies uniformly regardless of who submits it (customer QR or staff-assisted) — there is no role-based override.
-- `INV-11` A Order's `paymentChoice` transitions `None → Counter` or `None → Online` exactly once; attempting to set it again, or while `fulfillmentStatus = Cancelled`, is rejected.
-- `INV-12` Setting `paymentChoice = Online` requires a non-empty `paymentReference` and a `paymentMethodId` referencing an `active` PaymentMethod at request time; both are set atomically with `paymentChoice` itself.
+- `INV-11` An Order's `paymentChoice` transitions `None → Counter` or `None → Online` exactly once; attempting to set it again, or while `fulfillmentStatus = Cancelled`, is rejected.
+- `INV-12` Setting `paymentChoice = Online` requires a non-empty `paymentReference` and a `paymentMethodId` referencing an `active` PaymentMethod at request time; all four fields (`paymentChoice`, `paymentMethodId`, `paymentMethodNameSnapshot`, `paymentReference`) are written in the same database update. Note: the preceding read-then-write (checking `paymentChoice = None` and `fulfillmentStatus ≠ Cancelled`) is not wrapped in a transaction or guarded by a conditional-update clause, so a concurrent duplicate-choice race is theoretically possible but not prevented; acceptable for now given this is low-stakes choice-tracking, not a security or payment-processing operation.
 
 **State machines.**
 
