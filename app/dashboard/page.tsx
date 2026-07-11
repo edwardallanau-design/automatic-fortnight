@@ -1,18 +1,40 @@
 import Link from 'next/link'
 import { requireRole } from '@/lib/authGuard'
-import { listBranches } from '@/lib/branchService'
+import { listBranches, getBranchOrThrow } from '@/lib/branchService'
 import { PendingOrdersDashboard } from './PendingOrdersDashboard'
 
-export default async function DashboardPage() {
-  const { role } = await requireRole('staff')
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ branch?: string }>
+}) {
+  const session = await requireRole('staff')
+  const role = session.role
   const branches = role === 'admin' ? await listBranches() : []
+  const { branch: requestedBranchId } = await searchParams
+
+  // The eyebrow names the branch this view is scoped to. Admin follows the
+  // header picker's ?branch= selection (a specific branch, or the whole venue);
+  // staff are fixed to their own branch.
+  let branchLabel: string
+  if (role === 'admin') {
+    if (requestedBranchId && requestedBranchId !== 'all') {
+      branchLabel = branches.find((b) => b.id === requestedBranchId)?.name ?? 'All branches'
+    } else {
+      branchLabel = branches.length === 1 ? branches[0].name : 'All branches'
+    }
+  } else if (session.branchId) {
+    branchLabel = (await getBranchOrThrow(session.branchId)).name
+  } else {
+    branchLabel = 'Orders'
+  }
 
   return (
     <main className="staff-dashboard">
       <header className="staff-header">
         <div>
-          <span className="staff-header__eyebrow">Order rail</span>
-          <h1 className="staff-header__title">Staff Dashboard</h1>
+          <span className="staff-header__eyebrow">{branchLabel}</span>
+          <h1 className="staff-header__title">Order Dashboard</h1>
         </div>
         <Link href="/order/new" className="staff-header__new-order">
           + New order

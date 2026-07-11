@@ -6,7 +6,6 @@ import { prisma } from './prisma'
 import { getOrderingPointOrThrow } from './orderingPointService'
 import { getBranchOrThrow } from './branchService'
 import { findMenuItemsByIds, listSoldOutMenuItemIds } from './menuService'
-import { getVenueSettings } from './venueSettingsService'
 import { getActivePaymentMethodById } from './paymentMethodService'
 
 vi.mock('./prisma', () => ({
@@ -38,10 +37,6 @@ vi.mock('./menuService', () => ({
   listSoldOutMenuItemIds: vi.fn(),
 }))
 
-vi.mock('./venueSettingsService', () => ({
-  getVenueSettings: vi.fn(),
-}))
-
 vi.mock('./paymentMethodService', () => ({
   getActivePaymentMethodById: vi.fn(),
 }))
@@ -51,22 +46,11 @@ describe('orderService.createOrder', () => {
     vi.clearAllMocks()
     vi.mocked(getOrderingPointOrThrow).mockResolvedValue({ id: 'op1', branchId: 'b1', label: 'Table 5', isCounter: false, createdAt: new Date() } as never)
     vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() } as never)
-    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: true, updatedAt: new Date() } as never)
     vi.mocked(listSoldOutMenuItemIds).mockResolvedValue(new Set())
   })
 
   it('throws ValidationError when items is empty', async () => {
     await expect(createOrder('op1', [])).rejects.toThrow(ValidationError)
-    expect(getOrderingPointOrThrow).not.toHaveBeenCalled()
-    expect(prisma.order.create).not.toHaveBeenCalled()
-  })
-
-  it('throws ConflictError when the venue is not accepting orders', async () => {
-    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: false, updatedAt: new Date() } as never)
-
-    await expect(
-      createOrder('op1', [{ menuItemId: 'm1', quantity: 1 }]),
-    ).rejects.toThrow(ConflictError)
     expect(getOrderingPointOrThrow).not.toHaveBeenCalled()
     expect(prisma.order.create).not.toHaveBeenCalled()
   })

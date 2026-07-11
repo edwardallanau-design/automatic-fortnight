@@ -1,7 +1,11 @@
 import { StaffBar } from './StaffBar'
+import { listBranches } from '@/lib/branchService'
 import type { Role } from '@/lib/types'
 
-export function StaffBarGate({ session }: { session: { role: Role } | null }) {
+export async function StaffBarGate({ session }: { session: { role: Role } | null }) {
   if (!session) return null
-  return <StaffBar role={session.role} />
+
+  const branches = session.role === 'admin' ? await listBranches() : []
+
+  return <StaffBar role={session.role} branches={branches.map((b) => ({ id: b.id, name: b.name }))} />
 }

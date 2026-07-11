@@ -1,34 +1,35 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Fixed warm "coffee shop" DARK theme. These dark-palette values are baked in
+     as the base with no prefers-color-scheme switch, so every screen renders the
+     same dark theme for all viewers regardless of their OS light/dark setting.
+     --background is a warm near-black (not pure #000) so any canvas that shows
+     between/behind content blends with the theme instead of reading as a black band. */
+  --background: #1c1410;
+  --foreground: #ededed;
 
-  --espresso: #2b1b14;
-  --crema: #f7eee1;
-  --paper: #fffdf9;
+  --espresso: #f7eee1;
+  --crema: #1c1410;
+  --paper: #241a14;
   --copper: #b5642c;
   --copper-bright: #d97b3c;
   --sage: #6b7a5e;
-  --clay: #8c5a48;
-  --clay-faint: #8c5a4833;
-  --danger: #b91c1c;
-}
+  --clay: #c9a894;
+  --clay-faint: #c9a89433;
+  --danger: #e57373;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-
-    --crema: #1c1410;
-    --paper: #241a14;
-    --espresso: #f7eee1;
-    --clay: #c9a894;
-    --clay-faint: #c9a89433;
-    --danger: #e57373;
-  }
+  /* Fixed role-identity colors — a stable "which role am I" signal (admin dark,
+     staff light), independent of the surface tokens above. */
+  --role-admin-bg: #2b1b14;
+  --role-admin-fg: #f7eee1;
+  --role-staff-bg: #f7eee1;
+  --role-staff-fg: #2b1b14;
 }
 
 html {
   height: 100%;
+  /* The app is a fixed dark theme — tell the browser so native controls and
+     scrollbars match instead of rendering light. */
+  color-scheme: dark;
 }
 
 html,
@@ -59,15 +60,10 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-}
-
 /* Order page */
 
 .order-page {
+  flex: 1;
   min-height: 100%;
   width: 100%;
   background: var(--crema);
@@ -1235,6 +1231,7 @@ a {
 /* Staff dashboard */
 
 .staff-dashboard {
+  flex: 1;
   min-height: 100%;
   width: 100%;
   background: var(--crema);
@@ -1751,10 +1748,6 @@ a {
   border-bottom: 1px solid var(--clay-faint);
 }
 
-.order-rail__tabs--branch {
-  margin-bottom: 0.75rem;
-}
-
 .order-rail__tab {
   padding: 0.6rem 0.2rem;
   margin-bottom: -1px;
@@ -1811,6 +1804,7 @@ a {
 /* Test table picker (dev/QA) */
 
 .table-picker {
+  flex: 1;
   min-height: 100%;
   width: 100%;
   background: var(--crema);
@@ -1997,11 +1991,21 @@ a {
   cursor: not-allowed;
 }
 
-/* Staff bar (session chrome: role, dashboard link, logout) — integrated dark toolbar */
+/* Staff bar (session chrome: nav, branch picker, menu) — recolored by role */
 
 .staff-strip {
-  background: var(--espresso);
-  color: var(--crema);
+  /* Anchor for the floating collapse tab, which hangs below the bar's corner. */
+  position: relative;
+}
+
+.staff-strip--admin {
+  background: var(--role-admin-bg);
+  color: var(--role-admin-fg);
+}
+
+.staff-strip--staff {
+  background: var(--role-staff-bg);
+  color: var(--role-staff-fg);
 }
 
 .staff-bar {
@@ -2016,31 +2020,26 @@ a {
   letter-spacing: 0.04em;
 }
 
-.staff-bar__role {
-  display: inline-flex;
+.staff-bar__nav {
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
-  color: var(--crema);
-  opacity: 0.85;
-  text-transform: uppercase;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
 }
 
-.staff-bar__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--sage);
-  flex-shrink: 0;
-}
-
-.staff-bar__actions {
-  display: inline-flex;
+.staff-bar__right {
+  display: flex;
   align-items: center;
   gap: 0.5rem;
+  /* Keep this group hard against the right edge even when it's the only child
+     (e.g. mobile, where the inline nav isn't rendered) — otherwise flex
+     space-between collapses the lone group to the left and its right-anchored
+     popover opens off the left edge of the screen. */
+  margin-left: auto;
 }
 
 .staff-bar__action {
-  color: var(--crema);
+  color: inherit;
   opacity: 0.85;
   font-weight: 600;
   background: none;
@@ -2054,6 +2053,7 @@ a {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 .staff-bar__action:hover,
@@ -2063,53 +2063,263 @@ a {
   outline: none;
 }
 
+.staff-bar__action--active {
+  color: var(--copper-bright);
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .staff-bar__sep {
   color: var(--clay);
 }
 
-.staff-bar__logout {
-  color: #e8a05a;
-  opacity: 1;
+.staff-bar__branch {
+  position: relative;
 }
 
-.staff-bar__logout:hover,
-.staff-bar__logout:focus-visible {
-  color: #f0b578;
+.staff-bar__branch-button {
+  background: var(--copper);
+  color: var(--paper);
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  min-height: 32px;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
-.staff-bar__logout:disabled {
+.staff-bar__branch-button:hover,
+.staff-bar__branch-button:focus-visible {
+  background: var(--copper-bright);
+  outline: none;
+}
+
+.staff-bar__branch-button:active {
+  transform: scale(0.96);
+}
+
+.staff-bar__branch-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.35rem;
+  background: var(--paper);
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+  padding: 0.35rem;
+  min-width: 160px;
+  list-style: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  animation: staff-popover-in 0.12s ease-out;
+}
+
+.staff-bar__branch-popover li + li {
+  margin-top: 0.15rem;
+}
+
+.staff-bar__branch-popover button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  padding: 0.4rem 0.5rem;
+  color: var(--espresso);
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: normal;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.staff-bar__branch-popover button:hover,
+.staff-bar__branch-popover button:focus-visible {
+  background: var(--crema);
+  outline: none;
+}
+
+.staff-bar__menu {
+  position: relative;
+}
+
+.staff-bar__hamburger {
+  display: inline-flex;
+  background: none;
+  border: 1px solid var(--clay-faint);
+  color: inherit;
+  border-radius: 6px;
+  min-width: 32px;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.2s ease;
+}
+
+.staff-bar__hamburger:hover,
+.staff-bar__hamburger:focus-visible {
+  border-color: var(--copper-bright);
+  color: var(--copper-bright);
+  outline: none;
+}
+
+.staff-bar__hamburger:active {
+  transform: scale(0.9);
+}
+
+.staff-bar__hamburger[aria-expanded='true'] {
+  transform: rotate(90deg);
+}
+
+.staff-bar__menu-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.35rem;
+  background: var(--paper);
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+  padding: 0.35rem;
+  min-width: 170px;
+  list-style: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  animation: staff-popover-in 0.12s ease-out;
+}
+
+.staff-bar__menu-popover li + li {
+  margin-top: 0.15rem;
+}
+
+.staff-bar__menu-link,
+.staff-bar__menu-logout {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  padding: 0.4rem 0.5rem;
+  color: var(--espresso);
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: normal;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.staff-bar__menu-link:hover,
+.staff-bar__menu-link:focus-visible,
+.staff-bar__menu-logout:hover,
+.staff-bar__menu-logout:focus-visible {
+  background: var(--crema);
+  outline: none;
+}
+
+.staff-bar__menu-link--active {
+  color: var(--copper);
+  font-weight: 600;
+}
+
+.staff-bar__menu-logout {
+  color: var(--copper);
+  border-top: 1px solid var(--clay-faint);
+  margin-top: 0.2rem;
+  padding-top: 0.55rem;
+}
+
+.staff-bar__menu-logout:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.staff-bar__collapse {
-  background: none;
-  border: none;
-  color: var(--crema);
-  opacity: 0.7;
-  cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1;
-  min-height: 44px;
-  min-width: 32px;
+.staff-bar__menu-divider {
+  height: 1px;
+  margin: 0.3rem 0.25rem;
+  background: var(--clay-faint);
+}
+
+.staff-bar__menu-label {
+  padding: 0.2rem 0.5rem 0.1rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--clay);
+}
+
+/* Collapse control — a floating copper tab hanging from the bar's bottom-right,
+   detached from the inline hamburger row. Styled identically to the collapsed
+   reopen tab (.staff-bar__toggle) so collapsing/expanding keeps the control in a
+   stable spot. */
+.staff-bar__collapse,
+.staff-bar__toggle {
+  position: absolute;
+  top: 100%;
+  right: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 38px;
+  min-height: 18px;
+  padding: 0.15rem 0.5rem;
+  background: var(--copper);
+  color: var(--paper);
+  border: none;
+  border-radius: 0 0 7px 7px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 5;
+  transition: background-color 0.15s ease, transform 0.12s ease;
 }
 
 .staff-bar__collapse:hover,
-.staff-bar__collapse:focus-visible {
-  color: var(--copper-bright);
-  opacity: 1;
+.staff-bar__collapse:focus-visible,
+.staff-bar__toggle:hover,
+.staff-bar__toggle:focus-visible {
+  background: var(--copper-bright);
   outline: none;
 }
 
-/* Collapsed state: hairline + animated corner tab */
+.staff-bar__collapse:active,
+.staff-bar__toggle:active {
+  transform: translateY(-2px);
+}
 
+/* On the light staff bar, the bright copper tab pops too hard — use the muted
+   clay tone (and a matching hairline) so it reads as part of the warm palette.
+   Admin keeps full copper against its dark bar. */
+.staff-strip--staff .staff-bar__collapse,
+.staff-strip--staff .staff-bar__toggle {
+  background: var(--clay);
+}
+
+.staff-strip--staff .staff-bar__collapse:hover,
+.staff-strip--staff .staff-bar__collapse:focus-visible,
+.staff-strip--staff .staff-bar__toggle:hover,
+.staff-strip--staff .staff-bar__toggle:focus-visible {
+  background: var(--copper);
+}
+
+.staff-strip--staff .staff-strip__hairline {
+  background: var(--clay);
+}
+
+/* Collapsed state: the bar shrinks to just its copper hairline; the reopen tab
+   keeps floating in the same spot. The strip keeps its role background (via the
+   staff-strip--{role} class) instead of going transparent, so it never reveals
+   the page's dark background as a black band under prefers-color-scheme: dark. */
 .staff-strip--collapsed {
-  background: none;
-  position: relative;
-  height: 0;
+  height: 3px;
 }
 
 .staff-strip__hairline {
@@ -2118,30 +2328,7 @@ a {
 }
 
 .staff-bar__toggle {
-  position: absolute;
-  top: 0;
-  right: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 32px;
-  padding: 0.3rem 0.6rem;
-  background: var(--espresso);
-  color: var(--copper-bright);
-  border: none;
-  border-radius: 0 0 6px 6px;
-  box-shadow: 0 2px 6px var(--clay-faint);
-  font-size: 0.85rem;
-  line-height: 1;
-  cursor: pointer;
   animation: staff-bar-toggle-bounce 1.4s ease-in-out infinite;
-}
-
-.staff-bar__toggle:hover,
-.staff-bar__toggle:focus-visible {
-  color: var(--crema);
-  outline: none;
 }
 
 @keyframes staff-bar-toggle-bounce {
@@ -2154,15 +2341,43 @@ a {
   }
 }
 
+@keyframes staff-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .staff-bar__toggle {
     animation: none;
+  }
+
+  .staff-bar__branch-popover,
+  .staff-bar__menu-popover {
+    animation: none;
+  }
+
+  .staff-bar__hamburger,
+  .staff-bar__collapse,
+  .staff-bar__branch-button,
+  .staff-bar__action {
+    transition: none;
+  }
+
+  .staff-bar__hamburger[aria-expanded='true'] {
+    transform: none;
   }
 }
 
 /* Login page */
 
 .login-page {
+  flex: 1;
   min-height: 100%;
   width: 100%;
   background: var(--crema);
@@ -2260,6 +2475,7 @@ a {
 /* Shared admin chrome (Table Setup + Menu Management) */
 
 .admin-page {
+  flex: 1;
   min-height: 100%;
   width: 100%;
   background: var(--crema);
@@ -2676,45 +2892,73 @@ a {
   font-size: 1.1rem;
 }
 
-.branch-row__password-toggle {
-  align-self: flex-start;
+.branch-row__header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.branch-row__expand {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--clay-faint);
   background: none;
-  border: none;
-  padding: 0;
-  font-family: var(--font-body), Arial, sans-serif;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--copper);
+  color: var(--clay);
+  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
-.branch-row__password-toggle:hover {
-  text-decoration: underline;
+.branch-row__expand:hover,
+.branch-row__expand:focus-visible {
+  border-color: var(--copper);
+  color: var(--copper);
+  outline: none;
 }
 
-.branch-row__password-toggle:focus-visible {
-  outline: 2px solid var(--copper-bright);
-  outline-offset: 2px;
+.branch-row__actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--clay-faint);
 }
 
-.branch-row__password-form {
+.branch-row__action {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--clay);
+  cursor: pointer;
+}
+
+.branch-row__action:hover,
+.branch-row__action:focus-visible {
+  border-color: var(--copper);
+  color: var(--copper);
+  outline: none;
+}
+
+.branch-row__action--active {
+  border-color: var(--copper);
+  color: var(--copper);
+}
+
+.branch-row__edit-form {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   flex-wrap: wrap;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--clay-faint);
 }
 
-.branch-selector {
-  display: block;
-  max-width: 640px;
-  margin: 1.5rem auto 0;
-  padding: 0 1.5rem;
-}
-
-.branch-selector__select {
-  max-width: 280px;
-  cursor: pointer;
-}
 
 /* Payment methods admin list */
 

@@ -1,7 +1,6 @@
 import { getOrderingPointOrThrow } from '@/lib/orderingPointService'
 import { getBranchOrThrow } from '@/lib/branchService'
 import { listMenuItemsWithAvailability } from '@/lib/menuService'
-import { getVenueSettings } from '@/lib/venueSettingsService'
 import { NotFoundError } from '@/lib/errors'
 import { Cart } from './Cart'
 import { OrderHeaderTitle } from './OrderHeaderTitle'
@@ -39,12 +38,9 @@ export default async function OrderPage({
     throw error
   }
 
-  const [settings, branch] = await Promise.all([
-    getVenueSettings(),
-    getBranchOrThrow(orderingPoint.branchId),
-  ])
+  const branch = await getBranchOrThrow(orderingPoint.branchId)
 
-  if (!settings.acceptingOrders || !branch.acceptingOrders) {
+  if (!branch.acceptingOrders) {
     return (
       <main className="order-page">
         <p role="alert" className="order-page__error">

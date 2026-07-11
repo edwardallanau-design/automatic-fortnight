@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
 import type { Role } from '@/lib/types'
 import { OrderCard, type OrderCardOrder } from './OrderCard'
@@ -30,9 +31,10 @@ export function PendingOrdersDashboard({
   role = 'staff',
   branches = [],
 }: { role?: Role; branches?: { id: string; name: string }[] } = {}) {
+  const searchParams = useSearchParams()
+  const activeBranch = searchParams.get('branch') ?? 'all'
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [sortDirection, setSortDirection] = useState<'newest' | 'oldest'>('newest')
-  const [activeBranch, setActiveBranch] = useState<'all' | string>('all')
   const [pendingOrders, setPendingOrders] = useState<DashboardOrder[]>([])
   const [confirmedOrders, setConfirmedOrders] = useState<DashboardOrder[]>([])
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
@@ -226,32 +228,6 @@ export function PendingOrdersDashboard({
         <span className="order-rail__pulse" aria-hidden="true" />
         <span>Live — refreshes every few seconds</span>
       </div>
-
-      {branches.length > 0 && (
-        <div className="order-rail__tabs order-rail__tabs--branch" role="tablist" aria-label="Branch">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeBranch === 'all'}
-            className={`order-rail__tab${activeBranch === 'all' ? ' order-rail__tab--active' : ''}`}
-            onClick={() => setActiveBranch('all')}
-          >
-            All
-          </button>
-          {branches.map((branch) => (
-            <button
-              key={branch.id}
-              type="button"
-              role="tab"
-              aria-selected={activeBranch === branch.id}
-              className={`order-rail__tab${activeBranch === branch.id ? ' order-rail__tab--active' : ''}`}
-              onClick={() => setActiveBranch(branch.id)}
-            >
-              {branch.name}
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="order-rail__tabs" role="tablist">
         <button

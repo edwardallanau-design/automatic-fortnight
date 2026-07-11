@@ -4,7 +4,6 @@ import OrderPage from './page'
 import { getOrderingPointOrThrow } from '@/lib/orderingPointService'
 import { getBranchOrThrow } from '@/lib/branchService'
 import { listMenuItemsWithAvailability } from '@/lib/menuService'
-import { getVenueSettings } from '@/lib/venueSettingsService'
 import { NotFoundError } from '@/lib/errors'
 
 vi.mock('next/navigation', () => ({
@@ -23,10 +22,6 @@ vi.mock('@/lib/menuService', () => ({
   listMenuItemsWithAvailability: vi.fn(),
 }))
 
-vi.mock('@/lib/venueSettingsService', () => ({
-  getVenueSettings: vi.fn(),
-}))
-
 function priceOf(value: string) {
   return { toString: () => value } as never
 }
@@ -34,7 +29,6 @@ function priceOf(value: string) {
 describe('OrderPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: true, updatedAt: new Date() } as never)
     vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() } as never)
   })
 
@@ -56,19 +50,6 @@ describe('OrderPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       "This table link isn't valid. Please ask staff for help.",
     )
-  })
-
-  it('shows a closed message when the venue is not accepting orders', async () => {
-    vi.mocked(getOrderingPointOrThrow).mockResolvedValue({ id: 'op1', branchId: 'b1', label: 'Table 5', isCounter: false, createdAt: new Date() } as never)
-    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: false, updatedAt: new Date() } as never)
-
-    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 'op1' }) })
-    render(ui)
-
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      "We're not accepting orders right now. Please check back later.",
-    )
-    expect(listMenuItemsWithAvailability).not.toHaveBeenCalled()
   })
 
   it('shows a closed message when the branch is not accepting orders', async () => {

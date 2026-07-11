@@ -27,8 +27,11 @@ export async function resolveBranchId(session: { branchId?: string }, requestedB
     const branch = await getBranchOrThrow(requestedBranchId)
     return branch.id
   }
-  const branch = await getMainBranch()
-  return branch.id
+  const [firstBranch] = await listBranches()
+  if (!firstBranch) {
+    throw new NotFoundError('No branches exist')
+  }
+  return firstBranch.id
 }
 
 export async function listBranches(): Promise<Branch[]> {
