@@ -29,6 +29,13 @@ export default async function DashboardPage({
     branchLabel = 'Orders'
   }
 
+  // Carry the admin's header branch selection into the staff-assisted order
+  // flow so the order lands in the branch they're actually viewing (ISSUE-24).
+  // A specific id lists that branch's tables; 'all' (or nothing) lands on the
+  // branch chooser. Staff are pinned to their session branch, so no qualifier.
+  const newOrderHref =
+    role === 'admin' && requestedBranchId ? `/order/new?branch=${requestedBranchId}` : '/order/new'
+
   return (
     <main className="staff-dashboard">
       <header className="staff-header">
@@ -36,7 +43,7 @@ export default async function DashboardPage({
           <span className="staff-header__eyebrow">{branchLabel}</span>
           <h1 className="staff-header__title">Order Dashboard</h1>
         </div>
-        <Link href="/order/new" className="staff-header__new-order">
+        <Link href={newOrderHref} className="staff-header__new-order">
           + New order
         </Link>
       </header>

@@ -92,7 +92,33 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('link', { name: '+ New order' })).toHaveAttribute('href', '/order/new')
   })
 
-  it('shows the New order button for an admin session too', async () => {
+  it("carries the admin's selected branch into the New order link", async () => {
+    vi.mocked(requireRole).mockResolvedValue({ role: 'admin' })
+    vi.mocked(listBranches).mockResolvedValue([
+      { id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() },
+      { id: 'b2', name: 'Downtown', acceptingOrders: true, createdAt: new Date() },
+    ] as never)
+
+    const ui = await callPage('b2')
+    render(ui)
+
+    expect(screen.getByRole('link', { name: '+ New order' })).toHaveAttribute('href', '/order/new?branch=b2')
+  })
+
+  it('carries an admin\'s "All branches" selection into the New order link (landing on the branch chooser)', async () => {
+    vi.mocked(requireRole).mockResolvedValue({ role: 'admin' })
+    vi.mocked(listBranches).mockResolvedValue([
+      { id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() },
+      { id: 'b2', name: 'Downtown', acceptingOrders: true, createdAt: new Date() },
+    ] as never)
+
+    const ui = await callPage('all')
+    render(ui)
+
+    expect(screen.getByRole('link', { name: '+ New order' })).toHaveAttribute('href', '/order/new?branch=all')
+  })
+
+  it('leaves the New order link unqualified for an admin with no branch selected yet', async () => {
     vi.mocked(requireRole).mockResolvedValue({ role: 'admin' })
 
     const ui = await callPage()
