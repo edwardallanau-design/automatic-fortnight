@@ -183,7 +183,7 @@ describe('orderService.listOrders', () => {
     vi.clearAllMocks()
   })
 
-  it('queries with a status filter, ordered oldest-first, including items and orderingPoint', async () => {
+  it('queries with a status filter, ordered oldest-first, including items, orderingPoint, and branch', async () => {
     const orders = [
       {
         id: 'o1',
@@ -196,6 +196,7 @@ describe('orderService.listOrders', () => {
         confirmedAt: null,
         items: [],
         orderingPoint: { id: 'op1', branchId: 'b1', label: 'Table 4', isCounter: false, createdAt: new Date() },
+        branch: { id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() },
       },
     ]
     vi.mocked(prisma.order.findMany).mockResolvedValue(orders as never)
@@ -205,19 +206,19 @@ describe('orderService.listOrders', () => {
     expect(result).toEqual(orders)
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Pending' },
-      include: { items: true, orderingPoint: true },
+      include: { items: true, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
 
-  it('omits the where filter when no status is given', async () => {
+  it('omits the where filter when no options are given', async () => {
     vi.mocked(prisma.order.findMany).mockResolvedValue([] as never)
 
     await listOrders()
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: {},
-      include: { items: true, orderingPoint: true },
+      include: { items: true, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -229,7 +230,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid' },
-      include: { items: true, orderingPoint: true },
+      include: { items: true, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -261,7 +262,43 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Pending' },
-      include: { items: true, orderingPoint: true },
+      include: { items: true, orderingPoint: true, branch: true },
+      orderBy: { createdAt: 'asc' },
+    })
+  })
+
+  it('adds a branchId filter to the where clause when branchId is given', async () => {
+    vi.mocked(prisma.order.findMany).mockResolvedValue([] as never)
+
+    await listOrders({ branchId: 'b2' })
+
+    expect(prisma.order.findMany).toHaveBeenCalledWith({
+      where: { branchId: 'b2' },
+      include: { items: true, orderingPoint: true, branch: true },
+      orderBy: { createdAt: 'asc' },
+    })
+  })
+
+  it('combines a branchId filter with status and paymentStatus', async () => {
+    vi.mocked(prisma.order.findMany).mockResolvedValue([] as never)
+
+    await listOrders({ status: 'Pending', paymentStatus: 'Unpaid', branchId: 'b2' })
+
+    expect(prisma.order.findMany).toHaveBeenCalledWith({
+      where: { fulfillmentStatus: 'Pending', paymentStatus: 'Unpaid', branchId: 'b2' },
+      include: { items: true, orderingPoint: true, branch: true },
+      orderBy: { createdAt: 'asc' },
+    })
+  })
+
+  it('omits the branchId filter when not given', async () => {
+    vi.mocked(prisma.order.findMany).mockResolvedValue([] as never)
+
+    await listOrders({ status: 'Pending' })
+
+    expect(prisma.order.findMany).toHaveBeenCalledWith({
+      where: { fulfillmentStatus: 'Pending' },
+      include: { items: true, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })

@@ -13,6 +13,8 @@ const order: OrderCardOrder = {
   paymentMethodNameSnapshot: null,
   paymentReference: null,
   customerName: 'Edward',
+  branchId: 'b1',
+  branch: { name: 'Main' },
   orderingPoint: { label: 'Table 4' },
   items: [
     { id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 },
@@ -141,5 +143,15 @@ describe('OrderCard', () => {
 
     expect(screen.getByText('Counter')).toBeInTheDocument()
     expect(screen.queryByText('Table 0')).not.toBeInTheDocument()
+  })
+
+  it('shows a branch-name tag when showBranch is true', () => {
+    render(<OrderCard order={order} exiting={false} onOpen={vi.fn()} showBranch />)
+    expect(screen.getByText('· Main')).toBeInTheDocument()
+  })
+
+  it('shows no branch-name tag when showBranch is false or omitted', () => {
+    render(<OrderCard order={order} exiting={false} onOpen={vi.fn()} />)
+    expect(screen.queryByText('· Main')).not.toBeInTheDocument()
   })
 })

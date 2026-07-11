@@ -28,6 +28,8 @@ const orderA = {
   fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
   customerName: null,
+  branchId: 'b1',
+  branch: { name: 'Main' },
   orderingPoint: { label: 'Table 4' },
   items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
 }
@@ -39,6 +41,8 @@ const orderB = {
   fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
   customerName: null,
+  branchId: 'b2',
+  branch: { name: 'Downtown' },
   orderingPoint: { label: 'Table 7' },
   items: [{ id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
 }
@@ -506,5 +510,117 @@ describe('PendingOrdersDashboard', () => {
 
     expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
+  })
+
+  describe('branch tabs (admin only)', () => {
+    it('renders no branch tab strip when branches is empty', async () => {
+      mockTabs({ pending: [orderA] })
+      render(<PendingOrdersDashboard />)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(screen.queryByRole('tablist', { name: 'Branch' })).not.toBeInTheDocument()
+    })
+
+    it('renders an All tab plus one tab per branch when branches is non-empty', async () => {
+      mockTabs({ pending: [orderA, orderB] })
+      render(
+        <PendingOrdersDashboard
+          branches={[
+            { id: 'b1', name: 'Main' },
+            { id: 'b2', name: 'Downtown' },
+          ]}
+        />,
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      const branchTablist = screen.getByRole('tablist', { name: 'Branch' })
+      expect(within(branchTablist).getByRole('tab', { name: 'All' })).toBeInTheDocument()
+      expect(within(branchTablist).getByRole('tab', { name: 'Main' })).toBeInTheDocument()
+      expect(within(branchTablist).getByRole('tab', { name: 'Downtown' })).toBeInTheDocument()
+    })
+
+    it('defaults to the All tab, showing every branch\'s orders with a branch tag on each card', async () => {
+      mockTabs({ pending: [orderA, orderB] })
+      render(
+        <PendingOrdersDashboard
+          branches={[
+            { id: 'b1', name: 'Main' },
+            { id: 'b2', name: 'Downtown' },
+          ]}
+        />,
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(screen.getByText('Table 4')).toBeInTheDocument()
+      expect(screen.getByText('Table 7')).toBeInTheDocument()
+      expect(screen.getByText('· Main')).toBeInTheDocument()
+      expect(screen.getByText('· Downtown')).toBeInTheDocument()
+    })
+
+    it('switching to a specific branch tab filters the already-fetched list client-side, with no new fetch call', async () => {
+      mockTabs({ pending: [orderA, orderB] })
+      render(
+        <PendingOrdersDashboard
+          branches={[
+            { id: 'b1', name: 'Main' },
+            { id: 'b2', name: 'Downtown' },
+          ]}
+        />,
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      const fetchCallCount = vi.mocked(apiClient.get).mock.calls.length
+
+      const branchTablist = screen.getByRole('tablist', { name: 'Branch' })
+      fireEvent.click(within(branchTablist).getByRole('tab', { name: 'Downtown' }))
+
+      expect(screen.getByText('Table 7')).toBeInTheDocument()
+      expect(screen.queryByText('Table 4')).not.toBeInTheDocument()
+      expect(vi.mocked(apiClient.get).mock.calls.length).toBe(fetchCallCount)
+    })
+
+    it('hides the branch tag and branch-scopes the tab counts once a specific branch tab is active', async () => {
+      mockTabs({ pending: [orderA, orderB] })
+      render(
+        <PendingOrdersDashboard
+          branches={[
+            { id: 'b1', name: 'Main' },
+            { id: 'b2', name: 'Downtown' },
+          ]}
+        />,
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      const branchTablist = screen.getByRole('tablist', { name: 'Branch' })
+      fireEvent.click(within(branchTablist).getByRole('tab', { name: 'Downtown' }))
+
+      expect(screen.queryByText('· Downtown')).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Pending (1)' })).toBeInTheDocument()
+    })
+
+    it('never shows a branch tag when branches is empty, even though activeBranch defaults to "all"', async () => {
+      mockTabs({ pending: [orderA] })
+      render(<PendingOrdersDashboard />)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(screen.queryByText('· Main')).not.toBeInTheDocument()
+    })
   })
 })

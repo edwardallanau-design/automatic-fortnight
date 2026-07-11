@@ -14,6 +14,8 @@ const pendingOrder: OrderCardOrder = {
   paymentMethodNameSnapshot: null,
   paymentReference: null,
   customerName: 'Edward',
+  branchId: 'b1',
+  branch: { name: 'Main' },
   orderingPoint: { label: 'Table 4' },
   items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
 }

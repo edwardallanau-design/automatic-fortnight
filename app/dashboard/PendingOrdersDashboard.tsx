@@ -26,9 +26,13 @@ async function fetchTabs(): Promise<{ pending: DashboardOrder[]; confirmed: Dash
   return { pending, confirmed }
 }
 
-export function PendingOrdersDashboard({ role = 'staff' }: { role?: Role } = {}) {
+export function PendingOrdersDashboard({
+  role = 'staff',
+  branches = [],
+}: { role?: Role; branches?: { id: string; name: string }[] } = {}) {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [sortDirection, setSortDirection] = useState<'newest' | 'oldest'>('newest')
+  const [activeBranch, setActiveBranch] = useState<'all' | string>('all')
   const [pendingOrders, setPendingOrders] = useState<DashboardOrder[]>([])
   const [confirmedOrders, setConfirmedOrders] = useState<DashboardOrder[]>([])
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
@@ -208,7 +212,12 @@ export function PendingOrdersDashboard({ role = 'staff' }: { role?: Role } = {})
     return sortDirection === 'newest' ? sorted.reverse() : sorted
   }
 
-  const activeOrders = activeTab === 'pending' ? pendingOrders : sortConfirmedOrders(confirmedOrders)
+  function branchFiltered(list: DashboardOrder[]): DashboardOrder[] {
+    return activeBranch === 'all' ? list : list.filter((o) => o.branchId === activeBranch)
+  }
+
+  const activeOrders = branchFiltered(activeTab === 'pending' ? pendingOrders : sortConfirmedOrders(confirmedOrders))
+  const showBranchTag = branches.length > 0 && activeBranch === 'all'
   const emptyMessage = activeTab === 'pending' ? 'No pending orders' : 'No orders confirmed yet today'
 
   return (
@@ -218,6 +227,32 @@ export function PendingOrdersDashboard({ role = 'staff' }: { role?: Role } = {})
         <span>Live — refreshes every few seconds</span>
       </div>
 
+      {branches.length > 0 && (
+        <div className="order-rail__tabs order-rail__tabs--branch" role="tablist" aria-label="Branch">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeBranch === 'all'}
+            className={`order-rail__tab${activeBranch === 'all' ? ' order-rail__tab--active' : ''}`}
+            onClick={() => setActiveBranch('all')}
+          >
+            All
+          </button>
+          {branches.map((branch) => (
+            <button
+              key={branch.id}
+              type="button"
+              role="tab"
+              aria-selected={activeBranch === branch.id}
+              className={`order-rail__tab${activeBranch === branch.id ? ' order-rail__tab--active' : ''}`}
+              onClick={() => setActiveBranch(branch.id)}
+            >
+              {branch.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="order-rail__tabs" role="tablist">
         <button
           type="button"
@@ -226,7 +261,7 @@ export function PendingOrdersDashboard({ role = 'staff' }: { role?: Role } = {})
           className={`order-rail__tab${activeTab === 'pending' ? ' order-rail__tab--active' : ''}`}
           onClick={() => setActiveTab('pending')}
         >
-          Pending ({pendingOrders.length})
+          Pending ({branchFiltered(pendingOrders).length})
         </button>
         <button
           type="button"
@@ -235,7 +270,7 @@ export function PendingOrdersDashboard({ role = 'staff' }: { role?: Role } = {})
           className={`order-rail__tab${activeTab === 'confirmed' ? ' order-rail__tab--active' : ''}`}
           onClick={() => setActiveTab('confirmed')}
         >
-          Confirmed ({confirmedOrders.length})
+          Confirmed ({branchFiltered(confirmedOrders).length})
         </button>
       </div>
 
@@ -265,6 +300,7 @@ export function PendingOrdersDashboard({ role = 'staff' }: { role?: Role } = {})
                 key={order.id}
                 order={order}
                 exiting={exitingIds.has(order.id)}
+                showBranch={showBranchTag}
                 onOpen={() => openModal(order.id)}
               />
             ))}

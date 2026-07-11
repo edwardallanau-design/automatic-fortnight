@@ -18,12 +18,13 @@ const PAYMENT_STATUS_PARAM_MAP: Record<string, PaymentStatus> = {
 
 export async function GET(request: Request) {
   try {
-    await requireApiRole('staff')
+    const session = await requireApiRole('staff')
 
     const { searchParams } = new URL(request.url)
     const statusParam = searchParams.get('status')
     const paymentStatusParam = searchParams.get('paymentStatus')
     const dateParam = searchParams.get('date')
+    const branchIdParam = searchParams.get('branchId')
 
     let status: FulfillmentStatus | undefined
     if (statusParam !== null) {
@@ -49,7 +50,9 @@ export async function GET(request: Request) {
       date = dateParam
     }
 
-    const orders = await listOrders({ status, paymentStatus, date })
+    const branchId = session.branchId ?? branchIdParam ?? undefined
+
+    const orders = await listOrders({ status, paymentStatus, date, branchId })
     return NextResponse.json(orders, { status: 200 })
   } catch (error) {
     return handleApiError(error)

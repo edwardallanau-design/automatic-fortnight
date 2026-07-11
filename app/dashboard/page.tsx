@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { requireRole } from '@/lib/authGuard'
+import { listBranches } from '@/lib/branchService'
 import { PendingOrdersDashboard } from './PendingOrdersDashboard'
 
 export default async function DashboardPage() {
   const { role } = await requireRole('staff')
+  const branches = role === 'admin' ? await listBranches() : []
 
   return (
     <main className="staff-dashboard">
@@ -16,7 +18,7 @@ export default async function DashboardPage() {
           + New order
         </Link>
       </header>
-      <PendingOrdersDashboard role={role} />
+      <PendingOrdersDashboard role={role} branches={branches.map((b) => ({ id: b.id, name: b.name }))} />
     </main>
   )
 }

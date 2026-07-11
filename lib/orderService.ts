@@ -1,4 +1,4 @@
-import type { Order, OrderItem, OrderingPoint, FulfillmentStatus, PaymentStatus, Prisma } from '@prisma/client'
+import type { Order, OrderItem, OrderingPoint, Branch, FulfillmentStatus, PaymentStatus, Prisma } from '@prisma/client'
 import { prisma } from './prisma'
 import { getOrderingPointOrThrow } from './orderingPointService'
 import { getBranchOrThrow } from './branchService'
@@ -67,13 +67,15 @@ export async function createOrder(
 }
 
 export type OrderWithItemsAndOrderingPoint = Order & { items: OrderItem[]; orderingPoint: OrderingPoint }
+export type OrderWithItemsOrderingPointAndBranch = OrderWithItemsAndOrderingPoint & { branch: Branch }
 
 export async function listOrders(
-  options: { status?: FulfillmentStatus; paymentStatus?: PaymentStatus; date?: 'today' } = {},
-): Promise<OrderWithItemsAndOrderingPoint[]> {
+  options: { status?: FulfillmentStatus; paymentStatus?: PaymentStatus; date?: 'today'; branchId?: string } = {},
+): Promise<OrderWithItemsOrderingPointAndBranch[]> {
   const where: Prisma.OrderWhereInput = {}
   if (options.status) where.fulfillmentStatus = options.status
   if (options.paymentStatus) where.paymentStatus = options.paymentStatus
+  if (options.branchId) where.branchId = options.branchId
   if (options.date === 'today') {
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)
@@ -84,7 +86,7 @@ export async function listOrders(
 
   return prisma.order.findMany({
     where,
-    include: { items: true, orderingPoint: true },
+    include: { items: true, orderingPoint: true, branch: true },
     orderBy: { createdAt: 'asc' },
   })
 }

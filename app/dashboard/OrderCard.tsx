@@ -13,6 +13,8 @@ export type OrderCardOrder = {
   paymentMethodNameSnapshot: string | null
   paymentReference: string | null
   customerName: string | null
+  branchId: string
+  branch: { name: string }
   orderingPoint: { label: string }
   items: OrderCardItem[]
 }
@@ -33,10 +35,12 @@ function orderTotal(order: OrderCardOrder): number {
 export function OrderCard({
   order,
   exiting,
+  showBranch = false,
   onOpen,
 }: {
   order: OrderCardOrder
   exiting: boolean
+  showBranch?: boolean
   onOpen: () => void
 }) {
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
@@ -57,6 +61,7 @@ export function OrderCard({
         <span className="order-card__table">
           {order.orderingPoint.label}
           {order.customerName && <span className="order-card__customer"> · {order.customerName}</span>}
+          {showBranch && <span className="order-card__branch-tag"> · {order.branch.name}</span>}
         </span>
         <span className="order-card__meta">
           <span className="order-card__time">{timeLabel}</span>

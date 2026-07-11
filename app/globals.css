@@ -1465,6 +1465,11 @@ a {
   color: var(--clay);
 }
 
+.order-card__branch-tag {
+  font-weight: 400;
+  color: var(--clay);
+}
+
 .order-card__meta {
   display: flex;
   align-items: center;
@@ -1744,6 +1749,10 @@ a {
   gap: 0.5rem;
   margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--clay-faint);
+}
+
+.order-rail__tabs--branch {
+  margin-bottom: 0.75rem;
 }
 
 .order-rail__tab {
