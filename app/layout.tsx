@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
+import { peekSession } from "@/lib/authGuard";
+import { StaffBarGate } from "@/app/components/StaffBarGate";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -25,14 +27,19 @@ export const metadata: Metadata = {
   description: "Browse the menu and place your order.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await peekSession();
+
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <StaffBarGate session={session} />
+        {children}
+      </body>
     </html>
   );
 }

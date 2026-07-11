@@ -22,7 +22,7 @@ describe('POST /api/auth/login', () => {
   })
 
   it('returns 200 with role and sets a session cookie on success', async () => {
-    vi.mocked(login).mockResolvedValue({ role: 'staff' })
+    vi.mocked(login).mockResolvedValue({ role: 'staff', branchId: 'branch-1' })
 
     const res = await POST(makeRequest({ password: 'staff-temp-pw' }))
 

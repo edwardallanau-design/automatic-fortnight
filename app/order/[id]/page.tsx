@@ -3,7 +3,9 @@ import { getOrderById } from '@/lib/orderService'
 import { NotFoundError } from '@/lib/errors'
 import type { OrderTicketProps } from './OrderTicket'
 import { OrderStatusPoller } from './OrderStatusPoller'
-import { TicketCard } from './TicketCard'
+import { TicketCard, formatPaymentChoiceNote } from './TicketCard'
+import { listPaymentMethods } from '@/lib/paymentMethodService'
+import { PaymentChoicePicker } from './PaymentChoicePicker'
 
 export default async function OrderDetailPage({
   params,
@@ -32,11 +34,11 @@ export default async function OrderDetailPage({
     <header className="order-header">
       <div className="order-header__row">
         <span className="order-header__eyebrow">Your order</span>
-        <Link href={`/order?table=${order.table.id}`} className="order-header__back">
+        <Link href={`/order?table=${order.orderingPoint.id}`} className="order-header__back">
           ← Menu
         </Link>
       </div>
-      <h1 className="order-header__title">Table {order.table.number}</h1>
+      <h1 className="order-header__title">{order.orderingPoint.label}</h1>
     </header>
   )
 
@@ -54,10 +56,31 @@ export default async function OrderDetailPage({
     )
   }
 
+  if (!order.orderingPoint.isCounter && order.paymentChoice === 'None') {
+    const paymentMethods = await listPaymentMethods({ activeOnly: true })
+    return (
+      <main className="order-page">
+        {header}
+        <PaymentChoicePicker
+          orderId={order.id}
+          paymentMethods={paymentMethods.map((method) => ({
+            id: method.id,
+            name: method.name,
+            qrImageUrl: method.qrImageUrl,
+            accountInfo: method.accountInfo,
+          }))}
+        />
+      </main>
+    )
+  }
+
   const ticket: OrderTicketProps = {
     id: order.id,
     orderNumber: order.orderNumber,
     customerName: order.customerName,
+    paymentChoice: order.paymentChoice,
+    paymentMethodNameSnapshot: order.paymentMethodNameSnapshot,
+    paymentReference: order.paymentReference,
     items: order.items.map((item) => ({
       id: item.id,
       nameSnapshot: item.nameSnapshot,
@@ -75,6 +98,7 @@ export default async function OrderDetailPage({
           customerName={ticket.customerName}
           items={ticket.items}
           statusNote="Confirmed by staff — ask staff to change anything."
+          paymentNote={formatPaymentChoiceNote(ticket.paymentChoice, ticket.paymentMethodNameSnapshot, ticket.paymentReference)}
         />
       </main>
     )

@@ -1,20 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import OrderPage from './page'
-import { getTableOrThrow } from '@/lib/tableService'
-import { listMenuItems } from '@/lib/menuService'
+import { getOrderingPointOrThrow } from '@/lib/orderingPointService'
+import { getBranchOrThrow } from '@/lib/branchService'
+import { listMenuItemsWithAvailability } from '@/lib/menuService'
+import { getVenueSettings } from '@/lib/venueSettingsService'
 import { NotFoundError } from '@/lib/errors'
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }))
 
-vi.mock('@/lib/tableService', () => ({
-  getTableOrThrow: vi.fn(),
+vi.mock('@/lib/orderingPointService', () => ({
+  getOrderingPointOrThrow: vi.fn(),
+}))
+
+vi.mock('@/lib/branchService', () => ({
+  getBranchOrThrow: vi.fn(),
 }))
 
 vi.mock('@/lib/menuService', () => ({
-  listMenuItems: vi.fn(),
+  listMenuItemsWithAvailability: vi.fn(),
+}))
+
+vi.mock('@/lib/venueSettingsService', () => ({
+  getVenueSettings: vi.fn(),
 }))
 
 function priceOf(value: string) {
@@ -24,6 +34,8 @@ function priceOf(value: string) {
 describe('OrderPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: true, updatedAt: new Date() } as never)
+    vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() } as never)
   })
 
   it('shows an error when the table id is missing', async () => {
@@ -36,7 +48,7 @@ describe('OrderPage', () => {
   })
 
   it('shows an error when the table id does not exist', async () => {
-    vi.mocked(getTableOrThrow).mockRejectedValue(new NotFoundError('Table not found'))
+    vi.mocked(getOrderingPointOrThrow).mockRejectedValue(new NotFoundError('Ordering point not found'))
 
     const ui = await OrderPage({ searchParams: Promise.resolve({ table: 'missing' }) })
     render(ui)
@@ -46,32 +58,39 @@ describe('OrderPage', () => {
     )
   })
 
+  it('shows a closed message when the venue is not accepting orders', async () => {
+    vi.mocked(getOrderingPointOrThrow).mockResolvedValue({ id: 'op1', branchId: 'b1', label: 'Table 5', isCounter: false, createdAt: new Date() } as never)
+    vi.mocked(getVenueSettings).mockResolvedValue({ id: 'singleton', acceptingOrders: false, updatedAt: new Date() } as never)
+
+    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 'op1' }) })
+    render(ui)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "We're not accepting orders right now. Please check back later.",
+    )
+    expect(listMenuItemsWithAvailability).not.toHaveBeenCalled()
+  })
+
+  it('shows a closed message when the branch is not accepting orders', async () => {
+    vi.mocked(getOrderingPointOrThrow).mockResolvedValue({ id: 'op1', branchId: 'b1', label: 'Table 5', isCounter: false, createdAt: new Date() } as never)
+    vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b1', name: 'Main', acceptingOrders: false, createdAt: new Date() } as never)
+
+    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 'op1' }) })
+    render(ui)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "We're not accepting orders right now. Please check back later.",
+    )
+  })
+
   it('renders available items as enabled buttons and sold-out items as disabled', async () => {
-    vi.mocked(getTableOrThrow).mockResolvedValue({
-      id: 't1',
-      number: 5,
-      createdAt: new Date(),
-    } as never)
-    vi.mocked(listMenuItems).mockResolvedValue([
-      {
-        id: 'm1',
-        name: 'Burger',
-        price: priceOf('12.50'),
-        available: true,
-        archived: false,
-        createdAt: new Date(),
-      },
-      {
-        id: 'm2',
-        name: 'Fries',
-        price: priceOf('4.00'),
-        available: false,
-        archived: false,
-        createdAt: new Date(),
-      },
+    vi.mocked(getOrderingPointOrThrow).mockResolvedValue({ id: 'op1', branchId: 'b1', label: 'Table 5', isCounter: false, createdAt: new Date() } as never)
+    vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: priceOf('12.50'), available: true, archived: false, createdAt: new Date() },
+      { id: 'm2', name: 'Fries', price: priceOf('4.00'), available: false, archived: false, createdAt: new Date() },
     ] as never)
 
-    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 't1' }) })
+    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 'op1' }) })
     render(ui)
 
     expect(screen.getByRole('button', { name: /Burger/ })).toBeEnabled()
@@ -79,14 +98,10 @@ describe('OrderPage', () => {
   })
 
   it('shows an empty-state message when there are no menu items', async () => {
-    vi.mocked(getTableOrThrow).mockResolvedValue({
-      id: 't1',
-      number: 5,
-      createdAt: new Date(),
-    } as never)
-    vi.mocked(listMenuItems).mockResolvedValue([])
+    vi.mocked(getOrderingPointOrThrow).mockResolvedValue({ id: 'op1', branchId: 'b1', label: 'Table 5', isCounter: false, createdAt: new Date() } as never)
+    vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([])
 
-    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 't1' }) })
+    const ui = await OrderPage({ searchParams: Promise.resolve({ table: 'op1' }) })
     render(ui)
 
     expect(screen.getByText('No items available right now.')).toBeInTheDocument()

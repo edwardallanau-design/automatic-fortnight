@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { OrderTicket } from './OrderTicket'
 import { apiClient, ApiError } from '@/lib/apiClient'
@@ -19,6 +19,9 @@ function twoLineOrder() {
     id: 'o1',
     orderNumber: 47,
     customerName: null,
+    paymentChoice: 'Counter' as const,
+    paymentMethodNameSnapshot: null,
+    paymentReference: null,
     items: [
       { id: 'oi1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 },
       { id: 'oi2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 2 },
@@ -31,39 +34,17 @@ describe('OrderTicket', () => {
     vi.clearAllMocks()
   })
 
-  it('opens a confirm dialog on Remove and does not call the API until confirmed', async () => {
-    const user = userEvent.setup()
+  it('never renders a remove button, even for a multi-line order', () => {
     render(<OrderTicket order={twoLineOrder()} />)
 
-    await user.click(screen.getByRole('button', { name: 'Remove Burger' }))
-
-    expect(screen.getByRole('dialog', { name: 'Remove item?' })).toBeInTheDocument()
-    expect(apiClient.del).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument()
   })
 
-  it('removes a line via the item DELETE route and refreshes once the dialog is confirmed', async () => {
-    vi.mocked(apiClient.del).mockResolvedValue(undefined)
-    const user = userEvent.setup()
+  it('shows guidance to contact staff for changes, alongside the cancel action', () => {
     render(<OrderTicket order={twoLineOrder()} />)
 
-    await user.click(screen.getByRole('button', { name: 'Remove Burger' }))
-    await user.click(screen.getByRole('button', { name: 'Remove' }))
-
-    expect(apiClient.del).toHaveBeenCalledWith('/api/orders/o1/items/oi1')
-    expect(refresh).toHaveBeenCalled()
-  })
-
-  it('closes the remove dialog without calling the API when "Never mind" is clicked', async () => {
-    const user = userEvent.setup()
-    render(<OrderTicket order={twoLineOrder()} />)
-
-    await user.click(screen.getByRole('button', { name: 'Remove Burger' }))
-    await user.click(screen.getByRole('button', { name: 'Never mind' }))
-
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    })
-    expect(apiClient.del).not.toHaveBeenCalled()
+    expect(screen.getByText('Contact staff to change your order, or cancel it below.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel order' })).toBeInTheDocument()
   })
 
   it('opens a confirm dialog on Cancel order and does not call the API until confirmed', async () => {
@@ -88,17 +69,6 @@ describe('OrderTicket', () => {
     expect(refresh).toHaveBeenCalled()
   })
 
-  it('hides the Remove button when only one line remains', () => {
-    render(
-      <OrderTicket
-        order={{ id: 'o1', orderNumber: 47, customerName: null, items: [{ id: 'oi1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }] }}
-      />,
-    )
-
-    expect(screen.queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Cancel order' })).toBeInTheDocument()
-  })
-
   it('shows an inline alert when a mutation is rejected (e.g. staff just confirmed)', async () => {
     vi.mocked(apiClient.del).mockRejectedValue(new ApiError('CONFLICT', 'Order is Confirmed, not Pending'))
     const user = userEvent.setup()
@@ -120,6 +90,9 @@ describe('OrderTicket', () => {
           id: 'o1',
           orderNumber: 7,
           customerName: 'Edward',
+          paymentChoice: 'Counter' as const,
+          paymentMethodNameSnapshot: null,
+          paymentReference: null,
           items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
         }}
       />,
@@ -135,6 +108,9 @@ describe('OrderTicket', () => {
           id: 'o1',
           orderNumber: 7,
           customerName: null,
+          paymentChoice: 'Counter' as const,
+          paymentMethodNameSnapshot: null,
+          paymentReference: null,
           items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
         }}
       />,
@@ -148,5 +124,11 @@ describe('OrderTicket', () => {
 
     expect(screen.getByText('Order #47')).toBeInTheDocument()
     expect(screen.queryByText(/confirmed/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the payment note for the choice already made', () => {
+    render(<OrderTicket order={{ ...twoLineOrder(), paymentChoice: 'Online', paymentMethodNameSnapshot: 'GCash', paymentReference: 'TXN123' }} />)
+
+    expect(screen.getByText('You chose to pay online via GCash. Reference: TXN123.')).toBeInTheDocument()
   })
 })

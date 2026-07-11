@@ -134,7 +134,7 @@ describe('GET /api/orders', () => {
     const body = await res.json()
     expect(body).toHaveLength(1)
     expect(body[0].orderNumber).toBe(1)
-    expect(listOrders).toHaveBeenCalledWith({ status: 'Pending', paymentStatus: undefined, date: undefined })
+    expect(listOrders).toHaveBeenCalledWith({ status: 'Pending', paymentStatus: undefined, date: undefined, branchId: undefined })
   })
 
   it('returns 200 with an unfiltered call when no status is given', async () => {
@@ -143,7 +143,7 @@ describe('GET /api/orders', () => {
     const res = await GET(makeGetRequest())
 
     expect(res.status).toBe(200)
-    expect(listOrders).toHaveBeenCalledWith({ status: undefined, paymentStatus: undefined, date: undefined })
+    expect(listOrders).toHaveBeenCalledWith({ status: undefined, paymentStatus: undefined, date: undefined, branchId: undefined })
   })
 
   it('returns 400 for an invalid status value', async () => {
@@ -178,7 +178,7 @@ describe('GET /api/orders', () => {
     const res = await GET(makeGetRequest('?status=confirmed&paymentStatus=unpaid'))
 
     expect(res.status).toBe(200)
-    expect(listOrders).toHaveBeenCalledWith({ status: 'Confirmed', paymentStatus: 'Unpaid', date: undefined })
+    expect(listOrders).toHaveBeenCalledWith({ status: 'Confirmed', paymentStatus: 'Unpaid', date: undefined, branchId: undefined })
   })
 
   it('returns 200 with a date=today filter', async () => {
@@ -187,7 +187,7 @@ describe('GET /api/orders', () => {
     const res = await GET(makeGetRequest('?status=confirmed&paymentStatus=paid&date=today'))
 
     expect(res.status).toBe(200)
-    expect(listOrders).toHaveBeenCalledWith({ status: 'Confirmed', paymentStatus: 'Paid', date: 'today' })
+    expect(listOrders).toHaveBeenCalledWith({ status: 'Confirmed', paymentStatus: 'Paid', date: 'today', branchId: undefined })
   })
 
   it('returns 400 for an invalid paymentStatus value', async () => {
@@ -202,5 +202,45 @@ describe('GET /api/orders', () => {
 
     expect(res.status).toBe(400)
     expect(listOrders).not.toHaveBeenCalled()
+  })
+
+  it("forces a staff session's own branchId regardless of a client-supplied ?branchId=, even a different one", async () => {
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff', branchId: 'b1' })
+    vi.mocked(listOrders).mockResolvedValue([] as never)
+
+    const res = await GET(makeGetRequest('?status=pending&branchId=b2'))
+
+    expect(res.status).toBe(200)
+    expect(listOrders).toHaveBeenCalledWith({ status: 'Pending', paymentStatus: undefined, date: undefined, branchId: 'b1' })
+  })
+
+  it("forces a staff session's own branchId even when no ?branchId= is supplied", async () => {
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff', branchId: 'b1' })
+    vi.mocked(listOrders).mockResolvedValue([] as never)
+
+    const res = await GET(makeGetRequest('?status=pending'))
+
+    expect(res.status).toBe(200)
+    expect(listOrders).toHaveBeenCalledWith({ status: 'Pending', paymentStatus: undefined, date: undefined, branchId: 'b1' })
+  })
+
+  it("honors an admin session's ?branchId= when present", async () => {
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
+    vi.mocked(listOrders).mockResolvedValue([] as never)
+
+    const res = await GET(makeGetRequest('?branchId=b2'))
+
+    expect(res.status).toBe(200)
+    expect(listOrders).toHaveBeenCalledWith({ status: undefined, paymentStatus: undefined, date: undefined, branchId: 'b2' })
+  })
+
+  it("gives an admin session every branch's orders when no ?branchId= is supplied", async () => {
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
+    vi.mocked(listOrders).mockResolvedValue([] as never)
+
+    const res = await GET(makeGetRequest())
+
+    expect(res.status).toBe(200)
+    expect(listOrders).toHaveBeenCalledWith({ status: undefined, paymentStatus: undefined, date: undefined, branchId: undefined })
   })
 })

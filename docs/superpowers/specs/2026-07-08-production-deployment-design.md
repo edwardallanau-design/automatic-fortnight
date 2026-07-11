@@ -41,7 +41,7 @@ Two previously-deferred issues become live now: `ISSUE-6` (seed reruns on every 
   - `DATABASE_URL` — the Neon pooled connection string
   - `AUTH_SECRET` — a newly generated random value, distinct from the one in `.env.docker`/`.env.local`. Closes `ISSUE-7`'s outstanding "rotate `AUTH_SECRET`" note.
   - `SEED_STAFF_PASSWORD`, `SEED_ADMIN_PASSWORD` — real production login credentials, chosen by the project owner (not reused dev/Docker values).
-  - `ENABLE_TEST_PICKER` — left **unset** in both environments, keeping `/order/test` (the dev table picker) hidden in production. Already correctly gated by `NODE_ENV` + this flag in `app/order/test/page.tsx` — no code change needed.
+  - `ENABLE_TEST_PICKER` — left **unset** in both environments, keeping `/order/test` (the dev table picker) hidden in production. Already correctly gated by `NODE_ENV` + this flag in `app/order/test/page.tsx` — no code change needed. **Superseded 2026-07-08:** `/order/test` and this flag were removed entirely in favor of a staff-authenticated `/order/new` route — see `docs/superpowers/specs/2026-07-08-staff-assisted-table-ordering-design.md`.
 - `NODE_ENV` is managed by Vercel automatically. `app/api/auth/login/route.ts` already gates the session cookie's `secure` flag on `NODE_ENV === 'production'`, so cookies are correctly HTTPS-only in production with no code change.
 
 ### 3. Build pipeline: migrations + seeding on deploy

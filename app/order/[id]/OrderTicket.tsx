@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
-import { TicketCard } from './TicketCard'
-import { ConfirmDialog } from './ConfirmDialog'
+import { TicketCard, formatPaymentChoiceNote, type PaymentChoice } from './TicketCard'
+import { ConfirmDialog } from '@/app/components/ConfirmDialog'
 
 export type OrderTicketLine = {
   id: string
@@ -17,19 +17,19 @@ export type OrderTicketProps = {
   id: string
   orderNumber: number
   customerName: string | null
+  paymentChoice: PaymentChoice
+  paymentMethodNameSnapshot: string | null
+  paymentReference: string | null
   items: OrderTicketLine[]
 }
 
 const CONFLICT_MESSAGE = 'This order was just confirmed by staff and can no longer be changed.'
 const CONFIRM_EXIT_MS = 200
 
-type ConfirmAction = { type: 'remove'; itemId: string; name: string } | { type: 'cancel' }
-
 export function OrderTicket({ order }: { order: OrderTicketProps }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmClosing, setConfirmClosing] = useState(false)
   const confirmCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -40,14 +40,12 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
     }
   }, [])
 
-  const singleLine = order.items.length === 1
-
-  async function mutate(path: string) {
+  async function cancelOrder() {
     if (busy) return
     setBusy(true)
     setError(null)
     try {
-      await apiClient.del(path)
+      await apiClient.del(`/api/orders/${order.id}`)
       router.refresh()
     } catch (err) {
       setError(err instanceof ApiError ? CONFLICT_MESSAGE : 'Something went wrong. Please try again.')
@@ -57,9 +55,8 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
     }
   }
 
-  function openConfirm(action: ConfirmAction) {
+  function openConfirm() {
     if (confirmCloseTimerRef.current) clearTimeout(confirmCloseTimerRef.current)
-    setConfirmAction(action)
     setConfirmOpen(true)
     setConfirmClosing(false)
   }
@@ -70,18 +67,12 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
     if (confirmCloseTimerRef.current) clearTimeout(confirmCloseTimerRef.current)
     confirmCloseTimerRef.current = setTimeout(() => {
       setConfirmClosing(false)
-      setConfirmAction(null)
     }, CONFIRM_EXIT_MS)
   }
 
   function handleConfirm() {
-    if (!confirmAction) return
-    const path =
-      confirmAction.type === 'cancel'
-        ? `/api/orders/${order.id}`
-        : `/api/orders/${order.id}/items/${confirmAction.itemId}`
     closeConfirm()
-    mutate(path)
+    cancelOrder()
   }
 
   return (
@@ -89,14 +80,9 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
       <TicketCard
         heading={`Order #${order.orderNumber}`}
         customerName={order.customerName}
-        busy={busy}
-        items={order.items.map((item) => ({
-          ...item,
-          onRemove: singleLine
-            ? undefined
-            : () => openConfirm({ type: 'remove', itemId: item.id, name: item.nameSnapshot }),
-        }))}
-        statusNote="Remove items or cancel while your order is still pending."
+        items={order.items}
+        statusNote="Contact staff to change your order, or cancel it below."
+        paymentNote={formatPaymentChoiceNote(order.paymentChoice, order.paymentMethodNameSnapshot, order.paymentReference)}
         footer={
           <>
             {error && (
@@ -108,22 +94,18 @@ export function OrderTicket({ order }: { order: OrderTicketProps }) {
               type="button"
               className="ticket__cancel"
               disabled={busy}
-              onClick={() => openConfirm({ type: 'cancel' })}
+              onClick={openConfirm}
             >
               Cancel order
             </button>
           </>
         }
       />
-      {confirmAction && (confirmOpen || confirmClosing) && (
+      {(confirmOpen || confirmClosing) && (
         <ConfirmDialog
-          title={confirmAction.type === 'cancel' ? 'Cancel this order?' : 'Remove item?'}
-          message={
-            confirmAction.type === 'cancel'
-              ? "Staff won't receive it, and this can't be undone."
-              : `Remove ${confirmAction.name} from your order?`
-          }
-          confirmLabel={confirmAction.type === 'cancel' ? 'Yes, cancel' : 'Remove'}
+          title="Cancel this order?"
+          message="Staff won't receive it, and this can't be undone."
+          confirmLabel="Yes, cancel"
           busy={busy}
           exiting={!confirmOpen}
           onConfirm={handleConfirm}

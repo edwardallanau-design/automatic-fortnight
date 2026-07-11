@@ -12,26 +12,43 @@ enum Role {
 }
 
 model Credential {
-  id           String @id @default(uuid())
-  role         Role   @unique
+  id           String  @id @default(uuid())
+  role         Role
+  branchId     String? @unique
+  branch       Branch? @relation(fields: [branchId], references: [id])
   passwordHash String
 }
 
-model Table {
+model OrderingPoint {
   id        String   @id @default(uuid())
-  number    Int      @unique
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  label     String
+  isCounter Boolean  @default(false)
   createdAt DateTime @default(now())
   orders    Order[]
+
+  @@unique([branchId, label])
 }
 
 model MenuItem {
-  id         String      @id @default(uuid())
+  id         String            @id @default(uuid())
   name       String
-  price      Decimal     @db.Decimal(10, 2)
-  available  Boolean     @default(true)
-  archived   Boolean     @default(false)
-  createdAt  DateTime    @default(now())
+  price      Decimal           @db.Decimal(10, 2)
+  archived   Boolean           @default(false)
+  soldOutIn  MenuItemSoldOut[]
+  createdAt  DateTime          @default(now())
   orderItems OrderItem[]
+}
+
+model PaymentMethod {
+  id          String   @id @default(uuid())
+  name        String
+  active      Boolean  @default(true)
+  qrImageUrl  String?
+  accountInfo String?
+  createdAt   DateTime @default(now())
+  orders      Order[]
 }
 
 enum FulfillmentStatus {
@@ -45,17 +62,30 @@ enum PaymentStatus {
   Paid
 }
 
+enum PaymentChoice {
+  None
+  Counter
+  Online
+}
+
 model Order {
-  id                String            @id @default(uuid())
-  orderNumber       Int               @unique @default(autoincrement())
-  tableId           String
-  table             Table             @relation(fields: [tableId], references: [id])
-  fulfillmentStatus FulfillmentStatus @default(Pending)
-  paymentStatus     PaymentStatus     @default(Unpaid)
-  customerName      String?
-  createdAt         DateTime          @default(now())
-  confirmedAt       DateTime?
-  items             OrderItem[]
+  id                         String            @id @default(uuid())
+  orderNumber                Int               @unique @default(autoincrement())
+  orderingPointId            String
+  orderingPoint              OrderingPoint     @relation(fields: [orderingPointId], references: [id])
+  branchId                   String
+  branch                     Branch            @relation(fields: [branchId], references: [id])
+  fulfillmentStatus          FulfillmentStatus @default(Pending)
+  paymentStatus              PaymentStatus     @default(Unpaid)
+  paymentChoice              PaymentChoice     @default(None)
+  paymentMethodId            String?
+  paymentMethod              PaymentMethod?    @relation(fields: [paymentMethodId], references: [id])
+  paymentMethodNameSnapshot  String?
+  paymentReference           String?
+  customerName               String?
+  createdAt                  DateTime          @default(now())
+  confirmedAt                DateTime?
+  items                      OrderItem[]
 }
 
 model OrderItem {
@@ -67,4 +97,32 @@ model OrderItem {
   nameSnapshot  String
   priceSnapshot Decimal  @db.Decimal(10, 2)
   quantity      Int
+}
+
+model VenueSettings {
+  id              String   @id @default(uuid())
+  acceptingOrders Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}
+
+model Branch {
+  id              String            @id @default(uuid())
+  name            String
+  acceptingOrders Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  orderingPoints  OrderingPoint[]
+  orders          Order[]
+  credential      Credential?
+  soldOutItems    MenuItemSoldOut[]
+}
+
+model MenuItemSoldOut {
+  id         String   @id @default(uuid())
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  branchId   String
+  branch     Branch   @relation(fields: [branchId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([menuItemId, branchId])
 }

@@ -9,8 +9,13 @@ const order: OrderCardOrder = {
   createdAt: '2026-07-04T12:00:00.000Z',
   fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
+  paymentChoice: 'None',
+  paymentMethodNameSnapshot: null,
+  paymentReference: null,
   customerName: 'Edward',
-  table: { number: 4 },
+  branchId: 'b1',
+  branch: { name: 'Main' },
+  orderingPoint: { label: 'Table 4' },
   items: [
     { id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 },
     { id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 },
@@ -131,5 +136,22 @@ describe('OrderCard', () => {
     render(<OrderCard order={{ ...order, customerName: null }} exiting={false} onOpen={vi.fn()} />)
     expect(screen.getByText('Table 4')).toBeInTheDocument()
     expect(screen.queryByText(/· Edward/)).not.toBeInTheDocument()
+  })
+
+  it('renders the Counter ordering point by its stored label', () => {
+    render(<OrderCard order={{ ...order, orderingPoint: { label: 'Counter' } }} exiting={false} onOpen={vi.fn()} />)
+
+    expect(screen.getByText('Counter')).toBeInTheDocument()
+    expect(screen.queryByText('Table 0')).not.toBeInTheDocument()
+  })
+
+  it('shows a branch-name tag when showBranch is true', () => {
+    render(<OrderCard order={order} exiting={false} onOpen={vi.fn()} showBranch />)
+    expect(screen.getByText('· Main')).toBeInTheDocument()
+  })
+
+  it('shows no branch-name tag when showBranch is false or omitted', () => {
+    render(<OrderCard order={order} exiting={false} onOpen={vi.fn()} />)
+    expect(screen.queryByText('· Main')).not.toBeInTheDocument()
   })
 })

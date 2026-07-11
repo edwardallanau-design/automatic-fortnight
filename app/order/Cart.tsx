@@ -143,6 +143,16 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
   const router = useRouter()
 
   function addItem(item: MenuItemProps) {
+    const pendingRemovalTimer = removingLineTimersRef.current.get(item.id)
+    if (pendingRemovalTimer) {
+      clearTimeout(pendingRemovalTimer)
+      removingLineTimersRef.current.delete(item.id)
+      setRemovingLineIds((prev) => {
+        const next = new Set(prev)
+        next.delete(item.id)
+        return next
+      })
+    }
     setLines((prev) => {
       const existing = prev.find((line) => line.menuItemId === item.id)
       if (existing) {
