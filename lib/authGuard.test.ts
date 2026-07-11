@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
   redirect: mockRedirect,
 }))
 
-import { requireRole, requireApiRole } from './authGuard'
+import { requireRole, requireApiRole, peekSession } from './authGuard'
 import { signSession, SESSION_COOKIE_NAME } from './session'
 import { ForbiddenError } from './errors'
 
@@ -79,6 +79,14 @@ describe('requireApiRole', () => {
     expect(result).toEqual({ role: 'admin' })
   })
 
+  it('passes through the branchId from the session', async () => {
+    const token = signSession('staff', 'branch-1')
+    mockCookieGet.mockReturnValue({ name: SESSION_COOKIE_NAME, value: token })
+
+    const result = await requireApiRole('staff')
+    expect(result).toEqual({ role: 'staff', branchId: 'branch-1' })
+  })
+
   it('throws ForbiddenError when no cookie is present', async () => {
     mockCookieGet.mockReturnValue(undefined)
 
@@ -96,5 +104,32 @@ describe('requireApiRole', () => {
     mockCookieGet.mockReturnValue({ name: SESSION_COOKIE_NAME, value: token })
 
     await expect(requireApiRole('admin')).rejects.toThrow(ForbiddenError)
+  })
+})
+
+describe('peekSession', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    process.env.AUTH_SECRET = 'test-secret'
+  })
+
+  it('returns the session when a valid cookie exists', async () => {
+    const token = signSession('staff')
+    mockCookieGet.mockReturnValue({ name: SESSION_COOKIE_NAME, value: token })
+
+    expect(await peekSession()).toEqual({ role: 'staff' })
+  })
+
+  it('returns null when no cookie is present', async () => {
+    mockCookieGet.mockReturnValue(undefined)
+
+    expect(await peekSession()).toBeNull()
+  })
+
+  it('returns null when the cookie is invalid, without redirecting or throwing', async () => {
+    mockCookieGet.mockReturnValue({ name: SESSION_COOKIE_NAME, value: 'garbage' })
+
+    await expect(peekSession()).resolves.toBeNull()
+    expect(mockRedirect).not.toHaveBeenCalled()
   })
 })

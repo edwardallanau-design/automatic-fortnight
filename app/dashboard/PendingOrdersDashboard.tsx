@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { apiClient, ApiError } from '@/lib/apiClient'
+import type { Role } from '@/lib/types'
 import { OrderCard, type OrderCardOrder } from './OrderCard'
 import { OrderDetailModal } from './OrderDetailModal'
 
@@ -25,14 +26,34 @@ async function fetchTabs(): Promise<{ pending: DashboardOrder[]; confirmed: Dash
   return { pending, confirmed }
 }
 
-export function PendingOrdersDashboard() {
+export function PendingOrdersDashboard({
+  role = 'staff',
+  branches = [],
+}: { role?: Role; branches?: { id: string; name: string }[] } = {}) {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [sortDirection, setSortDirection] = useState<'newest' | 'oldest'>('newest')
+  const [activeBranch, setActiveBranch] = useState<'all' | string>('all')
   const [pendingOrders, setPendingOrders] = useState<DashboardOrder[]>([])
   const [confirmedOrders, setConfirmedOrders] = useState<DashboardOrder[]>([])
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
   const [modal, setModal] = useState<ModalState | null>(null)
+  const [menuItems, setMenuItems] = useState<{ id: string; name: string; price: string }[]>([])
   const closeTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    apiClient
+      .get<{ id: string; name: string; price: string; available: boolean }[]>('/api/menu-items')
+      .then((items) => {
+        if (!cancelled) setMenuItems(items.filter((item) => item.available).map((item) => ({ id: item.id, name: item.name, price: item.price })))
+      })
+      .catch(() => {
+        // Non-critical: the add-item picker just stays empty until the next mount.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -103,6 +124,28 @@ export function PendingOrdersDashboard() {
     }
   }
 
+  async function handleCancel(order: DashboardOrder) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
+    try {
+      await apiClient.del(`/api/orders/${order.id}`)
+      setExitingIds((current) => new Set(current).add(order.id))
+      setModal((current) => (current ? { ...current, closing: true } : current))
+      const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
+        closeTimersRef.current.delete(timerId)
+        setPendingOrders((current) => current.filter((o) => o.id !== order.id))
+        setExitingIds((current) => {
+          const next = new Set(current)
+          next.delete(order.id)
+          return next
+        })
+        setModal((current) => (current && current.orderId === order.id && current.closing ? null : current))
+      }, EXIT_MS)
+      closeTimersRef.current.add(timerId)
+    } catch (err) {
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
+    }
+  }
+
   async function handleSetPaymentStatus(order: DashboardOrder, paymentStatus: 'Paid' | 'Unpaid') {
     setModal((current) => (current ? { ...current, busy: true, error: null } : current))
     try {
@@ -111,6 +154,49 @@ export function PendingOrdersDashboard() {
         current.map((o) => (o.id === order.id ? { ...o, paymentStatus: updated.paymentStatus } : o))
       setPendingOrders(applyUpdate)
       setConfirmedOrders(applyUpdate)
+      setModal((current) => (current ? { ...current, busy: false, error: null } : current))
+    } catch (err) {
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
+    }
+  }
+
+  async function refreshTabs() {
+    try {
+      const tabs = await fetchTabs()
+      setPendingOrders(tabs.pending)
+      setConfirmedOrders(tabs.confirmed)
+    } catch {
+      // Keep last-known lists; the next scheduled poll will retry.
+    }
+  }
+
+  async function handleAddItem(order: DashboardOrder, menuItemId: string) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
+    try {
+      await apiClient.post(`/api/orders/${order.id}/items`, { menuItemId, quantity: 1 })
+      await refreshTabs()
+      setModal((current) => (current ? { ...current, busy: false, error: null } : current))
+    } catch (err) {
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
+    }
+  }
+
+  async function handleAdjustQuantity(order: DashboardOrder, itemId: string, quantity: number) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
+    try {
+      await apiClient.patch(`/api/orders/${order.id}/items/${itemId}`, { quantity })
+      await refreshTabs()
+      setModal((current) => (current ? { ...current, busy: false, error: null } : current))
+    } catch (err) {
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
+    }
+  }
+
+  async function handleRemoveItem(order: DashboardOrder, itemId: string) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
+    try {
+      await apiClient.del(`/api/orders/${order.id}/items/${itemId}`)
+      await refreshTabs()
       setModal((current) => (current ? { ...current, busy: false, error: null } : current))
     } catch (err) {
       setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
@@ -126,7 +212,12 @@ export function PendingOrdersDashboard() {
     return sortDirection === 'newest' ? sorted.reverse() : sorted
   }
 
-  const activeOrders = activeTab === 'pending' ? pendingOrders : sortConfirmedOrders(confirmedOrders)
+  function branchFiltered(list: DashboardOrder[]): DashboardOrder[] {
+    return activeBranch === 'all' ? list : list.filter((o) => o.branchId === activeBranch)
+  }
+
+  const activeOrders = branchFiltered(activeTab === 'pending' ? pendingOrders : sortConfirmedOrders(confirmedOrders))
+  const showBranchTag = branches.length > 0 && activeBranch === 'all'
   const emptyMessage = activeTab === 'pending' ? 'No pending orders' : 'No orders confirmed yet today'
 
   return (
@@ -136,6 +227,32 @@ export function PendingOrdersDashboard() {
         <span>Live — refreshes every few seconds</span>
       </div>
 
+      {branches.length > 0 && (
+        <div className="order-rail__tabs order-rail__tabs--branch" role="tablist" aria-label="Branch">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeBranch === 'all'}
+            className={`order-rail__tab${activeBranch === 'all' ? ' order-rail__tab--active' : ''}`}
+            onClick={() => setActiveBranch('all')}
+          >
+            All
+          </button>
+          {branches.map((branch) => (
+            <button
+              key={branch.id}
+              type="button"
+              role="tab"
+              aria-selected={activeBranch === branch.id}
+              className={`order-rail__tab${activeBranch === branch.id ? ' order-rail__tab--active' : ''}`}
+              onClick={() => setActiveBranch(branch.id)}
+            >
+              {branch.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="order-rail__tabs" role="tablist">
         <button
           type="button"
@@ -144,7 +261,7 @@ export function PendingOrdersDashboard() {
           className={`order-rail__tab${activeTab === 'pending' ? ' order-rail__tab--active' : ''}`}
           onClick={() => setActiveTab('pending')}
         >
-          Pending ({pendingOrders.length})
+          Pending ({branchFiltered(pendingOrders).length})
         </button>
         <button
           type="button"
@@ -153,7 +270,7 @@ export function PendingOrdersDashboard() {
           className={`order-rail__tab${activeTab === 'confirmed' ? ' order-rail__tab--active' : ''}`}
           onClick={() => setActiveTab('confirmed')}
         >
-          Confirmed ({confirmedOrders.length})
+          Confirmed ({branchFiltered(confirmedOrders).length})
         </button>
       </div>
 
@@ -183,6 +300,7 @@ export function PendingOrdersDashboard() {
                 key={order.id}
                 order={order}
                 exiting={exitingIds.has(order.id)}
+                showBranch={showBranchTag}
                 onOpen={() => openModal(order.id)}
               />
             ))}
@@ -193,11 +311,17 @@ export function PendingOrdersDashboard() {
       {modal && selectedOrder && (
         <OrderDetailModal
           order={selectedOrder}
+          role={role}
           busy={modal.busy}
           error={modal.error}
           exiting={modal.closing}
+          menuItems={menuItems}
           onConfirm={() => handleConfirm(selectedOrder)}
           onSetPaymentStatus={(paymentStatus) => handleSetPaymentStatus(selectedOrder, paymentStatus)}
+          onCancelOrder={() => handleCancel(selectedOrder)}
+          onAddItem={(menuItemId) => handleAddItem(selectedOrder, menuItemId)}
+          onAdjustQuantity={(itemId, quantity) => handleAdjustQuantity(selectedOrder, itemId, quantity)}
+          onRemoveItem={(itemId) => handleRemoveItem(selectedOrder, itemId)}
           onClose={closeModal}
         />
       )}

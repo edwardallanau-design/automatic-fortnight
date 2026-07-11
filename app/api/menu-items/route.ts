@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { createMenuItem, listMenuItems } from '@/lib/menuService'
+import { createMenuItem, listMenuItemsWithAvailability } from '@/lib/menuService'
+import { resolveBranchId } from '@/lib/branchService'
 import { handleApiError } from '@/lib/handleApiError'
 import { requireApiRole } from '@/lib/authGuard'
 import { ValidationError } from '@/lib/errors'
 
 export async function GET() {
   try {
-    await requireApiRole('staff')
-
-    const items = await listMenuItems()
+    const session = await requireApiRole('staff')
+    const branchId = await resolveBranchId(session)
+    const items = await listMenuItemsWithAvailability(branchId)
     return NextResponse.json(items, { status: 200 })
   } catch (error) {
     return handleApiError(error)

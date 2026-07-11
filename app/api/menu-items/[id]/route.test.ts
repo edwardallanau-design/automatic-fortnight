@@ -44,16 +44,6 @@ describe('PATCH /api/menu-items/[id]', () => {
     expect(updateMenuItem).toHaveBeenCalledWith('m1', { name: 'Cheeseburger', price: expect.any(Prisma.Decimal) })
   })
 
-  it('allows updating only available', async () => {
-    const updated = { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: false, archived: false, createdAt: new Date() }
-    vi.mocked(updateMenuItem).mockResolvedValue(updated as never)
-
-    const res = await PATCH(makePatchRequest({ available: false }), makeContext('m1'))
-
-    expect(res.status).toBe(200)
-    expect(updateMenuItem).toHaveBeenCalledWith('m1', { available: false })
-  })
-
   it('returns 404 when the item does not exist', async () => {
     vi.mocked(updateMenuItem).mockRejectedValue(new NotFoundError('Menu item not found'))
 

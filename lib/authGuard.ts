@@ -9,7 +9,7 @@ const ROLE_RANK: Record<Role, number> = {
   admin: 2,
 }
 
-export async function requireRole(minRole: Role): Promise<{ role: Role }> {
+export async function requireRole(minRole: Role): Promise<{ role: Role; branchId?: string }> {
   const cookieStore = await cookies()
   const cookie = cookieStore.get(SESSION_COOKIE_NAME)
 
@@ -22,7 +22,7 @@ export async function requireRole(minRole: Role): Promise<{ role: Role }> {
   return session
 }
 
-export async function requireApiRole(minRole: Role): Promise<{ role: Role }> {
+export async function requireApiRole(minRole: Role): Promise<{ role: Role; branchId?: string }> {
   const cookieStore = await cookies()
   const cookie = cookieStore.get(SESSION_COOKIE_NAME)
 
@@ -33,4 +33,10 @@ export async function requireApiRole(minRole: Role): Promise<{ role: Role }> {
   }
 
   return session
+}
+
+export async function peekSession(): Promise<{ role: Role; branchId?: string } | null> {
+  const cookieStore = await cookies()
+  const cookie = cookieStore.get(SESSION_COOKIE_NAME)
+  return cookie ? verifySession(cookie.value) : null
 }

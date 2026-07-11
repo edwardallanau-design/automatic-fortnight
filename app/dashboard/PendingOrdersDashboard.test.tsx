@@ -7,14 +7,15 @@ vi.mock('@/lib/apiClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/apiClient')>()
   return {
     ...actual,
-    apiClient: { get: vi.fn(), patch: vi.fn() },
+    apiClient: { get: vi.fn(), patch: vi.fn(), del: vi.fn(), post: vi.fn() },
   }
 })
 
-type Tabs = { pending?: unknown[]; confirmed?: unknown[] }
+type Tabs = { pending?: unknown[]; confirmed?: unknown[]; menuItems?: unknown[] }
 
-function mockTabs({ pending = [], confirmed = [] }: Tabs = {}) {
+function mockTabs({ pending = [], confirmed = [], menuItems = [] }: Tabs = {}) {
   vi.mocked(apiClient.get).mockImplementation((path: string) => {
+    if (path.includes('/api/menu-items')) return Promise.resolve(menuItems)
     if (path.includes('status=confirmed')) return Promise.resolve(confirmed)
     return Promise.resolve(pending)
   })
@@ -27,7 +28,9 @@ const orderA = {
   fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
   customerName: null,
-  table: { number: 4 },
+  branchId: 'b1',
+  branch: { name: 'Main' },
+  orderingPoint: { label: 'Table 4' },
   items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
 }
 
@@ -38,7 +41,9 @@ const orderB = {
   fulfillmentStatus: 'Pending',
   paymentStatus: 'Unpaid',
   customerName: null,
-  table: { number: 7 },
+  branchId: 'b2',
+  branch: { name: 'Downtown' },
+  orderingPoint: { label: 'Table 7' },
   items: [{ id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
 }
 
@@ -333,6 +338,129 @@ describe('PendingOrdersDashboard', () => {
     expect(apiClient.patch).not.toHaveBeenCalled()
   })
 
+  it('shows a Cancel order button for a Pending order and cancels it after confirming', async () => {
+    mockTabs({ pending: [orderA] })
+    vi.mocked(apiClient.del).mockResolvedValue(undefined)
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel order' }))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, cancel' }))
+    })
+
+    expect(apiClient.del).toHaveBeenCalledWith('/api/orders/o1')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByText('Table 4')).not.toBeInTheDocument()
+  })
+
+  it('does not show a Cancel order button for a Confirmed order', async () => {
+    mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed' }] })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (1)' }))
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    expect(screen.queryByRole('button', { name: 'Cancel order' })).not.toBeInTheDocument()
+  })
+
+  it('adds an item from the picker, calling POST and refreshing the tabs', async () => {
+    mockTabs({ pending: [orderA], menuItems: [{ id: 'm2', name: 'Fries', price: '4.00', available: true }] })
+    vi.mocked(apiClient.post).mockResolvedValue({})
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Add an item' }), { target: { value: 'm2' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    })
+
+    expect(apiClient.post).toHaveBeenCalledWith('/api/orders/o1/items', { menuItemId: 'm2', quantity: 1 })
+  })
+
+  it('adjusts a line item quantity with the stepper, calling PATCH', async () => {
+    mockTabs({ pending: [orderA] })
+    vi.mocked(apiClient.patch).mockResolvedValue({})
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Increase Burger quantity' }))
+    })
+
+    expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/items/i1', { quantity: 3 })
+  })
+
+  it('removes a line item after confirming, calling DELETE', async () => {
+    const twoItemOrder = {
+      ...orderA,
+      items: [...orderA.items, { id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
+    }
+    mockTabs({ pending: [twoItemOrder] })
+    vi.mocked(apiClient.del).mockResolvedValue(undefined)
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Fries' }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    })
+
+    expect(apiClient.del).toHaveBeenCalledWith('/api/orders/o1/items/i2')
+  })
+
+  it('does not render editable item controls for a Confirmed order when the session role is staff', async () => {
+    mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed' }] })
+    render(<PendingOrdersDashboard role="staff" />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (1)' }))
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    expect(screen.queryByRole('button', { name: 'Increase Burger quantity' })).not.toBeInTheDocument()
+  })
+
+  it('renders editable item controls for a Confirmed order when the session role is admin', async () => {
+    mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed' }] })
+    render(<PendingOrdersDashboard role="admin" />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (1)' }))
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    expect(screen.getByRole('button', { name: 'Increase Burger quantity' })).toBeInTheDocument()
+  })
+
   it('does not let a stale close timer from order A clobber a modal reopened for order B', async () => {
     mockTabs({ pending: [orderA, orderB] })
     render(<PendingOrdersDashboard />)
@@ -382,5 +510,117 @@ describe('PendingOrdersDashboard', () => {
 
     expect(screen.getByRole('dialog', { name: 'Order 101' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
+  })
+
+  describe('branch tabs (admin only)', () => {
+    it('renders no branch tab strip when branches is empty', async () => {
+      mockTabs({ pending: [orderA] })
+      render(<PendingOrdersDashboard />)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(screen.queryByRole('tablist', { name: 'Branch' })).not.toBeInTheDocument()
+    })
+
+    it('renders an All tab plus one tab per branch when branches is non-empty', async () => {
+      mockTabs({ pending: [orderA, orderB] })
+      render(
+        <PendingOrdersDashboard
+          branches={[
+            { id: 'b1', name: 'Main' },
+            { id: 'b2', name: 'Downtown' },
+          ]}
+        />,
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      const branchTablist = screen.getByRole('tablist', { name: 'Branch' })
+      expect(within(branchTablist).getByRole('tab', { name: 'All' })).toBeInTheDocument()
+      expect(within(branchTablist).getByRole('tab', { name: 'Main' })).toBeInTheDocument()
+      expect(within(branchTablist).getByRole('tab', { name: 'Downtown' })).toBeInTheDocument()
+    })
+
+    it('defaults to the All tab, showing every branch\'s orders with a branch tag on each card', async () => {
+      mockTabs({ pending: [orderA, orderB] })
+      render(
+        <PendingOrdersDashboard
+          branches={[
+            { id: 'b1', name: 'Main' },
+            { id: 'b2', name: 'Downtown' },
+          ]}
+        />,
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(screen.getByText('Table 4')).toBeInTheDocument()
+      expect(screen.getByText('Table 7')).toBeInTheDocument()
+      expect(screen.getByText('· Main')).toBeInTheDocument()
+      expect(screen.getByText('· Downtown')).toBeInTheDocument()
+    })
+
+    it('switching to a specific branch tab filters the already-fetched list client-side, with no new fetch call', async () => {
+      mockTabs({ pending: [orderA, orderB] })
+      render(
+        <PendingOrdersDashboard
+          branches={[
+            { id: 'b1', name: 'Main' },
+            { id: 'b2', name: 'Downtown' },
+          ]}
+        />,
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      const fetchCallCount = vi.mocked(apiClient.get).mock.calls.length
+
+      const branchTablist = screen.getByRole('tablist', { name: 'Branch' })
+      fireEvent.click(within(branchTablist).getByRole('tab', { name: 'Downtown' }))
+
+      expect(screen.getByText('Table 7')).toBeInTheDocument()
+      expect(screen.queryByText('Table 4')).not.toBeInTheDocument()
+      expect(vi.mocked(apiClient.get).mock.calls.length).toBe(fetchCallCount)
+    })
+
+    it('hides the branch tag and branch-scopes the tab counts once a specific branch tab is active', async () => {
+      mockTabs({ pending: [orderA, orderB] })
+      render(
+        <PendingOrdersDashboard
+          branches={[
+            { id: 'b1', name: 'Main' },
+            { id: 'b2', name: 'Downtown' },
+          ]}
+        />,
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      const branchTablist = screen.getByRole('tablist', { name: 'Branch' })
+      fireEvent.click(within(branchTablist).getByRole('tab', { name: 'Downtown' }))
+
+      expect(screen.queryByText('· Downtown')).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Pending (1)' })).toBeInTheDocument()
+    })
+
+    it('never shows a branch tag when branches is empty, even though activeBranch defaults to "all"', async () => {
+      mockTabs({ pending: [orderA] })
+      render(<PendingOrdersDashboard />)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(screen.queryByText('· Main')).not.toBeInTheDocument()
+    })
   })
 })

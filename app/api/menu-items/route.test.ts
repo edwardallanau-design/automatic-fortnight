@@ -5,14 +5,19 @@ import { ForbiddenError } from '@/lib/errors'
 
 vi.mock('@/lib/menuService', () => ({
   createMenuItem: vi.fn(),
-  listMenuItems: vi.fn(),
+  listMenuItemsWithAvailability: vi.fn(),
+}))
+
+vi.mock('@/lib/branchService', () => ({
+  resolveBranchId: vi.fn(),
 }))
 
 vi.mock('@/lib/authGuard', () => ({
   requireApiRole: vi.fn(),
 }))
 
-import { createMenuItem, listMenuItems } from '@/lib/menuService'
+import { createMenuItem, listMenuItemsWithAvailability } from '@/lib/menuService'
+import { resolveBranchId } from '@/lib/branchService'
 import { requireApiRole } from '@/lib/authGuard'
 
 function makePostRequest(body: unknown): Request {
@@ -25,19 +30,37 @@ function makePostRequest(body: unknown): Request {
 describe('GET /api/menu-items', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff' })
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff', branchId: 'b1' })
+    vi.mocked(resolveBranchId).mockResolvedValue('b1')
   })
 
-  it('returns 200 with the list for a staff caller', async () => {
-    const items = [{ id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() }]
-    vi.mocked(listMenuItems).mockResolvedValue(items as never)
+  it('returns 200 with the branch-scoped list for a staff caller, including availability', async () => {
+    const items = [
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() },
+      { id: 'm2', name: 'Fries', price: new Prisma.Decimal('4.00'), available: false, archived: false, createdAt: new Date() },
+    ]
+    vi.mocked(listMenuItemsWithAvailability).mockResolvedValue(items as never)
 
     const res = await GET()
 
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body).toHaveLength(1)
+    expect(body).toHaveLength(2)
     expect(body[0].name).toBe('Burger')
+    expect(typeof body[0].available).toBe('boolean')
+    expect(body[0].available).toBe(true)
+    expect(typeof body[1].available).toBe('boolean')
+    expect(body[1].available).toBe(false)
+  })
+
+  it('gates the request behind requireApiRole("staff") and scopes it via resolveBranchId(session)', async () => {
+    vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([])
+
+    await GET()
+
+    expect(requireApiRole).toHaveBeenCalledWith('staff')
+    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'staff', branchId: 'b1' })
+    expect(listMenuItemsWithAvailability).toHaveBeenCalledWith('b1')
   })
 
   it('returns 403 when unauthenticated', async () => {
@@ -46,6 +69,7 @@ describe('GET /api/menu-items', () => {
     const res = await GET()
 
     expect(res.status).toBe(403)
+    expect(listMenuItemsWithAvailability).not.toHaveBeenCalled()
   })
 })
 

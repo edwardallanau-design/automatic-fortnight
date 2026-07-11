@@ -17,6 +17,9 @@ const order = {
   id: 'o1',
   orderNumber: 101,
   customerName: 'Edward',
+  paymentChoice: 'Counter' as const,
+  paymentMethodNameSnapshot: null,
+  paymentReference: null,
   items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }],
 }
 
@@ -84,5 +87,16 @@ describe('OrderStatusPoller', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Cancel order' })).toBeInTheDocument()
+  })
+
+  it('shows the payment note on the confirmed ticket', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ fulfillmentStatus: 'Confirmed' })
+    render(<OrderStatusPoller order={{ ...order, paymentChoice: 'Online', paymentMethodNameSnapshot: 'GCash', paymentReference: 'TXN123' }} />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3500)
+    })
+
+    expect(screen.getByText('You chose to pay online via GCash. Reference: TXN123.')).toBeInTheDocument()
   })
 })

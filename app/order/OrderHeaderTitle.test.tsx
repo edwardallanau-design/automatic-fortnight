@@ -7,8 +7,8 @@ describe('OrderHeaderTitle', () => {
     sessionStorage.clear()
   })
 
-  it('renders only the table number when no name is stored', () => {
-    render(<OrderHeaderTitle tableId="t1" tableNumber={5} />)
+  it('renders only the label when no name is stored', () => {
+    render(<OrderHeaderTitle tableId="t1" label="Table 5" />)
 
     const heading = screen.getByRole('heading', { level: 1 })
     expect(heading).toHaveTextContent('Table 5')
@@ -17,15 +17,21 @@ describe('OrderHeaderTitle', () => {
 
   it('appends the stored name for this table', () => {
     sessionStorage.setItem('orderName:t1', 'Edward')
-    render(<OrderHeaderTitle tableId="t1" tableNumber={5} />)
+    render(<OrderHeaderTitle tableId="t1" label="Table 5" />)
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Table 5 · Edward')
   })
 
   it('ignores names stored for other tables', () => {
     sessionStorage.setItem('orderName:t2', 'Edward')
-    render(<OrderHeaderTitle tableId="t1" tableNumber={5} />)
+    render(<OrderHeaderTitle tableId="t1" label="Table 5" />)
 
     expect(screen.getByRole('heading', { level: 1 }).textContent).not.toContain('Edward')
+  })
+
+  it('renders the label verbatim, e.g. "Counter" for a counter ordering point', () => {
+    render(<OrderHeaderTitle tableId="t0" label="Counter" />)
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Counter')
   })
 })

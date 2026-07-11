@@ -9,8 +9,13 @@ export type OrderCardOrder = {
   confirmedAt?: string | null
   fulfillmentStatus: 'Pending' | 'Confirmed'
   paymentStatus: 'Unpaid' | 'Paid'
+  paymentChoice: 'None' | 'Counter' | 'Online'
+  paymentMethodNameSnapshot: string | null
+  paymentReference: string | null
   customerName: string | null
-  table: { number: number }
+  branchId: string
+  branch: { name: string }
+  orderingPoint: { label: string }
   items: OrderCardItem[]
 }
 
@@ -30,10 +35,12 @@ function orderTotal(order: OrderCardOrder): number {
 export function OrderCard({
   order,
   exiting,
+  showBranch = false,
   onOpen,
 }: {
   order: OrderCardOrder
   exiting: boolean
+  showBranch?: boolean
   onOpen: () => void
 }) {
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
@@ -47,13 +54,14 @@ export function OrderCard({
       <button
         type="button"
         className={`order-card${exiting ? ' order-card--exiting' : ''}`}
-        aria-label={`Order ${order.orderNumber}, table ${order.table.number}`}
+        aria-label={`Order ${order.orderNumber}, ${order.orderingPoint.label}`}
         onClick={onOpen}
       >
         <span className="order-card__stub">#{order.orderNumber}</span>
         <span className="order-card__table">
-          Table {order.table.number}
+          {order.orderingPoint.label}
           {order.customerName && <span className="order-card__customer"> · {order.customerName}</span>}
+          {showBranch && <span className="order-card__branch-tag"> · {order.branch.name}</span>}
         </span>
         <span className="order-card__meta">
           <span className="order-card__time">{timeLabel}</span>

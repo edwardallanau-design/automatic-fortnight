@@ -12,8 +12,8 @@ export async function POST(request: Request) {
       throw new ValidationError('password is required')
     }
 
-    const { role } = await login(body.password)
-    const token = signSession(role)
+    const { role, branchId } = await login(body.password)
+    const token = signSession(role, branchId)
 
     const response = NextResponse.json({ role }, { status: 200 })
     response.cookies.set(SESSION_COOKIE_NAME, token, {

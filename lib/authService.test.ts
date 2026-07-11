@@ -17,24 +17,24 @@ describe('authService.login', () => {
     vi.clearAllMocks()
   })
 
-  it('returns role staff when password matches the staff credential', async () => {
+  it('returns role and branchId when password matches a branch-scoped staff credential', async () => {
     const staffHash = await bcrypt.hash('staff-temp-pw', 10)
     const adminHash = await bcrypt.hash('admin-temp-pw', 10)
     vi.mocked(prisma.credential.findMany).mockResolvedValue([
-      { id: '1', role: 'staff', passwordHash: staffHash },
-      { id: '2', role: 'admin', passwordHash: adminHash },
+      { id: '1', role: 'staff', branchId: 'branch-1', passwordHash: staffHash },
+      { id: '2', role: 'admin', branchId: null, passwordHash: adminHash },
     ] as never)
 
     const result = await login('staff-temp-pw')
-    expect(result).toEqual({ role: 'staff' })
+    expect(result).toEqual({ role: 'staff', branchId: 'branch-1' })
   })
 
-  it('returns role admin when password matches the admin credential', async () => {
+  it('returns role admin with no branchId when password matches the admin credential', async () => {
     const staffHash = await bcrypt.hash('staff-temp-pw', 10)
     const adminHash = await bcrypt.hash('admin-temp-pw', 10)
     vi.mocked(prisma.credential.findMany).mockResolvedValue([
-      { id: '1', role: 'staff', passwordHash: staffHash },
-      { id: '2', role: 'admin', passwordHash: adminHash },
+      { id: '1', role: 'staff', branchId: 'branch-1', passwordHash: staffHash },
+      { id: '2', role: 'admin', branchId: null, passwordHash: adminHash },
     ] as never)
 
     const result = await login('admin-temp-pw')
@@ -44,7 +44,7 @@ describe('authService.login', () => {
   it('throws InvalidCredentialError when password matches nothing', async () => {
     const staffHash = await bcrypt.hash('staff-temp-pw', 10)
     vi.mocked(prisma.credential.findMany).mockResolvedValue([
-      { id: '1', role: 'staff', passwordHash: staffHash },
+      { id: '1', role: 'staff', branchId: 'branch-1', passwordHash: staffHash },
     ] as never)
 
     await expect(login('wrong-password')).rejects.toThrow(InvalidCredentialError)

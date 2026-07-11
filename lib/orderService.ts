@@ -1,39 +1,54 @@
-import type { Order, OrderItem, Table, FulfillmentStatus, PaymentStatus, Prisma } from '@prisma/client'
+import type { Order, OrderItem, OrderingPoint, Branch, FulfillmentStatus, PaymentStatus, Prisma } from '@prisma/client'
 import { prisma } from './prisma'
-import { getTableOrThrow } from './tableService'
-import { findMenuItemsByIds } from './menuService'
+import { getOrderingPointOrThrow } from './orderingPointService'
+import { getBranchOrThrow } from './branchService'
+import { findMenuItemsByIds, listSoldOutMenuItemIds } from './menuService'
+import { getVenueSettings } from './venueSettingsService'
+import { getActivePaymentMethodById } from './paymentMethodService'
 import { NotFoundError, ConflictError, ValidationError } from './errors'
+import type { Role } from './types'
 
 export type CartItemInput = { menuItemId: string; quantity: number }
 export type OrderWithItems = Order & { items: OrderItem[] }
 
 export async function createOrder(
-  tableId: string,
+  orderingPointId: string,
   items: CartItemInput[],
   customerName?: string,
 ): Promise<OrderWithItems> {
+  const settings = await getVenueSettings()
+  if (!settings.acceptingOrders) {
+    throw new ConflictError('Not accepting orders right now')
+  }
+
   if (items.length === 0) {
     throw new ValidationError('Cart must contain at least one item')
   }
 
-  await getTableOrThrow(tableId)
+  const orderingPoint = await getOrderingPointOrThrow(orderingPointId)
+  const branch = await getBranchOrThrow(orderingPoint.branchId)
+  if (!branch.acceptingOrders) {
+    throw new ConflictError('This branch is not accepting orders right now')
+  }
 
   const menuItems = await findMenuItemsByIds(items.map((item) => item.menuItemId))
   const menuItemsById = new Map(menuItems.map((menuItem) => [menuItem.id, menuItem]))
+  const soldOutIds = await listSoldOutMenuItemIds(branch.id)
 
   for (const item of items) {
     const menuItem = menuItemsById.get(item.menuItemId)
     if (!menuItem) {
       throw new NotFoundError(`Menu item ${item.menuItemId} not found`)
     }
-    if (!menuItem.available) {
+    if (soldOutIds.has(menuItem.id)) {
       throw new ConflictError(`${menuItem.name} is no longer available`)
     }
   }
 
   return prisma.order.create({
     data: {
-      tableId,
+      orderingPointId,
+      branchId: branch.id,
       customerName: customerName?.trim() || null,
       items: {
         create: items.map((item) => {
@@ -51,14 +66,16 @@ export async function createOrder(
   })
 }
 
-export type OrderWithItemsAndTable = Order & { items: OrderItem[]; table: Table }
+export type OrderWithItemsAndOrderingPoint = Order & { items: OrderItem[]; orderingPoint: OrderingPoint }
+export type OrderWithItemsOrderingPointAndBranch = OrderWithItemsAndOrderingPoint & { branch: Branch }
 
 export async function listOrders(
-  options: { status?: FulfillmentStatus; paymentStatus?: PaymentStatus; date?: 'today' } = {},
-): Promise<OrderWithItemsAndTable[]> {
+  options: { status?: FulfillmentStatus; paymentStatus?: PaymentStatus; date?: 'today'; branchId?: string } = {},
+): Promise<OrderWithItemsOrderingPointAndBranch[]> {
   const where: Prisma.OrderWhereInput = {}
   if (options.status) where.fulfillmentStatus = options.status
   if (options.paymentStatus) where.paymentStatus = options.paymentStatus
+  if (options.branchId) where.branchId = options.branchId
   if (options.date === 'today') {
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)
@@ -69,7 +86,7 @@ export async function listOrders(
 
   return prisma.order.findMany({
     where,
-    include: { items: true, table: true },
+    include: { items: true, orderingPoint: true, branch: true },
     orderBy: { createdAt: 'asc' },
   })
 }
@@ -119,7 +136,14 @@ export async function cancelOrder(orderId: string): Promise<OrderWithItems> {
   })
 }
 
-export async function removeOrderItem(orderId: string, orderItemId: string): Promise<OrderWithItems> {
+function assertOrderEditable(order: { fulfillmentStatus: FulfillmentStatus }, actorRole?: Role): void {
+  const adminOverride = order.fulfillmentStatus === 'Confirmed' && actorRole === 'admin'
+  if (order.fulfillmentStatus !== 'Pending' && !adminOverride) {
+    throw new ConflictError(`Order is ${order.fulfillmentStatus}, not Pending`)
+  }
+}
+
+export async function removeOrderItem(orderId: string, orderItemId: string, actorRole: Role): Promise<OrderWithItems> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { items: true },
@@ -127,9 +151,7 @@ export async function removeOrderItem(orderId: string, orderItemId: string): Pro
   if (!order) {
     throw new NotFoundError('Order not found')
   }
-  if (order.fulfillmentStatus !== 'Pending') {
-    throw new ConflictError(`Order is ${order.fulfillmentStatus}, not Pending`)
-  }
+  assertOrderEditable(order, actorRole)
   if (!order.items.some((item) => item.id === orderItemId)) {
     throw new NotFoundError('Order item not found')
   }
@@ -145,13 +167,151 @@ export async function removeOrderItem(orderId: string, orderItemId: string): Pro
   }) as Promise<OrderWithItems>
 }
 
-export async function getOrderById(orderId: string): Promise<OrderWithItemsAndTable> {
+export async function addOrderItem(
+  orderId: string,
+  menuItemId: string,
+  quantity: number,
+  actorRole: Role,
+): Promise<OrderWithItems> {
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    throw new ValidationError('quantity must be a positive integer')
+  }
+
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, table: true },
+    include: { items: true },
+  })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  assertOrderEditable(order, actorRole)
+
+  const [menuItem] = await findMenuItemsByIds([menuItemId])
+  if (!menuItem) {
+    throw new NotFoundError('Menu item not found')
+  }
+  const soldOutIds = await listSoldOutMenuItemIds(order.branchId)
+  if (soldOutIds.has(menuItem.id)) {
+    throw new ConflictError(`${menuItem.name} is no longer available`)
+  }
+
+  const existingLine = order.items.find((item) => item.menuItemId === menuItemId)
+  if (existingLine) {
+    await prisma.orderItem.update({
+      where: { id: existingLine.id },
+      data: { quantity: existingLine.quantity + quantity },
+    })
+  } else {
+    await prisma.orderItem.create({
+      data: {
+        orderId,
+        menuItemId,
+        quantity,
+        nameSnapshot: menuItem.name,
+        priceSnapshot: menuItem.price,
+      },
+    })
+  }
+
+  return prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  }) as Promise<OrderWithItems>
+}
+
+export async function updateOrderItemQuantity(
+  orderId: string,
+  orderItemId: string,
+  quantity: number,
+  actorRole: Role,
+): Promise<OrderWithItems> {
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    throw new ValidationError('quantity must be a positive integer')
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  assertOrderEditable(order, actorRole)
+  if (!order.items.some((item) => item.id === orderItemId)) {
+    throw new NotFoundError('Order item not found')
+  }
+
+  await prisma.orderItem.update({ where: { id: orderItemId }, data: { quantity } })
+
+  return prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  }) as Promise<OrderWithItems>
+}
+
+export async function getOrderById(orderId: string): Promise<OrderWithItemsAndOrderingPoint> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true, orderingPoint: true },
   })
   if (!order) {
     throw new NotFoundError('Order not found')
   }
   return order
+}
+
+export async function setPaymentChoiceCounter(orderId: string): Promise<OrderWithItems> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  if (order.paymentChoice !== 'None') {
+    throw new ConflictError('Payment choice has already been made for this order')
+  }
+  if (order.fulfillmentStatus === 'Cancelled') {
+    throw new ConflictError('Order is Cancelled')
+  }
+
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { paymentChoice: 'Counter' },
+    include: { items: true },
+  })
+}
+
+export async function setPaymentChoiceOnline(
+  orderId: string,
+  paymentMethodId: string,
+  reference: string,
+): Promise<OrderWithItems> {
+  if (typeof reference !== 'string' || reference.trim() === '') {
+    throw new ValidationError('reference is required')
+  }
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order) {
+    throw new NotFoundError('Order not found')
+  }
+  if (order.paymentChoice !== 'None') {
+    throw new ConflictError('Payment choice has already been made for this order')
+  }
+  if (order.fulfillmentStatus === 'Cancelled') {
+    throw new ConflictError('Order is Cancelled')
+  }
+
+  const method = await getActivePaymentMethodById(paymentMethodId)
+  if (!method) {
+    throw new ConflictError('Selected payment method is no longer available')
+  }
+
+  return prisma.order.update({
+    where: { id: orderId },
+    data: {
+      paymentChoice: 'Online',
+      paymentMethodId: method.id,
+      paymentMethodNameSnapshot: method.name,
+      paymentReference: reference.trim(),
+    },
+    include: { items: true },
+  })
 }

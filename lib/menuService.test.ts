@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
-import { createMenuItem, updateMenuItem, archiveMenuItem, listMenuItems, findMenuItemsByIds } from './menuService'
+import {
+  createMenuItem,
+  updateMenuItem,
+  archiveMenuItem,
+  listMenuItems,
+  findMenuItemsByIds,
+  listSoldOutMenuItemIds,
+  setMenuItemSoldOut,
+  listMenuItemsWithAvailability,
+} from './menuService'
 import { NotFoundError } from './errors'
 import { prisma } from './prisma'
 
@@ -11,6 +20,11 @@ vi.mock('./prisma', () => ({
       update: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
+    },
+    menuItemSoldOut: {
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      deleteMany: vi.fn(),
     },
   },
 }))
@@ -59,7 +73,7 @@ describe('menuService.updateMenuItem', () => {
       }) as never,
     )
 
-    await expect(updateMenuItem('missing', { available: false })).rejects.toThrow(NotFoundError)
+    await expect(updateMenuItem('missing', { name: 'X' })).rejects.toThrow(NotFoundError)
   })
 })
 
@@ -125,5 +139,71 @@ describe('menuService.findMenuItemsByIds', () => {
     expect(prisma.menuItem.findMany).toHaveBeenCalledWith({
       where: { id: { in: ['m1'] } },
     })
+  })
+})
+
+describe('menuService.listSoldOutMenuItemIds', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns the set of menu item ids sold out in the given branch', async () => {
+    vi.mocked(prisma.menuItemSoldOut.findMany).mockResolvedValue([
+      { menuItemId: 'm1' },
+      { menuItemId: 'm2' },
+    ] as never)
+
+    const result = await listSoldOutMenuItemIds('b1')
+    expect(result).toEqual(new Set(['m1', 'm2']))
+    expect(prisma.menuItemSoldOut.findMany).toHaveBeenCalledWith({
+      where: { branchId: 'b1' },
+      select: { menuItemId: true },
+    })
+  })
+})
+
+describe('menuService.setMenuItemSoldOut', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('upserts a MenuItemSoldOut row when marking sold out', async () => {
+    await setMenuItemSoldOut('m1', 'b1', true)
+
+    expect(prisma.menuItemSoldOut.upsert).toHaveBeenCalledWith({
+      where: { menuItemId_branchId: { menuItemId: 'm1', branchId: 'b1' } },
+      update: {},
+      create: { menuItemId: 'm1', branchId: 'b1' },
+    })
+  })
+
+  it('deletes the MenuItemSoldOut row when marking available', async () => {
+    await setMenuItemSoldOut('m1', 'b1', false)
+
+    expect(prisma.menuItemSoldOut.deleteMany).toHaveBeenCalledWith({
+      where: { menuItemId: 'm1', branchId: 'b1' },
+    })
+    expect(prisma.menuItemSoldOut.upsert).not.toHaveBeenCalled()
+  })
+})
+
+describe('menuService.listMenuItemsWithAvailability', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('marks items present in MenuItemSoldOut as unavailable, others as available', async () => {
+    vi.mocked(prisma.menuItem.findMany).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: { toString: () => '12.50' }, archived: false, createdAt: new Date() },
+      { id: 'm2', name: 'Fries', price: { toString: () => '4.00' }, archived: false, createdAt: new Date() },
+    ] as never)
+    vi.mocked(prisma.menuItemSoldOut.findMany).mockResolvedValue([{ menuItemId: 'm2' }] as never)
+
+    const result = await listMenuItemsWithAvailability('b1')
+
+    expect(result).toEqual([
+      expect.objectContaining({ id: 'm1', available: true }),
+      expect.objectContaining({ id: 'm2', available: false }),
+    ])
   })
 })
