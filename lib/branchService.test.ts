@@ -98,11 +98,21 @@ describe('branchService.resolveBranchId', () => {
     expect(prisma.branch.findFirst).not.toHaveBeenCalled()
   })
 
-  it('falls back to the Main branch when the session has no branchId and no requestedBranchId is given', async () => {
-    vi.mocked(prisma.branch.findFirst).mockResolvedValue({ id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() } as never)
+  it('falls back to the first branch (by name) when the session has no branchId and no requestedBranchId is given', async () => {
+    vi.mocked(prisma.branch.findMany).mockResolvedValue([
+      { id: 'b2', name: 'Downtown', acceptingOrders: true, createdAt: new Date() },
+      { id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() },
+    ] as never)
 
     const result = await resolveBranchId({})
-    expect(result).toBe('b1')
+    expect(result).toBe('b2')
+    expect(prisma.branch.findMany).toHaveBeenCalledWith({ orderBy: { name: 'asc' } })
+  })
+
+  it('throws NotFoundError when no branches exist at all and no requestedBranchId is given', async () => {
+    vi.mocked(prisma.branch.findMany).mockResolvedValue([])
+
+    await expect(resolveBranchId({})).rejects.toThrow(NotFoundError)
   })
 
   it('throws NotFoundError when requestedBranchId does not name a real branch', async () => {

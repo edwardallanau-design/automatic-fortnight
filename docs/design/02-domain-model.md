@@ -8,7 +8,7 @@
 - **Order Item** — one line within an order: a reference to a menu item, a quantity, and a **price snapshot** captured at the moment it was added.
 - **Fulfillment status** — where an order stands in the kitchen/staff workflow: Pending → Confirmed, or Pending → Cancelled.
 - **Payment status** — whether an order has been paid: Unpaid → Paid. Tracked independently of fulfillment status, because the restaurant supports both pay-as-you-order and pay-at-the-end.
-- **Venue Settings** — venue-wide operational state, currently a single `acceptingOrders` flag controlling whether new orders may be created at all, regardless of who submits them.
+- **Venue Settings** — a vestigial venue-wide singleton; its `acceptingOrders` flag is no longer read by any code path (see `INV-10`) and no UI exposes it. Kept in the schema only to avoid a destructive migration.
 - **Payment Method** — an admin-managed way a customer can pay online (e.g. an e-wallet or bank transfer), each with a name and either a QR image, an account/wallet number, or both.
 - **Payment Choice** — how a customer said they'd pay for their own order: unset, at the counter, or online (with a chosen Payment Method + a self-reported reference number). Independent of, and never a substitute for, staff's own `paymentStatus` determination.
 
@@ -27,7 +27,7 @@
 - **MenuItemSoldOut** (new) — `menuItem` (ref), `branch` (ref), unique per pair. Presence of a row means that item is sold out in that branch; absence means available. A newly created branch starts with everything available with no rows to create.
 - **Order** — `orderingPoint` (ref), `branch` (ref, captured from `orderingPoint.branch` at the moment of creation), `fulfillmentStatus`, `paymentStatus`, `paymentChoice`, `paymentMethod` (ref, optional), `paymentMethodNameSnapshot` (optional), `paymentReference` (optional), `orderNumber`, `customerName` (optional, captured at submission, immutable afterward), `createdAt`, `confirmedAt` — the aggregate root for a customer's visit.
 - **OrderItem** — `menuItem` (ref), `nameSnapshot`, `priceSnapshot`, `quantity` — a line item belonging to exactly one Order.
-- **VenueSettings** — a singleton, `acceptingOrders` (boolean) — venue-wide operational state, no lifecycle beyond this one flag today. Owner/Admin is the only actor who may change it.
+- **VenueSettings** — a singleton, `acceptingOrders` (boolean) — vestigial: no code reads or writes it after 2026-07-11's branch-context redesign (see `INV-10`); retained in the schema only to avoid a destructive migration.
 - **PaymentMethod** — `name`, `active` (boolean), `qrImageUrl` (optional), `accountInfo` (optional) — admin-managed; deactivated (not deleted) once an Order references it, to preserve history.
 
 **Aggregates.**
@@ -45,7 +45,7 @@
 - `INV-7` A MenuItem sold out **in the branch of the order's OrderingPoint** cannot be added as a new OrderItem to that order. (Was: sold out globally blocks it everywhere — now the same rule, scoped per branch.) Existing OrderItems referencing it are unaffected (their snapshot already exists — see `INV-3`).
 - `INV-8` `paymentStatus` transitions independently of `fulfillmentStatus` — an order can be marked Paid while Pending or while Confirmed. There is no rule tying payment timing to confirmation.
 - `INV-9` Reverting `paymentStatus` from Paid back to Unpaid may be performed by any authenticated staff or admin session — no role restriction. (Originally Owner/Admin-only; relaxed 2026-07-08 so staff can self-correct a mis-marked payment without needing an admin.)
-- `INV-10` A new Order may be created only while **both** `VenueSettings.acceptingOrders` (global) **and** the order's branch's `acceptingOrders` are true.
+- `INV-10` A new Order may be created only while the order's branch's `acceptingOrders` is true. (Until 2026-07-11 this also required `VenueSettings.acceptingOrders` (global); that gate was removed as part of the admin UI branch-context redesign — see `docs/superpowers/specs/2026-07-11-admin-ui-branch-context-redesign-design.md`.)
 - `INV-11` An Order's `paymentChoice` transitions `None → Counter` or `None → Online` exactly once; attempting to set it again, or while `fulfillmentStatus = Cancelled`, is rejected.
 - `INV-12` Setting `paymentChoice = Online` requires a non-empty `paymentReference` and a `paymentMethodId` referencing an `active` PaymentMethod at request time; all four fields (`paymentChoice`, `paymentMethodId`, `paymentMethodNameSnapshot`, `paymentReference`) are written in the same database update. Note: the preceding read-then-write (checking `paymentChoice = None` and `fulfillmentStatus ≠ Cancelled`) is not wrapped in a transaction or guarded by a conditional-update clause, so a concurrent duplicate-choice race is theoretically possible but not prevented; acceptable for now given this is low-stakes choice-tracking, not a security or payment-processing operation.
 - `INV-13` An Order's `branchId` is captured once, from its OrderingPoint's branch, at creation time, and never changes afterward — even if that OrderingPoint is later reassigned to a different branch or deleted. Mirrors the existing snapshot precedent in `INV-3`.
@@ -72,10 +72,9 @@
 - States: `Available` (no row), `SoldOut` (row exists for that MenuItem + Branch pair)
 - `Available → SoldOut` and `SoldOut → Available` (trigger: Staff or Owner/Admin toggles, scoped to their branch) — freely reversible, no restriction.
 
-*VenueSettings — `acceptingOrders`*
+*VenueSettings — `acceptingOrders`* (vestigial as of 2026-07-11 — see `INV-10`)
 - States: `Open` (true), `Closed` (false)
-- `Open → Closed` and `Closed → Open` (trigger: Owner/Admin only) — freely reversible, no restriction.
-- No other actor may transition this flag; Staff may view it but not change it.
+- No longer reachable via any UI or API; the flag stays permanently `true` (its schema default) since nothing can transition it anymore.
 
 *Order — `paymentChoice`* (independent axis, separate from `paymentStatus`)
 - States: `None`, `Counter`, `Online`

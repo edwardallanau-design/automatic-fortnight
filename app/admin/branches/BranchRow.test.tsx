@@ -47,11 +47,31 @@ describe('BranchRow', () => {
     expect(refresh).toHaveBeenCalled()
   })
 
-  it('reveals a rename form when the name is clicked, and saves it', async () => {
+  it('hides Change name / Change password behind a collapsed actions row by default', () => {
+    render(<BranchRow id="b1" name="Main" acceptingOrders={true} />)
+
+    expect(screen.queryByRole('button', { name: 'Change name' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change password' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show actions for Main' })).toBeInTheDocument()
+  })
+
+  it('reveals the actions row when the expand chevron is clicked, and hides it again on a second click', () => {
+    render(<BranchRow id="b1" name="Main" acceptingOrders={true} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show actions for Main' }))
+    expect(screen.getByRole('button', { name: 'Change name' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change password' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide actions for Main' }))
+    expect(screen.queryByRole('button', { name: 'Change name' })).not.toBeInTheDocument()
+  })
+
+  it('reveals a rename form when "Change name" is clicked, and saves it', async () => {
     vi.mocked(apiClient.patch).mockResolvedValue({})
     render(<BranchRow id="b1" name="Main" acceptingOrders={true} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show actions for Main' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change name' }))
     fireEvent.change(screen.getByLabelText('New name for Main'), { target: { value: 'Main Street' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
 
@@ -63,6 +83,7 @@ describe('BranchRow', () => {
     vi.mocked(apiClient.patch).mockResolvedValue({})
     render(<BranchRow id="b1" name="Main" acceptingOrders={true} />)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Show actions for Main' }))
     fireEvent.click(screen.getByRole('button', { name: 'Change password' }))
     fireEvent.change(screen.getByLabelText('New password for Main'), { target: { value: 'new-pw' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save password' }))
@@ -71,10 +92,23 @@ describe('BranchRow', () => {
     expect(refresh).toHaveBeenCalled()
   })
 
+  it('only shows one edit form at a time, switching from name to password', () => {
+    render(<BranchRow id="b1" name="Main" acceptingOrders={true} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show actions for Main' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change name' }))
+    expect(screen.getByLabelText('New name for Main')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(screen.queryByLabelText('New name for Main')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('New password for Main')).toBeInTheDocument()
+  })
+
   it('shows a conflict-specific error when the new password collides', async () => {
     vi.mocked(apiClient.patch).mockRejectedValue(new ApiError('CONFLICT', 'This password is already in use by another branch or the admin login'))
     render(<BranchRow id="b1" name="Main" acceptingOrders={true} />)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Show actions for Main' }))
     fireEvent.click(screen.getByRole('button', { name: 'Change password' }))
     fireEvent.change(screen.getByLabelText('New password for Main'), { target: { value: 'taken-pw' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save password' }))

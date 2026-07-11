@@ -11,6 +11,12 @@ vi.mock('@/lib/apiClient', async (importOriginal) => {
   }
 })
 
+let mockSearchParams = new URLSearchParams()
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => mockSearchParams,
+}))
+
 type Tabs = { pending?: unknown[]; confirmed?: unknown[]; menuItems?: unknown[] }
 
 function mockTabs({ pending = [], confirmed = [], menuItems = [] }: Tabs = {}) {
@@ -52,6 +58,7 @@ describe('PendingOrdersDashboard', () => {
     vi.clearAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-04T12:02:00.000Z'))
+    mockSearchParams = new URLSearchParams()
   })
 
   afterEach(() => {
@@ -512,19 +519,9 @@ describe('PendingOrdersDashboard', () => {
     expect(screen.getByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
   })
 
-  describe('branch tabs (admin only)', () => {
-    it('renders no branch tab strip when branches is empty', async () => {
-      mockTabs({ pending: [orderA] })
-      render(<PendingOrdersDashboard />)
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(0)
-      })
-
-      expect(screen.queryByRole('tablist', { name: 'Branch' })).not.toBeInTheDocument()
-    })
-
-    it('renders an All tab plus one tab per branch when branches is non-empty', async () => {
+  describe('branch scoping (admin only, via header context)', () => {
+    it('renders no branch tab strip regardless of branches or ?branch=', async () => {
+      mockSearchParams = new URLSearchParams('branch=b2')
       mockTabs({ pending: [orderA, orderB] })
       render(
         <PendingOrdersDashboard
@@ -539,13 +536,10 @@ describe('PendingOrdersDashboard', () => {
         await vi.advanceTimersByTimeAsync(0)
       })
 
-      const branchTablist = screen.getByRole('tablist', { name: 'Branch' })
-      expect(within(branchTablist).getByRole('tab', { name: 'All' })).toBeInTheDocument()
-      expect(within(branchTablist).getByRole('tab', { name: 'Main' })).toBeInTheDocument()
-      expect(within(branchTablist).getByRole('tab', { name: 'Downtown' })).toBeInTheDocument()
+      expect(screen.queryByRole('tablist', { name: 'Branch' })).not.toBeInTheDocument()
     })
 
-    it('defaults to the All tab, showing every branch\'s orders with a branch tag on each card', async () => {
+    it('defaults to showing every branch\'s orders with a branch tag when there is no ?branch=', async () => {
       mockTabs({ pending: [orderA, orderB] })
       render(
         <PendingOrdersDashboard
@@ -566,7 +560,8 @@ describe('PendingOrdersDashboard', () => {
       expect(screen.getByText('· Downtown')).toBeInTheDocument()
     })
 
-    it('switching to a specific branch tab filters the already-fetched list client-side, with no new fetch call', async () => {
+    it('scopes orders to the branch named in ?branch=, hiding the branch tag', async () => {
+      mockSearchParams = new URLSearchParams('branch=b2')
       mockTabs({ pending: [orderA, orderB] })
       render(
         <PendingOrdersDashboard
@@ -580,39 +575,34 @@ describe('PendingOrdersDashboard', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0)
       })
-      const fetchCallCount = vi.mocked(apiClient.get).mock.calls.length
-
-      const branchTablist = screen.getByRole('tablist', { name: 'Branch' })
-      fireEvent.click(within(branchTablist).getByRole('tab', { name: 'Downtown' }))
 
       expect(screen.getByText('Table 7')).toBeInTheDocument()
       expect(screen.queryByText('Table 4')).not.toBeInTheDocument()
-      expect(vi.mocked(apiClient.get).mock.calls.length).toBe(fetchCallCount)
-    })
-
-    it('hides the branch tag and branch-scopes the tab counts once a specific branch tab is active', async () => {
-      mockTabs({ pending: [orderA, orderB] })
-      render(
-        <PendingOrdersDashboard
-          branches={[
-            { id: 'b1', name: 'Main' },
-            { id: 'b2', name: 'Downtown' },
-          ]}
-        />,
-      )
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(0)
-      })
-
-      const branchTablist = screen.getByRole('tablist', { name: 'Branch' })
-      fireEvent.click(within(branchTablist).getByRole('tab', { name: 'Downtown' }))
-
       expect(screen.queryByText('· Downtown')).not.toBeInTheDocument()
       expect(screen.getByRole('tab', { name: 'Pending (1)' })).toBeInTheDocument()
     })
 
-    it('never shows a branch tag when branches is empty, even though activeBranch defaults to "all"', async () => {
+    it('an explicit ?branch=all behaves the same as no ?branch= at all', async () => {
+      mockSearchParams = new URLSearchParams('branch=all')
+      mockTabs({ pending: [orderA, orderB] })
+      render(
+        <PendingOrdersDashboard
+          branches={[
+            { id: 'b1', name: 'Main' },
+            { id: 'b2', name: 'Downtown' },
+          ]}
+        />,
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(screen.getByText('Table 4')).toBeInTheDocument()
+      expect(screen.getByText('Table 7')).toBeInTheDocument()
+    })
+
+    it('never shows a branch tag when branches is empty, even with no ?branch=', async () => {
       mockTabs({ pending: [orderA] })
       render(<PendingOrdersDashboard />)
 

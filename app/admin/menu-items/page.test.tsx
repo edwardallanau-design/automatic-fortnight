@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import AdminMenuItemsPage from './page'
 import { requireRole } from '@/lib/authGuard'
 import { listMenuItemsWithAvailability } from '@/lib/menuService'
-import { resolveBranchId, listBranches } from '@/lib/branchService'
+import { resolveBranchId, getBranchOrThrow } from '@/lib/branchService'
 
 vi.mock('@/lib/authGuard', () => ({
   requireRole: vi.fn(),
@@ -15,18 +15,13 @@ vi.mock('@/lib/menuService', () => ({
 
 vi.mock('@/lib/branchService', () => ({
   resolveBranchId: vi.fn(),
-  listBranches: vi.fn(),
+  getBranchOrThrow: vi.fn(),
 }))
 
 vi.mock('./CreateMenuItemForm', () => ({
   CreateMenuItemForm: () => <div>Create Menu Item Form</div>,
 }))
 
-vi.mock('@/app/components/BranchSelector', () => ({
-  BranchSelector: ({ branches }: { branches: { id: string; name: string }[] }) => (
-    <div>Branch Selector ({branches.length})</div>
-  ),
-}))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
@@ -36,8 +31,8 @@ describe('AdminMenuItemsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(resolveBranchId).mockResolvedValue('b1')
+    vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() } as never)
     vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([])
-    vi.mocked(listBranches).mockResolvedValue([{ id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() }] as never)
   })
 
   function callPage(role: 'staff' | 'admin', branch?: string) {
@@ -49,6 +44,15 @@ describe('AdminMenuItemsPage', () => {
     await callPage('staff')
 
     expect(requireRole).toHaveBeenCalledWith('staff')
+  })
+
+  it('shows the resolved branch name as the header eyebrow', async () => {
+    vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b2', name: 'Downtown', acceptingOrders: true, createdAt: new Date() } as never)
+
+    const ui = await callPage('admin', 'b2')
+    render(ui)
+
+    expect(screen.getByText('Downtown')).toBeInTheDocument()
   })
 
   it('shows an empty state when there are no menu items', async () => {
@@ -67,12 +71,12 @@ describe('AdminMenuItemsPage', () => {
     expect(screen.queryByText(/Branch Selector/)).not.toBeInTheDocument()
   })
 
-  it('shows the create form and branch selector for an admin session', async () => {
+  it('shows the create form for an admin session, with no inline branch selector', async () => {
     const ui = await callPage('admin')
     render(ui)
 
     expect(screen.getByText('Create Menu Item Form')).toBeInTheDocument()
-    expect(screen.getByText('Branch Selector (1)')).toBeInTheDocument()
+    expect(screen.queryByText(/Branch Selector/)).not.toBeInTheDocument()
   })
 
   it('resolves the branch from ?branch= for admin, ignoring it for staff', async () => {

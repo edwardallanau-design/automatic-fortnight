@@ -42,7 +42,23 @@ describe('POST /api/ordering-points', () => {
     const body = await res.json()
     expect(body.label).toBe('Table 12')
     expect(createOrderingPoint).toHaveBeenCalledWith('b1', 'Table 12')
-    expect(requireApiRole).toHaveBeenCalledWith('admin')
+    expect(requireApiRole).toHaveBeenCalledWith('staff')
+  })
+
+  it('creates an ordering point for a staff session, forced to their own branch', async () => {
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff', branchId: 'b1' })
+    vi.mocked(createOrderingPoint).mockResolvedValue({
+      id: 'op1',
+      branchId: 'b1',
+      label: 'Table 12',
+      isCounter: false,
+      createdAt: new Date(),
+    } as never)
+
+    const res = await POST(makeRequest({ label: 'Table 12' }))
+
+    expect(res.status).toBe(201)
+    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'staff', branchId: 'b1' }, undefined)
   })
 
   it('passes body.branchId through to resolveBranchId', async () => {
@@ -60,7 +76,7 @@ describe('POST /api/ordering-points', () => {
     expect(createOrderingPoint).not.toHaveBeenCalled()
   })
 
-  it('returns 403 when the caller is not admin', async () => {
+  it('returns 403 when the caller is not authenticated as staff or admin', async () => {
     vi.mocked(requireApiRole).mockRejectedValue(new ForbiddenError('Insufficient role for this action'))
 
     const res = await POST(makeRequest({ label: 'Table 12' }))

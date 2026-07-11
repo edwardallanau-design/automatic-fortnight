@@ -17,12 +17,13 @@ export function BranchRow({ id, name, acceptingOrders }: BranchRowProps) {
   const [toggleSubmitting, setToggleSubmitting] = useState(false)
   const [toggleError, setToggleError] = useState<string | null>(null)
 
-  const [renaming, setRenaming] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [editingField, setEditingField] = useState<'name' | 'password' | null>(null)
+
   const [newName, setNewName] = useState(name)
   const [renameSubmitting, setRenameSubmitting] = useState(false)
   const [renameError, setRenameError] = useState<string | null>(null)
 
-  const [changingPassword, setChangingPassword] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [passwordSubmitting, setPasswordSubmitting] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
@@ -43,12 +44,32 @@ export function BranchRow({ id, name, acceptingOrders }: BranchRowProps) {
     }
   }
 
+  function handleToggleExpanded() {
+    setExpanded((current) => {
+      const next = !current
+      if (!next) setEditingField(null)
+      return next
+    })
+  }
+
+  function handleChangeNameClick() {
+    setNewName(name)
+    setRenameError(null)
+    setEditingField('name')
+  }
+
+  function handleChangePasswordClick() {
+    setNewPassword('')
+    setPasswordError(null)
+    setEditingField('password')
+  }
+
   async function handleSaveName() {
     setRenameError(null)
     setRenameSubmitting(true)
     try {
       await apiClient.patch(`/api/branches/${id}`, { name: newName })
-      setRenaming(false)
+      setEditingField(null)
       router.refresh()
     } catch (err) {
       setRenameError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
@@ -62,7 +83,7 @@ export function BranchRow({ id, name, acceptingOrders }: BranchRowProps) {
     setPasswordSubmitting(true)
     try {
       await apiClient.patch(`/api/branches/${id}`, { password: newPassword })
-      setChangingPassword(false)
+      setEditingField(null)
       setNewPassword('')
       router.refresh()
     } catch (err) {
@@ -75,55 +96,77 @@ export function BranchRow({ id, name, acceptingOrders }: BranchRowProps) {
   return (
     <li className="branch-row">
       <div className="branch-row__header">
-        {renaming ? (
-          <>
-            <label htmlFor={`rename-${id}`} className="admin-panel__label">
-              New name for {name}
-            </label>
+        <span className="branch-row__name">{name}</span>
+        <div className="branch-row__header-controls">
+          <label className="slider-toggle">
             <input
-              id={`rename-${id}`}
-              className="admin-panel__input"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              type="checkbox"
+              role="switch"
+              className="slider-toggle__input"
+              checked={checked}
+              disabled={toggleSubmitting}
+              onChange={handleToggle}
+              aria-label={`Accepting orders: ${name}`}
             />
-            <button type="button" className="menu-admin-row__edit" onClick={handleSaveName} disabled={renameSubmitting}>
-              Save name
-            </button>
-          </>
-        ) : (
-          <>
-            <span className="branch-row__name">{name}</span>
-            <button type="button" className="menu-admin-row__edit" onClick={() => setRenaming(true)}>
-              Rename
-            </button>
-          </>
-        )}
-        <label className="slider-toggle">
-          <input
-            type="checkbox"
-            role="switch"
-            className="slider-toggle__input"
-            checked={checked}
-            disabled={toggleSubmitting}
-            onChange={handleToggle}
-            aria-label={`Accepting orders: ${name}`}
-          />
-          <span className="slider-toggle__track" aria-hidden="true" />
-          <span className="slider-toggle__label">{checked ? 'Accepting orders' : 'Not accepting orders'}</span>
-        </label>
+            <span className="slider-toggle__track" aria-hidden="true" />
+            <span className="slider-toggle__label">{checked ? 'Accepting orders' : 'Not accepting orders'}</span>
+          </label>
+          <button
+            type="button"
+            className="branch-row__expand"
+            onClick={handleToggleExpanded}
+            aria-label={expanded ? `Hide actions for ${name}` : `Show actions for ${name}`}
+          >
+            {expanded ? '▴' : '▾'}
+          </button>
+        </div>
       </div>
-      {renameError && (
-        <p role="alert" className="admin-panel__error">
-          {renameError}
-        </p>
-      )}
       {toggleError && (
         <p role="alert" className="admin-panel__error">
           {toggleError}
         </p>
       )}
-      {changingPassword ? (
-        <div className="branch-row__password-form">
+      {expanded && (
+        <div className="branch-row__actions">
+          <button
+            type="button"
+            className={`branch-row__action${editingField === 'name' ? ' branch-row__action--active' : ''}`}
+            onClick={handleChangeNameClick}
+          >
+            Change name
+          </button>
+          <button
+            type="button"
+            className={`branch-row__action${editingField === 'password' ? ' branch-row__action--active' : ''}`}
+            onClick={handleChangePasswordClick}
+          >
+            Change password
+          </button>
+        </div>
+      )}
+      {editingField === 'name' && (
+        <div className="branch-row__edit-form">
+          <label htmlFor={`rename-${id}`} className="admin-panel__label">
+            New name for {name}
+          </label>
+          <input
+            id={`rename-${id}`}
+            className="admin-panel__input"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <button type="button" className="menu-admin-row__edit" onClick={handleSaveName} disabled={renameSubmitting}>
+            Save name
+          </button>
+        </div>
+      )}
+      {renameError && (
+        <p role="alert" className="admin-panel__error">
+          {renameError}
+        </p>
+      )}
+      {editingField === 'password' && (
+        <div className="branch-row__edit-form">
           <label htmlFor={`password-${id}`} className="admin-panel__label">
             New password for {name}
           </label>
@@ -138,10 +181,6 @@ export function BranchRow({ id, name, acceptingOrders }: BranchRowProps) {
             Save password
           </button>
         </div>
-      ) : (
-        <button type="button" className="branch-row__password-toggle" onClick={() => setChangingPassword(true)}>
-          Change password
-        </button>
       )}
       {passwordError && (
         <p role="alert" className="admin-panel__error">

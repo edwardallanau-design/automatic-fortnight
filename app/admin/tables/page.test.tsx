@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import AdminTablesPage from './page'
 import { requireRole } from '@/lib/authGuard'
 import { listOrderingPoints } from '@/lib/orderingPointService'
-import { resolveBranchId, listBranches } from '@/lib/branchService'
+import { resolveBranchId, getBranchOrThrow } from '@/lib/branchService'
 import { generateQrDataUrl } from '@/lib/qrCode'
 
 vi.mock('@/lib/authGuard', () => ({
@@ -16,7 +16,7 @@ vi.mock('@/lib/orderingPointService', () => ({
 
 vi.mock('@/lib/branchService', () => ({
   resolveBranchId: vi.fn(),
-  listBranches: vi.fn(),
+  getBranchOrThrow: vi.fn(),
 }))
 
 vi.mock('@/lib/qrCode', () => ({
@@ -27,11 +27,6 @@ vi.mock('./CreateOrderingPointForm', () => ({
   CreateOrderingPointForm: () => <div>Create Table Form</div>,
 }))
 
-vi.mock('@/app/components/BranchSelector', () => ({
-  BranchSelector: ({ branches }: { branches: { id: string; name: string }[] }) => (
-    <div>Branch Selector ({branches.length})</div>
-  ),
-}))
 
 vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Map([['host', 'localhost:3000']])),
@@ -42,7 +37,7 @@ describe('AdminTablesPage', () => {
     vi.clearAllMocks()
     vi.mocked(requireRole).mockResolvedValue({ role: 'admin' })
     vi.mocked(resolveBranchId).mockResolvedValue('b1')
-    vi.mocked(listBranches).mockResolvedValue([{ id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() }] as never)
+    vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b1', name: 'Main', acceptingOrders: true, createdAt: new Date() } as never)
     vi.mocked(listOrderingPoints).mockResolvedValue([])
     vi.mocked(generateQrDataUrl).mockResolvedValue('data:image/png;base64,x')
   })
@@ -51,10 +46,28 @@ describe('AdminTablesPage', () => {
     return AdminTablesPage({ searchParams: Promise.resolve(branch ? { branch } : {}) })
   }
 
-  it('is gated behind an admin session', async () => {
+  it('is gated behind at least a staff session', async () => {
     await callPage()
 
-    expect(requireRole).toHaveBeenCalledWith('admin')
+    expect(requireRole).toHaveBeenCalledWith('staff')
+  })
+
+  it('shows the create form for a staff session too', async () => {
+    vi.mocked(requireRole).mockResolvedValue({ role: 'staff', branchId: 'b1' })
+
+    const ui = await callPage()
+    render(ui)
+
+    expect(screen.getByText('Create Table Form')).toBeInTheDocument()
+  })
+
+  it('shows the resolved branch name as the header eyebrow', async () => {
+    vi.mocked(getBranchOrThrow).mockResolvedValue({ id: 'b2', name: 'Downtown', acceptingOrders: true, createdAt: new Date() } as never)
+
+    const ui = await callPage('b2')
+    render(ui)
+
+    expect(screen.getByText('Downtown')).toBeInTheDocument()
   })
 
   it('resolves the branch from the ?branch= query param', async () => {
@@ -70,12 +83,12 @@ describe('AdminTablesPage', () => {
     expect(screen.getByText('No tables yet — add one above.')).toBeInTheDocument()
   })
 
-  it('shows the Table Setup heading, branch selector, and create form', async () => {
+  it('shows the Table Setup heading and create form, with no inline branch selector', async () => {
     const ui = await callPage()
     render(ui)
 
     expect(screen.getByRole('heading', { name: 'Table Setup' })).toBeInTheDocument()
-    expect(screen.getByText('Branch Selector (1)')).toBeInTheDocument()
+    expect(screen.queryByText(/Branch Selector/)).not.toBeInTheDocument()
     expect(screen.getByText('Create Table Form')).toBeInTheDocument()
   })
 
