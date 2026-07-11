@@ -5,8 +5,13 @@ services:
     env_file: .env.docker
     ports:
       - "5433:5432"
-    volumes:
-      - dbdata:/var/lib/postgresql/data
+    # Ephemeral by design: the Postgres data directory is a tmpfs (RAM-backed), so
+    # the database is wiped whenever the container is recreated. Every `docker
+    # compose up` starts from an empty DB, which the app entrypoint then migrates
+    # and (create-once) seeds — the local instance is a throwaway fixture, never a
+    # store of real data. Prod/dev use their own persistent Neon databases.
+    tmpfs:
+      - /var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -22,6 +27,3 @@ services:
         condition: service_healthy
     ports:
       - "3001:3000"
-
-volumes:
-  dbdata:

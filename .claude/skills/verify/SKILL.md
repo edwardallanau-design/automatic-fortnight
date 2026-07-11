@@ -11,35 +11,39 @@ real local run loop (see root `CLAUDE.md` gotchas) — use it, not `npm run dev`
 ## Launch
 
 ```bash
-docker compose up --build -d      # rebuilds image, applies migrations, seeds (idempotent)
+docker compose up --build -d      # rebuilds image, applies migrations, create-once seeds
 docker compose logs app --tail 40 # confirm "✓ Ready" with no errors
 ```
 
 App: `http://localhost:3001` (maps to container port 3000). DB: host port 5433.
 
+The local DB is **ephemeral** (tmpfs, RAM-backed): every `docker compose up`
+starts from an empty database that the entrypoint migrates and seeds fresh. It's
+a throwaway fixture, not a store of real data — safe to nuke, and it never
+carries state between runs. Prod/dev use their own persistent Neon databases.
+
 ## Get real ids to drive with
 
-There's no `GET /api/tables` (405 — that route only takes `POST`). Query
-Postgres directly instead:
+There's no `GET /api/ordering-points` list route, so query Postgres directly.
+Ordering points live in `"OrderingPoint"` (the old `Table` was renamed in the
+multi-branch work); the seed creates just the **Counter** for the Main branch,
+so ids change every run — always re-query, never hardcode:
 
 ```bash
 docker compose exec db psql -U $(grep POSTGRES_USER .env.docker | cut -d= -f2) \
   -d $(grep POSTGRES_DB .env.docker | cut -d= -f2) \
-  -c 'SELECT id, number FROM "Table" ORDER BY number;'
+  -c 'SELECT op.id, op.label, b.name AS branch FROM "OrderingPoint" op JOIN "Branch" b ON b.id = op."branchId" ORDER BY b.name, op.label;'
 ```
 
-The dev DB volume persists across sessions and may have extra tables beyond
-the seed's `1,2,3` — don't assume table numbers map to a fixed id.
-
-Check/toggle venue acceptance the same way:
+To exercise the closed-venue branch of `/order`, close the ordering point's
+**branch** (venue-wide `VenueSettings.acceptingOrders` is vestigial since INV-10
+was amended to a branch-level-only gate — the app no longer reads it):
 
 ```bash
-... -c 'SELECT * FROM "VenueSettings";'
-... -c "UPDATE \"VenueSettings\" SET \"acceptingOrders\" = false WHERE id = 'singleton';"
+... -c 'UPDATE "Branch" SET "acceptingOrders" = false WHERE name = ''Main'';'
 ```
 
-Toggling this is how you exercise the closed-venue branch of `/order` — flip
-it back to `true` when done, since this DB is shared, not disposable.
+Since the DB is ephemeral you don't have to revert it — the next `up` reseeds.
 
 ## Drive it — customer order flow (`/order?table=<id>`)
 
@@ -69,5 +73,5 @@ needed since nothing client-side is being exercised.
 ## Teardown
 
 ```bash
-docker compose stop   # NOT `down -v` — the dbdata volume has real seed/table state, don't nuke it
+docker compose down   # DB is ephemeral (tmpfs) — nothing to preserve; `stop` also fine
 ```

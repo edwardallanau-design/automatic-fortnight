@@ -28,11 +28,13 @@ const SEED_STAFF_PASSWORD = requireEnv('SEED_STAFF_PASSWORD')
 // runs on a shared DB can't create a duplicate Main branch.
 const MAIN_BRANCH_ID = '00000000-0000-0000-0000-000000000001'
 
-// Includes 0 ("Counter") so a database created via `prisma migrate reset` (which
-// replays every migration against an empty database, so Task 2's data-backfill
-// UPDATE has no pre-existing rows to act on) still ends up with a Counter
-// ordering point, matching a real production database's post-migration state.
-const SEED_TABLES = [0, 1, 2, 3]
+// Only the Counter (0). Every branch needs a Counter — a database created via
+// `prisma migrate reset` (which replays every migration against an empty
+// database, so Task 2's data-backfill UPDATE has no pre-existing rows to act on)
+// still ends up with one, matching a real production database's post-migration
+// state. Real tables are created per-branch through the admin UI, not seeded, so
+// a fresh production DB starts clean rather than carrying sample tables.
+const SEED_TABLES = [0]
 
 const SEED_MENU_ITEMS = [
   // Espresso drinks
@@ -130,6 +132,7 @@ async function main() {
   })
   console.log('Seeded credential for Main branch (create-once)')
 
+  const seededLabels: string[] = []
   for (const number of SEED_TABLES) {
     const label = number === 0 ? 'Counter' : `Table ${number}`
     await prisma.orderingPoint.upsert({
@@ -137,18 +140,24 @@ async function main() {
       update: {},
       create: { branchId: mainBranch.id, label, isCounter: number === 0 },
     })
+    seededLabels.push(label)
   }
-  console.log('Seeded ordering points for Main branch:', SEED_TABLES.join(', '))
+  console.log('Seeded ordering points for Main branch:', seededLabels.join(', '))
 
+  // Menu items are create-once: seed a missing item, but never overwrite one that
+  // already exists. The menu is managed through the admin UI on a live database,
+  // so re-running the seed on every deploy must not revert admin edits (renamed
+  // items, price changes, removals). Adding a new item to SEED_MENU_ITEMS later
+  // still works — it's created wherever it's missing without touching the rest.
+  let createdCount = 0
   for (const { name, price } of SEED_MENU_ITEMS) {
     const existing = await prisma.menuItem.findFirst({ where: { name } })
-    if (existing) {
-      await prisma.menuItem.update({ where: { id: existing.id }, data: { price } })
-    } else {
+    if (!existing) {
       await prisma.menuItem.create({ data: { name, price } })
+      createdCount += 1
     }
   }
-  console.log('Seeded menu items:', SEED_MENU_ITEMS.map((i) => i.name).join(', '))
+  console.log(`Seeded menu items: ${createdCount} created, ${SEED_MENU_ITEMS.length - createdCount} already present (create-once)`)
 }
 
 main()
