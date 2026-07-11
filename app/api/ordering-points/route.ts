@@ -7,7 +7,7 @@ import { ValidationError } from '@/lib/errors'
 
 export async function POST(request: Request) {
   try {
-    const session = await requireApiRole('admin')
+    const session = await requireApiRole('staff')
 
     const body = await request.json()
 
