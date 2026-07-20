@@ -104,15 +104,16 @@ describe('Cart', () => {
     expect(buttons[1]).toHaveStyle({ '--stagger-delay': '30ms' })
   })
 
-  it('continues the stagger delay across a category boundary instead of resetting it', () => {
+  it('applies a per-group stagger delay that resets at each category', () => {
     const twoCategoryItems = [
-      { id: 'm1', name: 'Latte', price: '4.50', available: true }, // matches Espresso Drinks
-      { id: 'm2', name: 'Croissant', price: '3.00', available: true }, // matches Pastries
+      { id: 'm1', name: 'Latte', price: '4.50', available: true, category: { id: 'c1', name: 'Drinks', sortOrder: 0 } },
+      { id: 'm2', name: 'Croissant', price: '3.00', available: true, category: { id: 'c2', name: 'Pastries', sortOrder: 1 } },
     ]
     const { container } = render(<Cart tableId="t1" items={twoCategoryItems} />)
     const buttons = container.querySelectorAll('.menu-item-button')
+    // first item in each group starts the stagger over at 0ms
     expect(buttons[0]).toHaveStyle({ '--stagger-delay': '0ms' })
-    expect(buttons[1]).toHaveStyle({ '--stagger-delay': '30ms' })
+    expect(buttons[1]).toHaveStyle({ '--stagger-delay': '0ms' })
   })
 
   it('keeps the order panel collapsed by default even when the cart is empty', () => {
@@ -413,5 +414,35 @@ describe('Cart', () => {
     } finally {
       spy.mockRestore()
     }
+  })
+
+  describe('category grouping', () => {
+    it('groups items under their category heading, ordered by sortOrder', () => {
+      const categorized = [
+        { id: 'm1', name: 'Latte', price: '4.50', available: true, category: { id: 'c2', name: 'Drinks', sortOrder: 1 } },
+        { id: 'm2', name: 'Croissant', price: '3.50', available: true, category: { id: 'c1', name: 'Pastries', sortOrder: 0 } },
+      ]
+      render(<Cart tableId="t1" items={categorized} />)
+
+      const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+      expect(headings.indexOf('Pastries')).toBeLessThan(headings.indexOf('Drinks'))
+    })
+
+    it('renders uncategorized items under the "Other" heading when no items have a category', () => {
+      render(<Cart tableId="t1" items={items} />)
+
+      expect(screen.getByRole('heading', { name: 'Other' })).toBeInTheDocument()
+    })
+
+    it('shows the "Other" group last when some items have a category and some do not', () => {
+      const mixed = [
+        { id: 'm1', name: 'Latte', price: '4.50', available: true, category: { id: 'c1', name: 'Drinks', sortOrder: 0 } },
+        { id: 'm2', name: 'Mystery Item', price: '1.00', available: true },
+      ]
+      render(<Cart tableId="t1" items={mixed} />)
+
+      const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+      expect(headings[headings.length - 1]).toBe('Other')
+    })
   })
 })

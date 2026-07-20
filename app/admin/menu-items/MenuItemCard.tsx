@@ -7,20 +7,32 @@ import { ConfirmDialog } from '@/app/components/ConfirmDialog'
 
 const CONFIRM_EXIT_MS = 200
 
-type MenuItemRowProps = {
+type MenuItemCardProps = {
   id: string
   name: string
   price: string
   available: boolean
   editable: boolean
   branchId: string
+  categoryId?: string | null
+  categories?: { id: string; name: string }[]
 }
 
-export function MenuItemRow({ id, name, price, available, editable, branchId }: MenuItemRowProps) {
+export function MenuItemCard({
+  id,
+  name,
+  price,
+  available,
+  editable,
+  branchId,
+  categoryId = null,
+  categories = [],
+}: MenuItemCardProps) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(name)
   const [editPrice, setEditPrice] = useState(price)
+  const [editCategoryId, setEditCategoryId] = useState(categoryId ?? '')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -47,9 +59,7 @@ export function MenuItemRow({ id, name, price, available, editable, branchId }: 
     setConfirmOpen(false)
     setConfirmClosing(true)
     if (confirmCloseTimerRef.current) clearTimeout(confirmCloseTimerRef.current)
-    confirmCloseTimerRef.current = setTimeout(() => {
-      setConfirmClosing(false)
-    }, CONFIRM_EXIT_MS)
+    confirmCloseTimerRef.current = setTimeout(() => setConfirmClosing(false), CONFIRM_EXIT_MS)
   }
 
   async function handleArchive() {
@@ -69,6 +79,7 @@ export function MenuItemRow({ id, name, price, available, editable, branchId }: 
   function startEditing() {
     setEditName(name)
     setEditPrice(price)
+    setEditCategoryId(categoryId ?? '')
     setError(null)
     setIsEditing(true)
   }
@@ -76,6 +87,7 @@ export function MenuItemRow({ id, name, price, available, editable, branchId }: 
   function cancelEditing() {
     setEditName(name)
     setEditPrice(price)
+    setEditCategoryId(categoryId ?? '')
     setError(null)
     setIsEditing(false)
   }
@@ -87,6 +99,7 @@ export function MenuItemRow({ id, name, price, available, editable, branchId }: 
       await apiClient.patch(`/api/menu-items/${id}`, {
         name: editName,
         price: Number(editPrice),
+        categoryId: editCategoryId === '' ? null : editCategoryId,
       })
       setIsEditing(false)
       router.refresh()
@@ -114,7 +127,7 @@ export function MenuItemRow({ id, name, price, available, editable, branchId }: 
   }
 
   const availabilityToggle = (
-    <label className="slider-toggle">
+    <label className="slider-toggle menu-item-card__toggle">
       <input
         type="checkbox"
         role="switch"
@@ -131,34 +144,43 @@ export function MenuItemRow({ id, name, price, available, editable, branchId }: 
 
   if (!editable || !isEditing) {
     return (
-      <li className="menu-admin-row">
-        <div className="menu-admin-row__view">
-          <span className="menu-admin-row__name">{name}</span>
-          <span className="menu-admin-row__price">${price}</span>
-          {availabilityToggle}
-          {editable && (
-            <button type="button" className="menu-admin-row__edit" onClick={startEditing}>
-              Edit
+      <div className="menu-item-card">
+        <div className="menu-item-card__row">
+          {editable ? (
+            <button
+              type="button"
+              className="menu-item-card__view menu-item-card__view--editable"
+              onClick={startEditing}
+              aria-label={`Edit ${name}`}
+            >
+              <span className="menu-item-card__name">{name}</span>
+              <span className="menu-item-card__price">${price}</span>
             </button>
+          ) : (
+            <div className="menu-item-card__view">
+              <span className="menu-item-card__name">{name}</span>
+              <span className="menu-item-card__price">${price}</span>
+            </div>
           )}
+          {availabilityToggle}
         </div>
         {availabilityError && (
-          <p role="alert" className="menu-admin-row__error">
+          <p role="alert" className="menu-item-card__error">
             {availabilityError}
           </p>
         )}
-      </li>
+      </div>
     )
   }
 
   return (
-    <li className="menu-admin-row">
-      <div className="menu-admin-row__form">
+    <div className="menu-item-card menu-item-card--editing">
+      <div className="menu-item-card__form">
         <input
           value={editName}
           onChange={(e) => setEditName(e.target.value)}
           aria-label={`Name for ${name}`}
-          className="menu-admin-row__input menu-admin-row__input--name"
+          className="menu-item-card__input menu-item-card__input--name"
         />
         <input
           type="number"
@@ -167,27 +189,39 @@ export function MenuItemRow({ id, name, price, available, editable, branchId }: 
           value={editPrice}
           onChange={(e) => setEditPrice(e.target.value)}
           aria-label={`Price for ${name}`}
-          className="menu-admin-row__input menu-admin-row__input--price"
+          className="menu-item-card__input menu-item-card__input--price"
         />
-        {availabilityToggle}
-        <div className="menu-admin-row__actions">
-          <button type="button" className="menu-admin-row__save" onClick={handleSave} disabled={submitting}>
+        <select
+          value={editCategoryId}
+          onChange={(e) => setEditCategoryId(e.target.value)}
+          aria-label={`Category for ${name}`}
+          className="menu-item-card__select"
+        >
+          <option value="">No category</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+        <div className="menu-item-card__actions">
+          <button type="button" className="menu-item-card__save" onClick={handleSave} disabled={submitting}>
             Save
           </button>
-          <button type="button" className="menu-admin-row__cancel" onClick={cancelEditing} disabled={submitting}>
+          <button type="button" className="menu-item-card__cancel" onClick={cancelEditing} disabled={submitting}>
             Cancel
           </button>
-          <button type="button" className="menu-admin-row__archive" onClick={openConfirmArchive} disabled={submitting}>
+          <button type="button" className="menu-item-card__archive" onClick={openConfirmArchive} disabled={submitting}>
             Archive
           </button>
         </div>
         {error && (
-          <p role="alert" className="menu-admin-row__error">
+          <p role="alert" className="menu-item-card__error">
             {error}
           </p>
         )}
         {availabilityError && (
-          <p role="alert" className="menu-admin-row__error">
+          <p role="alert" className="menu-item-card__error">
             {availabilityError}
           </p>
         )}
@@ -203,6 +237,6 @@ export function MenuItemRow({ id, name, price, available, editable, branchId }: 
           onClose={closeConfirmArchive}
         />
       )}
-    </li>
+    </div>
   )
 }

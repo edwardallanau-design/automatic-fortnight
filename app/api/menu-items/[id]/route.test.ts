@@ -77,6 +77,55 @@ describe('PATCH /api/menu-items/[id]', () => {
     expect(res.status).toBe(400)
     expect(updateMenuItem).not.toHaveBeenCalled()
   })
+
+  it('passes categoryId through when provided as a string', async () => {
+    const updated = {
+      id: 'm1',
+      name: 'Burger',
+      price: new Prisma.Decimal('12.50'),
+      archived: false,
+      createdAt: new Date(),
+      categoryId: 'c1',
+    }
+    vi.mocked(updateMenuItem).mockResolvedValue(updated as never)
+
+    const res = await PATCH(makePatchRequest({ categoryId: 'c1' }), makeContext('m1'))
+
+    expect(res.status).toBe(200)
+    expect(updateMenuItem).toHaveBeenCalledWith('m1', { categoryId: 'c1' })
+  })
+
+  it('passes categoryId through as null to unassign', async () => {
+    const updated = {
+      id: 'm1',
+      name: 'Burger',
+      price: new Prisma.Decimal('12.50'),
+      archived: false,
+      createdAt: new Date(),
+      categoryId: null,
+    }
+    vi.mocked(updateMenuItem).mockResolvedValue(updated as never)
+
+    const res = await PATCH(makePatchRequest({ categoryId: null }), makeContext('m1'))
+
+    expect(res.status).toBe(200)
+    expect(updateMenuItem).toHaveBeenCalledWith('m1', { categoryId: null })
+  })
+
+  it('returns 400 when categoryId is not a string or null', async () => {
+    const res = await PATCH(makePatchRequest({ categoryId: 42 }), makeContext('m1'))
+
+    expect(res.status).toBe(400)
+    expect(updateMenuItem).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 when categoryId references a category that does not exist', async () => {
+    vi.mocked(updateMenuItem).mockRejectedValue(new NotFoundError('Category not found'))
+
+    const res = await PATCH(makePatchRequest({ categoryId: 'missing' }), makeContext('m1'))
+
+    expect(res.status).toBe(404)
+  })
 })
 
 describe('DELETE /api/menu-items/[id]', () => {

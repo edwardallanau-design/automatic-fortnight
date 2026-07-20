@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import type { MenuItem } from '@prisma/client'
+import type { MenuItem, Category } from '@prisma/client'
 import { prisma } from './prisma'
 import { NotFoundError } from './errors'
 
@@ -9,8 +9,14 @@ export async function createMenuItem(name: string, price: Prisma.Decimal): Promi
 
 export async function updateMenuItem(
   id: string,
-  data: { name?: string; price?: Prisma.Decimal },
+  data: { name?: string; price?: Prisma.Decimal; categoryId?: string | null },
 ): Promise<MenuItem> {
+  if (data.categoryId) {
+    const category = await prisma.category.findUnique({ where: { id: data.categoryId } })
+    if (!category) {
+      throw new NotFoundError('Category not found')
+    }
+  }
   try {
     return await prisma.menuItem.update({ where: { id }, data })
   } catch (error) {
@@ -32,10 +38,11 @@ export async function archiveMenuItem(id: string): Promise<void> {
   }
 }
 
-export async function listMenuItems(): Promise<MenuItem[]> {
+export async function listMenuItems(): Promise<Array<MenuItem & { category: Category | null }>> {
   return prisma.menuItem.findMany({
     where: { archived: false },
     orderBy: { name: 'asc' },
+    include: { category: true },
   })
 }
 
@@ -63,7 +70,9 @@ export async function setMenuItemSoldOut(menuItemId: string, branchId: string, s
   }
 }
 
-export async function listMenuItemsWithAvailability(branchId: string): Promise<Array<MenuItem & { available: boolean }>> {
+export async function listMenuItemsWithAvailability(
+  branchId: string,
+): Promise<Array<MenuItem & { category: Category | null; available: boolean }>> {
   const [items, soldOutIds] = await Promise.all([listMenuItems(), listSoldOutMenuItemIds(branchId)])
   return items.map((item) => ({ ...item, available: !soldOutIds.has(item.id) }))
 }

@@ -31,11 +31,21 @@ model OrderingPoint {
   @@unique([branchId, label])
 }
 
+model Category {
+  id        String     @id @default(uuid())
+  name      String
+  sortOrder Int
+  createdAt DateTime   @default(now())
+  menuItems MenuItem[]
+}
+
 model MenuItem {
   id         String            @id @default(uuid())
   name       String
   price      Decimal           @db.Decimal(10, 2)
   archived   Boolean           @default(false)
+  categoryId String?
+  category   Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   soldOutIn  MenuItemSoldOut[]
   createdAt  DateTime          @default(now())
   orderItems OrderItem[]

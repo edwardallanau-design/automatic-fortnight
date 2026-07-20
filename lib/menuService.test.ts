@@ -26,6 +26,9 @@ vi.mock('./prisma', () => ({
       upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
+    category: {
+      findUnique: vi.fn(),
+    },
   },
 }))
 
@@ -75,6 +78,55 @@ describe('menuService.updateMenuItem', () => {
 
     await expect(updateMenuItem('missing', { name: 'X' })).rejects.toThrow(NotFoundError)
   })
+
+  it('accepts a categoryId update when the category exists', async () => {
+    vi.mocked(prisma.category.findUnique).mockResolvedValue({
+      id: 'c1',
+      name: 'Drinks',
+      sortOrder: 0,
+      createdAt: new Date(),
+    } as never)
+    const updated = {
+      id: 'm1',
+      name: 'Burger',
+      price: new Prisma.Decimal('12.50'),
+      archived: false,
+      createdAt: new Date(),
+      categoryId: 'c1',
+    }
+    vi.mocked(prisma.menuItem.update).mockResolvedValue(updated as never)
+
+    const result = await updateMenuItem('m1', { categoryId: 'c1' })
+
+    expect(result).toEqual(updated)
+    expect(prisma.category.findUnique).toHaveBeenCalledWith({ where: { id: 'c1' } })
+    expect(prisma.menuItem.update).toHaveBeenCalledWith({ where: { id: 'm1' }, data: { categoryId: 'c1' } })
+  })
+
+  it('throws NotFoundError when the categoryId does not exist', async () => {
+    vi.mocked(prisma.category.findUnique).mockResolvedValue(null)
+
+    await expect(updateMenuItem('m1', { categoryId: 'missing' })).rejects.toThrow(NotFoundError)
+    expect(prisma.menuItem.update).not.toHaveBeenCalled()
+  })
+
+  it('allows clearing the category by passing categoryId: null, with no existence check', async () => {
+    const updated = {
+      id: 'm1',
+      name: 'Burger',
+      price: new Prisma.Decimal('12.50'),
+      archived: false,
+      createdAt: new Date(),
+      categoryId: null,
+    }
+    vi.mocked(prisma.menuItem.update).mockResolvedValue(updated as never)
+
+    const result = await updateMenuItem('m1', { categoryId: null })
+
+    expect(result).toEqual(updated)
+    expect(prisma.category.findUnique).not.toHaveBeenCalled()
+    expect(prisma.menuItem.update).toHaveBeenCalledWith({ where: { id: 'm1' }, data: { categoryId: null } })
+  })
 })
 
 describe('menuService.archiveMenuItem', () => {
@@ -110,8 +162,17 @@ describe('menuService.listMenuItems', () => {
     vi.clearAllMocks()
   })
 
-  it('returns only non-archived items ordered by name', async () => {
-    const items = [{ id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), available: true, archived: false, createdAt: new Date() }]
+  it('returns only non-archived items ordered by name, including category', async () => {
+    const items = [
+      {
+        id: 'm1',
+        name: 'Burger',
+        price: new Prisma.Decimal('12.50'),
+        archived: false,
+        createdAt: new Date(),
+        category: null,
+      },
+    ]
     vi.mocked(prisma.menuItem.findMany).mockResolvedValue(items as never)
 
     const result = await listMenuItems()
@@ -120,6 +181,7 @@ describe('menuService.listMenuItems', () => {
     expect(prisma.menuItem.findMany).toHaveBeenCalledWith({
       where: { archived: false },
       orderBy: { name: 'asc' },
+      include: { category: true },
     })
   })
 })

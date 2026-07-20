@@ -202,6 +202,569 @@ a {
   width: 100%;
 }
 
+/* Admin Menu Management — mirrors the customer .menu-item-button look above,
+   with edit controls layered inline. Shares the .menu-categories/.menu-category
+   grouped-list structure so admin sees exactly what customers see. */
+
+.menu-manager__toolbar {
+  width: 100%;
+  max-width: 480px;
+  margin: 1.25rem auto 0.75rem;
+  padding: 0 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.menu-manager__reorder {
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 999px;
+  background: none;
+  color: var(--espresso);
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.menu-manager__reorder:hover {
+  border-color: var(--copper);
+  color: var(--copper-bright);
+}
+
+.menu-manager__reorder:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+/* Item card — collapsed state matches .menu-item-button (name left, price right) */
+
+.menu-item-card {
+  width: 100%;
+}
+
+.menu-item-card__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.menu-item-card__view {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--espresso);
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 1rem;
+  text-align: left;
+}
+
+.menu-item-card__view--editable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.menu-item-card__view--editable:hover {
+  border-color: var(--copper);
+}
+
+.menu-item-card__view--editable:active {
+  transform: scale(0.99);
+}
+
+.menu-item-card__view--editable:focus-visible {
+  outline: 2px solid var(--copper);
+  outline-offset: 2px;
+}
+
+.menu-item-card__name {
+  font-weight: 500;
+}
+
+.menu-item-card__price {
+  white-space: nowrap;
+  margin-left: 1rem;
+  font-family: var(--font-mono), monospace;
+  font-weight: 500;
+  color: var(--copper);
+}
+
+.menu-item-card__toggle {
+  flex-shrink: 0;
+}
+
+/* Item card — expanded (editing) state */
+
+.menu-item-card--editing {
+  border: 1px solid var(--copper);
+  border-radius: 10px;
+  background: var(--paper);
+  padding: 0.85rem 1rem;
+}
+
+.menu-item-card__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.menu-item-card__input,
+.menu-item-card__select {
+  min-height: 44px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.9rem;
+  color: var(--espresso);
+  background: none;
+}
+
+/* The <select> popup (option list) renders with the OS default light
+   background on most browsers, which left near-white --espresso text
+   unreadable. Pin an explicit dark surface + light text so both the closed
+   control and the open list stay legible. */
+.menu-item-card__select {
+  background-color: var(--paper);
+}
+
+.menu-item-card__select option {
+  background-color: var(--paper);
+  color: var(--espresso);
+}
+
+.menu-item-card__input--name {
+  flex: 1;
+  min-width: 120px;
+}
+
+.menu-item-card__input--price {
+  width: 90px;
+}
+
+.menu-item-card__actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+.menu-item-card__save,
+.menu-item-card__cancel,
+.menu-item-card__archive {
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: 8px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.menu-item-card__save {
+  border: none;
+  background: var(--copper);
+  color: var(--paper);
+}
+
+.menu-item-card__cancel {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  color: var(--espresso);
+}
+
+.menu-item-card__archive {
+  border: 1px solid var(--danger);
+  background: none;
+  color: var(--danger);
+}
+
+.menu-item-card__save:disabled,
+.menu-item-card__cancel:disabled,
+.menu-item-card__archive:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menu-item-card__save:focus-visible,
+.menu-item-card__cancel:focus-visible,
+.menu-item-card__archive:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.menu-item-card__error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+/* Editable category heading — the plain .menu-category__title still styles the
+   text; these add the click-to-edit affordance and the rename editor */
+
+.menu-category__title--editable {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.menu-category__edit {
+  width: 100%;
+  display: block;
+  padding: 0 0 0.4rem;
+  border: none;
+  border-bottom: 1px solid var(--clay-faint);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.menu-category__edit:hover {
+  color: var(--copper-bright);
+  border-bottom-color: var(--copper);
+}
+
+.menu-category__edit:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.menu-category__editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--clay-faint);
+}
+
+.menu-category__input {
+  flex: 1;
+  min-width: 140px;
+  min-height: 40px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.1rem;
+  color: var(--espresso);
+  background: none;
+}
+
+.menu-category__actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.menu-category__save,
+.menu-category__cancel,
+.menu-category__delete {
+  min-height: 40px;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.menu-category__save {
+  border: none;
+  background: var(--copper);
+  color: var(--paper);
+}
+
+.menu-category__cancel {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  color: var(--espresso);
+}
+
+.menu-category__delete {
+  border: 1px solid var(--danger);
+  background: none;
+  color: var(--danger);
+}
+
+.menu-category__save:disabled,
+.menu-category__cancel:disabled,
+.menu-category__delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menu-category__save:focus-visible,
+.menu-category__cancel:focus-visible,
+.menu-category__delete:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.menu-category__error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-top: 0.4rem;
+}
+
+/* "+ Add item" / "+ Add category" affordances — quiet dashed rows that read as
+   "add into this section" rather than a form dumped on the page */
+
+.menu-add-row {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  border: 1px dashed var(--clay-faint);
+  border-radius: 10px;
+  background: none;
+  color: var(--clay);
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+button.menu-add-row:hover {
+  border-color: var(--copper);
+  color: var(--copper-bright);
+}
+
+button.menu-add-row:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.menu-add-row--category {
+  max-width: 480px;
+  margin: 0.4rem auto 0;
+  display: block;
+}
+
+.menu-add-row--open {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: default;
+}
+
+.menu-add-row__input {
+  min-height: 40px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 8px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 0.9rem;
+  color: var(--espresso);
+  background: none;
+}
+
+.menu-add-row__input--name {
+  flex: 1;
+  min-width: 120px;
+}
+
+.menu-add-row__input--price {
+  width: 90px;
+}
+
+.menu-add-row__save,
+.menu-add-row__cancel {
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border-radius: 8px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.menu-add-row__save {
+  border: none;
+  background: var(--copper);
+  color: var(--paper);
+}
+
+.menu-add-row__cancel {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  color: var(--espresso);
+}
+
+.menu-add-row__save:disabled,
+.menu-add-row__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menu-add-row__save:focus-visible,
+.menu-add-row__cancel:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.menu-add-row__error {
+  width: 100%;
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
+}
+
+/* Category reorder mode — short grabbable bars, all visible at once */
+
+.category-reorder {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0.5rem 1.25rem 1.5rem;
+}
+
+.category-reorder__hint {
+  color: var(--clay);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.category-reorder__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.category-reorder__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 48px;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--clay-faint);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--espresso);
+}
+
+.category-reorder__bar--dragging {
+  border-color: var(--copper);
+  box-shadow: 0 8px 24px var(--clay-faint);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .category-reorder__bar {
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+}
+
+.category-reorder__grip {
+  min-width: 32px;
+  min-height: 32px;
+  border: none;
+  background: none;
+  color: var(--clay);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+}
+
+.category-reorder__grip:active {
+  cursor: grabbing;
+}
+
+.category-reorder__grip:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.category-reorder__name {
+  flex: 1;
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.category-reorder__move {
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--clay-faint);
+  border-radius: 6px;
+  background: none;
+  color: var(--espresso);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.category-reorder__move:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.category-reorder__move:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
+.category-reorder__error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.category-reorder__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.category-reorder__done,
+.category-reorder__cancel {
+  min-height: 44px;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.category-reorder__done {
+  border: none;
+  background: var(--copper);
+  color: var(--paper);
+}
+
+.category-reorder__cancel {
+  border: 1px solid var(--clay-faint);
+  background: none;
+  color: var(--espresso);
+}
+
+.category-reorder__done:disabled,
+.category-reorder__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.category-reorder__done:focus-visible,
+.category-reorder__cancel:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
 .menu-item-button {
   display: flex;
   justify-content: space-between;
@@ -2695,58 +3258,11 @@ a {
   user-select: all;
 }
 
-/* Menu Management */
-
-.menu-admin-list {
-  list-style: none;
-  width: 100%;
-  max-width: 640px;
-  margin: 1.5rem auto 0;
-  padding: 0 1.5rem 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.menu-admin-row {
-  background: var(--paper);
-  border: 1px solid var(--clay-faint);
-  border-radius: 10px;
-  padding: 0.85rem 1rem;
-}
-
-.menu-admin-row__view {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.menu-admin-row__name {
-  flex: 1;
-  font-weight: 500;
-}
-
-.menu-admin-row__price {
-  font-family: var(--font-mono), monospace;
-  color: var(--copper);
-}
-
-.menu-admin-row__badge {
-  font-family: var(--font-mono), monospace;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--copper);
-  background: color-mix(in srgb, var(--copper) 12%, transparent);
-  padding: 0.25rem 0.55rem;
-  border-radius: 999px;
-}
-
-.menu-admin-row__badge--sold-out {
-  color: var(--clay);
-  background: var(--clay-faint);
-}
+/* Shared edit-toggle button — still used by admin/branches BranchRow.
+   (The rest of the old Menu Management CSS — .menu-admin-*, .category-admin-*,
+   .category-panel* — was removed when Menu Management was rebuilt to mirror the
+   customer menu; those styles now live in the .menu-item-card / .menu-category
+   editor / .menu-add-row / .category-reorder blocks near the top of this file.) */
 
 .menu-admin-row__edit {
   min-height: 44px;
@@ -2768,91 +3284,6 @@ a {
 .menu-admin-row__edit:focus-visible {
   outline: 2px solid var(--copper-bright);
   outline-offset: 2px;
-}
-
-.menu-admin-row__form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.menu-admin-row__input {
-  min-height: 44px;
-  padding: 0 0.6rem;
-  border: 1px solid var(--clay-faint);
-  border-radius: 8px;
-  font-family: var(--font-body), Arial, sans-serif;
-  font-size: 0.9rem;
-  color: var(--espresso);
-  background: none;
-}
-
-.menu-admin-row__input--name {
-  flex: 1;
-  min-width: 120px;
-}
-
-.menu-admin-row__input--price {
-  width: 90px;
-}
-
-.menu-admin-row__actions {
-  display: flex;
-  gap: 0.5rem;
-  width: 100%;
-  margin-top: 0.6rem;
-}
-
-.menu-admin-row__save,
-.menu-admin-row__cancel,
-.menu-admin-row__archive {
-  min-height: 44px;
-  padding: 0 1rem;
-  border-radius: 8px;
-  font-family: var(--font-body), Arial, sans-serif;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.menu-admin-row__save {
-  border: none;
-  background: var(--copper);
-  color: var(--paper);
-}
-
-.menu-admin-row__cancel {
-  border: 1px solid var(--clay-faint);
-  background: none;
-  color: var(--espresso);
-}
-
-.menu-admin-row__archive {
-  border: 1px solid var(--danger);
-  background: none;
-  color: var(--danger);
-}
-
-.menu-admin-row__save:disabled,
-.menu-admin-row__cancel:disabled,
-.menu-admin-row__archive:disabled,
-.menu-admin-row__edit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.menu-admin-row__save:focus-visible,
-.menu-admin-row__cancel:focus-visible,
-.menu-admin-row__archive:focus-visible {
-  outline: 2px solid var(--copper-bright);
-  outline-offset: 2px;
-}
-
-.menu-admin-row__error {
-  color: var(--danger);
-  font-size: 0.85rem;
-  margin-top: 0.5rem;
 }
 
 /* Branch list (admin) */

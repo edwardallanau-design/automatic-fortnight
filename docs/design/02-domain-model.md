@@ -4,6 +4,7 @@
 - **Table** → **Ordering Point** — anywhere an order can originate: a physical table, a counter, or a virtual "Online" entry. Identified by a free-text `label`, unique within its branch (not globally).
 - **Branch** (new) — a location, physical or virtual, that owns its own ordering points, its own `acceptingOrders` state, and its own shared staff password. Everything else (menu items, pricing) is shared across all branches.
 - **Menu Item** — a single item available for order, with a name, price, and availability status.
+- **Category** — an admin-managed grouping for menu items (e.g. "Drinks", "Mains"), with a manually-controlled display order. Global, not branch-scoped, matching Menu Item's own scope. A Menu Item may belong to at most one Category, or none.
 - **Order** — a set of items submitted by a customer at a specific table, tracked through fulfillment and payment independently.
 - **Order Item** — one line within an order: a reference to a menu item, a quantity, and a **price snapshot** captured at the moment it was added.
 - **Fulfillment status** — where an order stands in the kitchen/staff workflow: Pending → Confirmed, or Pending → Cancelled.
@@ -23,7 +24,8 @@
 **Entities.**
 - **Branch** — `name`, `acceptingOrders` (boolean, default true).
 - **OrderingPoint** (was Table) — `label`, `branch` (ref) — identifies where an order originated; no lifecycle of its own, same as Table had none.
-- **MenuItem** — `name`, `price` — the sellable item; `available` (boolean, global) is **removed**. Sold-out is now purely a per-branch fact (see MenuItemSoldOut below); price changes and sold-out toggles apply only to *future* order items, never retroactively.
+- **MenuItem** — `name`, `price`, `categoryId` (optional, ref to Category) — the sellable item; `available` (boolean, global) is **removed**. Sold-out is now purely a per-branch fact (see MenuItemSoldOut below); price changes and sold-out toggles apply only to *future* order items, never retroactively.
+- **Category** (new) — `name`, `sortOrder` (integer, manually reordered by admin). Deleting a Category unassigns it from any Menu Item referencing it (`onDelete: SetNull`) rather than being blocked.
 - **MenuItemSoldOut** (new) — `menuItem` (ref), `branch` (ref), unique per pair. Presence of a row means that item is sold out in that branch; absence means available. A newly created branch starts with everything available with no rows to create.
 - **Order** — `orderingPoint` (ref), `branch` (ref, captured from `orderingPoint.branch` at the moment of creation), `fulfillmentStatus`, `paymentStatus`, `paymentChoice`, `paymentMethod` (ref, optional), `paymentMethodNameSnapshot` (optional), `paymentReference` (optional), `orderNumber`, `customerName` (optional, captured at submission, immutable afterward), `createdAt`, `confirmedAt` — the aggregate root for a customer's visit.
 - **OrderItem** — `menuItem` (ref), `nameSnapshot`, `priceSnapshot`, `quantity` — a line item belonging to exactly one Order.
