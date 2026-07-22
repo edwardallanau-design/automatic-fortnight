@@ -12,6 +12,7 @@
 - **Venue Settings** — a vestigial venue-wide singleton; its `acceptingOrders` flag is no longer read by any code path (see `INV-10`) and no UI exposes it. Kept in the schema only to avoid a destructive migration.
 - **Payment Method** — an admin-managed way a customer can pay online (e.g. an e-wallet or bank transfer), each with a name and either a QR image, an account/wallet number, or both.
 - **Payment Choice** — how a customer said they'd pay for their own order: unset, at the counter, or online (with a chosen Payment Method + a self-reported reference number). Independent of, and never a substitute for, staff's own `paymentStatus` determination.
+- **Receipt** (new, 2026-07-22) — a printable, on-demand view of an Order for Staff/Admin, not a persisted entity: no schema, no `printedAt`/print count, unlimited reprints. Available only once `paymentStatus = Paid` (independent of `fulfillmentStatus`, same axis-independence as `INV-8`) — deliberately proof-of-payment, which is why it's called Receipt and not Invoice. This gate is enforced client-side only (a disabled button), since printing involves no API call or persisted state for a server to guard. Narrower than the "end-of-day transaction printout / invoices / receipts for accounting" item `07-epic-map.md`'s backlog previously rejected — this is a per-order slip with no tax computation or fiscal numbering, not an accounting feature. See `docs/superpowers/specs/2026-07-22-receipt-printing-design.md`.
 
 **High-level flow.**
 

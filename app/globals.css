@@ -2263,6 +2263,33 @@ button.menu-add-row:focus-visible {
   color: var(--paper);
 }
 
+.order-detail-modal__print {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 10px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: 1px solid var(--clay-faint);
+  background: transparent;
+  color: var(--espresso);
+}
+
+.order-detail-modal__print:hover:not(:disabled) {
+  background: var(--clay-faint);
+}
+
+.order-detail-modal__print:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.order-detail-modal__print:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
 .order-detail-modal__confirm:disabled,
 .order-detail-modal__pay:disabled {
   opacity: 0.5;
@@ -3538,4 +3565,93 @@ button.menu-add-row:focus-visible {
 .payment-method-admin-row__error {
   color: var(--danger);
   font-size: 0.85rem;
+}
+
+/* Receipt (print) */
+/* Positioned off-screen rather than `display: none` so it's always laid out
+   with real dimensions — useReceiptPageSize measures it to size @page, and
+   that measurement must not depend on whether print styles have applied yet
+   (display:none would read as 0-height right up until the print media query
+   actually kicks in, producing a near-zero page that paginates every line
+   onto its own sheet). */
+#receipt-print-root {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+}
+
+@page {
+  size: 80mm auto;
+  margin: 0;
+}
+
+@media print {
+  /* The receipt portals to a dedicated node appended directly to <body> (see
+     OrderDetailModal's useReceiptPrintTarget) specifically so it can be hidden
+     with `display: none` here, not `visibility: hidden` — display:none drops
+     an element from layout entirely, so the page's printed height matches
+     just the receipt instead of the whole (irrelevant, off-screen) dashboard. */
+  body > *:not(#receipt-print-root) {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff;
+  }
+
+  #receipt-print-root {
+    position: static;
+  }
+
+  .receipt {
+    width: 80mm;
+    margin: 0 auto;
+    padding: 4mm;
+    font-family: var(--font-mono), monospace;
+    color: #000;
+    background: #fff;
+  }
+
+  .receipt__branch {
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 0.25rem;
+  }
+
+  .receipt__heading {
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .receipt__customer {
+    text-align: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .receipt__lines {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.5rem;
+  }
+
+  .receipt__line {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.15rem 0;
+  }
+
+  .receipt__total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    border-top: 1px dashed #000;
+    padding-top: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .receipt__payment {
+    text-align: center;
+    font-size: 0.85rem;
+  }
 }
