@@ -170,6 +170,8 @@ export function StaffBar({ role, branches = [] }: StaffBarProps) {
     </button>
   )
 
+  if (pathname === '/login' || pathname === '/') return null
+
   if (collapsed) {
     return (
       <div className={`staff-strip staff-strip--${role} staff-strip--collapsed`}>
