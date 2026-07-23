@@ -43,3 +43,17 @@ New work branches off `dev` and merges back into `dev` (not `main`) — **every 
 **Definition of done.** Tests pass (per `06b` §7 test stack) · story's acceptance criteria met · scope boundary respected (no out-of-scope files touched) · code conforms to `06a-engineering-principles.md` + `06b-engineering-decisions.md`.
 
 **Gotchas.** _(grows as the build surfaces real traps — empty for now.)_
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown, not GitHub Issues — bugs in `ISSUES.md`, specs in `docs/superpowers/specs/`, plans in `docs/superpowers/plans/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, written as a bold prefix in the `Status` column of `ISSUES.md`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context, but housed in the numbered `docs/design/` context package — no root `CONTEXT.md`, no `docs/adr/`. See `docs/agents/domain.md`.
