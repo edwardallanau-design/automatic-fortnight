@@ -107,6 +107,7 @@ model OrderItem {
   nameSnapshot  String
   priceSnapshot Decimal  @db.Decimal(10, 2)
   quantity      Int
+  sequence      Int      @default(autoincrement())
 }
 
 model VenueSettings {

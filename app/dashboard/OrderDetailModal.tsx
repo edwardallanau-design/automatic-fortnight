@@ -3,15 +3,12 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Modal } from '@/app/components/Modal'
-import { ConfirmDialog } from '@/app/components/ConfirmDialog'
 import type { Role } from '@/lib/types'
-import type { OrderCardItem, OrderCardOrder } from './OrderCard'
-import { OrderItemsEditor } from './OrderItemsEditor'
+import type { OrderCardOrder } from './OrderCard'
+import { MenuItemPicker } from './MenuItemPicker'
+import type { PickerItem } from './MenuItemPicker'
+import { OrderTicketPane } from './OrderTicketPane'
 import { Receipt } from './Receipt'
-
-function lineTotal(item: OrderCardItem): number {
-  return Number(item.priceSnapshot) * item.quantity
-}
 
 const RECEIPT_PAGE_WIDTH_MM = 80
 const PX_PER_MM = 96 / 25.4 // CSS px-to-mm at the standard 96dpi CSS reference
@@ -67,9 +64,10 @@ export function OrderDetailModal({
   order,
   role = 'staff',
   busy,
+  settleBlockedByPendingAdd,
   error,
   exiting,
-  menuItems,
+  pickerGroups,
   onConfirm,
   onSetPaymentStatus,
   onCancelOrder,
@@ -81,9 +79,10 @@ export function OrderDetailModal({
   order: OrderCardOrder
   role?: Role
   busy: boolean
+  settleBlockedByPendingAdd: boolean
   error: string | null
   exiting: boolean
-  menuItems: { id: string; name: string; price: string }[]
+  pickerGroups: Array<{ id: string; name: string; items: PickerItem[] }>
   onConfirm: () => void
   onSetPaymentStatus: (paymentStatus: 'Paid' | 'Unpaid') => void
   onCancelOrder: () => void
@@ -92,17 +91,11 @@ export function OrderDetailModal({
   onRemoveItem: (itemId: string) => void
   onClose: () => void
 }) {
-  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [activePane, setActivePane] = useState<'order' | 'add'>('order')
   const printTarget = useReceiptPrintTarget()
   useReceiptPageSize(printTarget)
 
-  const total = order.items.reduce((sum, item) => sum + lineTotal(item), 0)
   const editable = order.fulfillmentStatus === 'Pending' || (order.fulfillmentStatus === 'Confirmed' && role === 'admin')
-
-  function handleCancelConfirm() {
-    setCancelConfirmOpen(false)
-    onCancelOrder()
-  }
 
   return (
     <>
@@ -110,7 +103,7 @@ export function OrderDetailModal({
         ariaLabel={`Order ${order.orderNumber}`}
         backdropClassName={`order-detail-modal__backdrop${exiting ? ' order-detail-modal__backdrop--exiting' : ''}`}
         backdropTestId="order-detail-modal-backdrop"
-        dialogClassName={`order-detail-modal${exiting ? ' order-detail-modal--exiting' : ''}`}
+        dialogClassName={`order-detail-modal${editable ? ' order-detail-modal--wide' : ''}${exiting ? ' order-detail-modal--exiting' : ''}`}
         onClose={onClose}
       >
         <h2 className="order-detail-modal__title">
@@ -130,83 +123,44 @@ export function OrderDetailModal({
           </div>
         )}
 
-        {editable ? (
-          <OrderItemsEditor
-            items={order.items}
+        {editable && (
+          <div className="order-detail-modal__pane-toggle" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              className={`order-detail-modal__pane-toggle-btn${activePane === 'order' ? ' order-detail-modal__pane-toggle-btn--active' : ''}`}
+              aria-selected={activePane === 'order'}
+              onClick={() => setActivePane('order')}
+            >
+              Order
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={`order-detail-modal__pane-toggle-btn${activePane === 'add' ? ' order-detail-modal__pane-toggle-btn--active' : ''}`}
+              aria-selected={activePane === 'add'}
+              onClick={() => setActivePane('add')}
+            >
+              Add items
+            </button>
+          </div>
+        )}
+
+        <div className="order-detail-modal__panes" data-pane={activePane}>
+          {editable && <MenuItemPicker groups={pickerGroups} disabled={busy} onAdd={onAddItem} />}
+          <OrderTicketPane
+            order={order}
+            editable={editable}
             busy={busy}
-            menuItems={menuItems}
-            onAddItem={onAddItem}
+            settleBlockedByPendingAdd={settleBlockedByPendingAdd}
+            error={error}
             onAdjustQuantity={onAdjustQuantity}
             onRemoveItem={onRemoveItem}
+            onConfirm={onConfirm}
+            onCancelOrder={onCancelOrder}
+            onSetPaymentStatus={onSetPaymentStatus}
+            onPrint={() => window.print()}
           />
-        ) : (
-          <ul className="order-detail-modal__lines">
-            {order.items.map((item) => (
-              <li key={item.id} className="order-detail-modal__line">
-                <span className="order-detail-modal__line-name">
-                  {item.quantity}x {item.nameSnapshot}
-                </span>
-                <span className="order-detail-modal__line-price">${lineTotal(item).toFixed(2)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="order-detail-modal__total">
-          <span>Total</span>
-          <span>${total.toFixed(2)}</span>
-        </div>
-
-        {error && (
-          <p role="alert" className="order-detail-modal__error">
-            {error}
-          </p>
-        )}
-
-        <div className="order-detail-modal__actions">
-          {order.fulfillmentStatus === 'Pending' && (
-            <button type="button" className="order-detail-modal__confirm" disabled={busy} onClick={onConfirm}>
-              Confirm order
-            </button>
-          )}
-          {order.fulfillmentStatus === 'Pending' && (
-            <button
-              type="button"
-              className="order-detail-modal__cancel"
-              disabled={busy}
-              onClick={() => setCancelConfirmOpen(true)}
-            >
-              Cancel order
-            </button>
-          )}
-          {order.paymentStatus === 'Unpaid' ? (
-            <button
-              type="button"
-              className="order-detail-modal__pay"
-              disabled={busy}
-              onClick={() => onSetPaymentStatus('Paid')}
-            >
-              Mark Paid
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="order-detail-modal__pay order-detail-modal__pay--revert"
-              disabled={busy}
-              onClick={() => onSetPaymentStatus('Unpaid')}
-            >
-              Mark Unpaid
-            </button>
-          )}
-          <button
-            type="button"
-            className="order-detail-modal__print"
-            disabled={order.paymentStatus !== 'Paid'}
-            title={order.paymentStatus !== 'Paid' ? 'Available once paid' : undefined}
-            onClick={() => window.print()}
-          >
-            Print receipt
-          </button>
         </div>
       </Modal>
 
@@ -224,18 +178,6 @@ export function OrderDetailModal({
           />,
           printTarget,
         )}
-
-      {cancelConfirmOpen && (
-        <ConfirmDialog
-          title="Cancel this order?"
-          message="Staff won't receive it, and this can't be undone."
-          confirmLabel="Yes, cancel"
-          busy={busy}
-          exiting={false}
-          onConfirm={handleCancelConfirm}
-          onClose={() => setCancelConfirmOpen(false)}
-        />
-      )}
     </>
   )
 }

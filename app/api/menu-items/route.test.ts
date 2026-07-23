@@ -27,6 +27,10 @@ function makePostRequest(body: unknown): Request {
   })
 }
 
+function makeGetRequest(query?: string): Request {
+  return new Request(`http://localhost/api/menu-items${query ? `?${query}` : ''}`)
+}
+
 describe('GET /api/menu-items', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -41,7 +45,7 @@ describe('GET /api/menu-items', () => {
     ]
     vi.mocked(listMenuItemsWithAvailability).mockResolvedValue(items as never)
 
-    const res = await GET()
+    const res = await GET(makeGetRequest())
 
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -56,20 +60,45 @@ describe('GET /api/menu-items', () => {
   it('gates the request behind requireApiRole("staff") and scopes it via resolveBranchId(session)', async () => {
     vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([])
 
-    await GET()
+    await GET(makeGetRequest())
 
     expect(requireApiRole).toHaveBeenCalledWith('staff')
-    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'staff', branchId: 'b1' })
+    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'staff', branchId: 'b1' }, undefined)
     expect(listMenuItemsWithAvailability).toHaveBeenCalledWith('b1')
   })
 
   it('returns 403 when unauthenticated', async () => {
     vi.mocked(requireApiRole).mockRejectedValue(new ForbiddenError('Insufficient role for this action'))
 
-    const res = await GET()
+    const res = await GET(makeGetRequest())
 
     expect(res.status).toBe(403)
     expect(listMenuItemsWithAvailability).not.toHaveBeenCalled()
+  })
+
+  it('passes an admin-supplied ?branchId= through to resolveBranchId', async () => {
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
+    vi.mocked(resolveBranchId).mockResolvedValue('b2')
+    vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([])
+
+    await GET(makeGetRequest('branchId=b2'))
+
+    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'admin' }, 'b2')
+    expect(listMenuItemsWithAvailability).toHaveBeenCalledWith('b2')
+  })
+
+  it('ignores ?branchId= for a branch-scoped staff session (tenant isolation)', async () => {
+    // resolveBranchId is mocked here, so this test only pins the *call shape*, not resolveBranchId's
+    // own precedence logic (covered by branchService's own tests) -- the route must always pass the
+    // requested id through and let resolveBranchId decide, never short-circuit on the session itself.
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff', branchId: 'b1' })
+    vi.mocked(resolveBranchId).mockResolvedValue('b1')
+    vi.mocked(listMenuItemsWithAvailability).mockResolvedValue([])
+
+    await GET(makeGetRequest('branchId=b2'))
+
+    expect(resolveBranchId).toHaveBeenCalledWith({ role: 'staff', branchId: 'b1' }, 'b2')
+    expect(listMenuItemsWithAvailability).toHaveBeenCalledWith('b1')
   })
 })
 

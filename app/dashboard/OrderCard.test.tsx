@@ -17,8 +17,8 @@ const order: OrderCardOrder = {
   branch: { name: 'Main' },
   orderingPoint: { label: 'Table 4' },
   items: [
-    { id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 },
-    { id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 },
+    { id: 'i1', menuItemId: 'm1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 },
+    { id: 'i2', menuItemId: 'm2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 },
   ],
 }
 
@@ -124,7 +124,7 @@ describe('OrderCard', () => {
   it('singularizes the item count for a single item', () => {
     render(
       <OrderCard
-        order={{ ...order, items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }] }}
+        order={{ ...order, items: [{ id: 'i1', menuItemId: 'm1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 1 }] }}
         exiting={false}
         onOpen={vi.fn()}
       />,

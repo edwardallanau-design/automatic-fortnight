@@ -4,11 +4,21 @@ import { getOrderingPointOrThrow } from './orderingPointService'
 import { getBranchOrThrow } from './branchService'
 import { findMenuItemsByIds, listSoldOutMenuItemIds } from './menuService'
 import { getActivePaymentMethodById } from './paymentMethodService'
-import { NotFoundError, ConflictError, ValidationError } from './errors'
+import { NotFoundError, ConflictError, SoldOutError, ValidationError } from './errors'
 import type { Role } from './types'
 
 export type CartItemInput = { menuItemId: string; quantity: number }
 export type OrderWithItems = Order & { items: OrderItem[] }
+
+// OrderItem has no field that reflects insertion order except this one. id is a random UUID
+// (not time-ordered); a DateTime default(now()) was tried first and doesn't work either --
+// createOrder inserts every line in one batch inside a single transaction, so they all get the
+// *identical* millisecond timestamp, leaving ties broken by Prisma's unordered default result
+// order, which visibly reshuffled on every quantity/add/remove mutation (whichever row an UPDATE
+// touched moved to the end). `sequence` is a DB-assigned autoincrement, guaranteed strictly
+// increasing per row even within the same transaction/batch insert, so ties are impossible.
+// Shared so every `items` include in this file uses the same explicit order.
+const ITEMS_OLDEST_FIRST = { orderBy: { sequence: 'asc' as const } }
 
 export async function createOrder(
   orderingPointId: string,
@@ -35,7 +45,7 @@ export async function createOrder(
       throw new NotFoundError(`Menu item ${item.menuItemId} not found`)
     }
     if (soldOutIds.has(menuItem.id)) {
-      throw new ConflictError(`${menuItem.name} is no longer available`)
+      throw new SoldOutError(`${menuItem.name} is no longer available`)
     }
   }
 
@@ -56,7 +66,7 @@ export async function createOrder(
         }),
       },
     },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   })
 }
 
@@ -80,7 +90,7 @@ export async function listOrders(
 
   return prisma.order.findMany({
     where,
-    include: { items: true, orderingPoint: true, branch: true },
+    include: { items: ITEMS_OLDEST_FIRST, orderingPoint: true, branch: true },
     orderBy: { createdAt: 'asc' },
   })
 }
@@ -97,7 +107,7 @@ export async function confirmOrder(orderId: string): Promise<OrderWithItems> {
   return prisma.order.update({
     where: { id: orderId },
     data: { fulfillmentStatus: 'Confirmed', confirmedAt: new Date() },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   })
 }
 
@@ -110,7 +120,7 @@ export async function setPaymentStatus(orderId: string, paymentStatus: PaymentSt
   return prisma.order.update({
     where: { id: orderId },
     data: { paymentStatus },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   })
 }
 
@@ -126,21 +136,29 @@ export async function cancelOrder(orderId: string): Promise<OrderWithItems> {
   return prisma.order.update({
     where: { id: orderId },
     data: { fulfillmentStatus: 'Cancelled' },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   })
 }
 
-function assertOrderEditable(order: { fulfillmentStatus: FulfillmentStatus }, actorRole?: Role): void {
+function assertOrderEditable(
+  order: { fulfillmentStatus: FulfillmentStatus; paymentStatus: PaymentStatus },
+  actorRole?: Role,
+): void {
   const adminOverride = order.fulfillmentStatus === 'Confirmed' && actorRole === 'admin'
   if (order.fulfillmentStatus !== 'Pending' && !adminOverride) {
     throw new ConflictError(`Order is ${order.fulfillmentStatus}, not Pending`)
+  }
+  // INV-16: once paymentStatus = Paid, only Owner/Admin may still change item contents — staff
+  // must revert to Unpaid (INV-9) first, so the total never silently outruns what was collected.
+  if (order.paymentStatus === 'Paid' && actorRole !== 'admin') {
+    throw new ConflictError('This order is marked Paid. Revert it to Unpaid to change items.')
   }
 }
 
 export async function removeOrderItem(orderId: string, orderItemId: string, actorRole: Role): Promise<OrderWithItems> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   })
   if (!order) {
     throw new NotFoundError('Order not found')
@@ -157,7 +175,7 @@ export async function removeOrderItem(orderId: string, orderItemId: string, acto
 
   return prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   }) as Promise<OrderWithItems>
 }
 
@@ -173,7 +191,7 @@ export async function addOrderItem(
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   })
   if (!order) {
     throw new NotFoundError('Order not found')
@@ -186,7 +204,7 @@ export async function addOrderItem(
   }
   const soldOutIds = await listSoldOutMenuItemIds(order.branchId)
   if (soldOutIds.has(menuItem.id)) {
-    throw new ConflictError(`${menuItem.name} is no longer available`)
+    throw new SoldOutError(`${menuItem.name} is no longer available`)
   }
 
   const existingLine = order.items.find((item) => item.menuItemId === menuItemId)
@@ -209,7 +227,7 @@ export async function addOrderItem(
 
   return prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   }) as Promise<OrderWithItems>
 }
 
@@ -225,7 +243,7 @@ export async function updateOrderItemQuantity(
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   })
   if (!order) {
     throw new NotFoundError('Order not found')
@@ -239,14 +257,14 @@ export async function updateOrderItemQuantity(
 
   return prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   }) as Promise<OrderWithItems>
 }
 
 export async function getOrderById(orderId: string): Promise<OrderWithItemsAndOrderingPoint> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, orderingPoint: true },
+    include: { items: ITEMS_OLDEST_FIRST, orderingPoint: true },
   })
   if (!order) {
     throw new NotFoundError('Order not found')
@@ -269,7 +287,7 @@ export async function setPaymentChoiceCounter(orderId: string): Promise<OrderWit
   return prisma.order.update({
     where: { id: orderId },
     data: { paymentChoice: 'Counter' },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   })
 }
 
@@ -306,6 +324,6 @@ export async function setPaymentChoiceOnline(
       paymentMethodNameSnapshot: method.name,
       paymentReference: reference.trim(),
     },
-    include: { items: true },
+    include: { items: ITEMS_OLDEST_FIRST },
   })
 }

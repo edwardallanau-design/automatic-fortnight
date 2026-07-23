@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Prisma } from '@prisma/client'
 import { createOrder, listOrders, confirmOrder, setPaymentStatus, cancelOrder, removeOrderItem, addOrderItem, updateOrderItemQuantity, getOrderById, setPaymentChoiceCounter, setPaymentChoiceOnline } from './orderService'
-import { NotFoundError, ConflictError, ValidationError } from './errors'
+import { NotFoundError, ConflictError, SoldOutError, ValidationError } from './errors'
 import { prisma } from './prisma'
 import { getOrderingPointOrThrow } from './orderingPointService'
 import { getBranchOrThrow } from './branchService'
@@ -82,7 +82,7 @@ describe('orderService.createOrder', () => {
     expect(prisma.order.create).not.toHaveBeenCalled()
   })
 
-  it('throws ConflictError when a menu item is sold out in this branch', async () => {
+  it('throws SoldOutError (a distinguishable ConflictError subtype) when a menu item is sold out in this branch', async () => {
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
       { id: 'm1', name: 'Fries', price: new Prisma.Decimal('4.00'), archived: false, createdAt: new Date() },
     ] as never)
@@ -90,7 +90,7 @@ describe('orderService.createOrder', () => {
 
     await expect(
       createOrder('op1', [{ menuItemId: 'm1', quantity: 1 }]),
-    ).rejects.toThrow(ConflictError)
+    ).rejects.toThrow(SoldOutError)
     expect(prisma.order.create).not.toHaveBeenCalled()
   })
 
@@ -127,7 +127,7 @@ describe('orderService.createOrder', () => {
           ],
         },
       },
-      include: { items: true },
+      include: { items: { orderBy: { sequence: 'asc' } } },
     })
   })
 
@@ -190,7 +190,7 @@ describe('orderService.listOrders', () => {
     expect(result).toEqual(orders)
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Pending' },
-      include: { items: true, orderingPoint: true, branch: true },
+      include: { items: { orderBy: { sequence: 'asc' } }, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -202,7 +202,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: {},
-      include: { items: true, orderingPoint: true, branch: true },
+      include: { items: { orderBy: { sequence: 'asc' } }, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -214,7 +214,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid' },
-      include: { items: true, orderingPoint: true, branch: true },
+      include: { items: { orderBy: { sequence: 'asc' } }, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -246,7 +246,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Pending' },
-      include: { items: true, orderingPoint: true, branch: true },
+      include: { items: { orderBy: { sequence: 'asc' } }, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -258,7 +258,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { branchId: 'b2' },
-      include: { items: true, orderingPoint: true, branch: true },
+      include: { items: { orderBy: { sequence: 'asc' } }, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -270,7 +270,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Pending', paymentStatus: 'Unpaid', branchId: 'b2' },
-      include: { items: true, orderingPoint: true, branch: true },
+      include: { items: { orderBy: { sequence: 'asc' } }, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -282,7 +282,7 @@ describe('orderService.listOrders', () => {
 
     expect(prisma.order.findMany).toHaveBeenCalledWith({
       where: { fulfillmentStatus: 'Pending' },
-      include: { items: true, orderingPoint: true, branch: true },
+      include: { items: { orderBy: { sequence: 'asc' } }, orderingPoint: true, branch: true },
       orderBy: { createdAt: 'asc' },
     })
   })
@@ -325,7 +325,7 @@ describe('orderService.confirmOrder', () => {
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { id: 'o1' },
       data: { fulfillmentStatus: 'Confirmed', confirmedAt: expect.any(Date) },
-      include: { items: true },
+      include: { items: { orderBy: { sequence: 'asc' } } },
     })
   })
 })
@@ -353,7 +353,7 @@ describe('orderService.setPaymentStatus', () => {
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { id: 'o1' },
       data: { paymentStatus: 'Paid' },
-      include: { items: true },
+      include: { items: { orderBy: { sequence: 'asc' } } },
     })
   })
 
@@ -368,7 +368,7 @@ describe('orderService.setPaymentStatus', () => {
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { id: 'o1' },
       data: { paymentStatus: 'Unpaid' },
-      include: { items: true },
+      include: { items: { orderBy: { sequence: 'asc' } } },
     })
   })
 })
@@ -410,7 +410,7 @@ describe('orderService.cancelOrder', () => {
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { id: 'o1' },
       data: { fulfillmentStatus: 'Cancelled' },
-      include: { items: true },
+      include: { items: { orderBy: { sequence: 'asc' } } },
     })
   })
 })
@@ -512,6 +512,37 @@ describe('orderService.removeOrderItem', () => {
     await expect(removeOrderItem('o1', 'oi1', 'admin')).rejects.toThrow(ConflictError)
     expect(prisma.orderItem.delete).not.toHaveBeenCalled()
   })
+
+  it('throws ConflictError when a staff actor removes an item from a Paid Pending order (INV-16)', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o1',
+      fulfillmentStatus: 'Pending',
+      paymentStatus: 'Paid',
+      items: [{ id: 'oi1', orderId: 'o1' }, { id: 'oi2', orderId: 'o1' }],
+    } as never)
+
+    await expect(removeOrderItem('o1', 'oi1', 'staff')).rejects.toThrow(ConflictError)
+    expect(prisma.orderItem.delete).not.toHaveBeenCalled()
+  })
+
+  it('allows an admin to remove an item from a Paid order (INV-16 exception)', async () => {
+    const paid = {
+      id: 'o1',
+      fulfillmentStatus: 'Pending',
+      paymentStatus: 'Paid',
+      items: [{ id: 'oi1', orderId: 'o1' }, { id: 'oi2', orderId: 'o1' }],
+    }
+    const reloaded = { id: 'o1', fulfillmentStatus: 'Pending', paymentStatus: 'Paid', items: [{ id: 'oi2', orderId: 'o1' }] }
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce(paid as never)
+      .mockResolvedValueOnce(reloaded as never)
+    vi.mocked(prisma.orderItem.delete).mockResolvedValue({ id: 'oi1' } as never)
+
+    const result = await removeOrderItem('o1', 'oi1', 'admin')
+
+    expect(prisma.orderItem.delete).toHaveBeenCalledWith({ where: { id: 'oi1' } })
+    expect(result).toEqual(reloaded)
+  })
 })
 
 describe('orderService.getOrderById', () => {
@@ -542,7 +573,7 @@ describe('orderService.getOrderById', () => {
     expect(result).toEqual(order)
     expect(prisma.order.findUnique).toHaveBeenCalledWith({
       where: { id: 'o1' },
-      include: { items: true, orderingPoint: true },
+      include: { items: { orderBy: { sequence: 'asc' } }, orderingPoint: true },
     })
   })
 })
@@ -582,14 +613,14 @@ describe('orderService.addOrderItem', () => {
     await expect(addOrderItem('o1', 'missing', 1, 'staff')).rejects.toThrow(NotFoundError)
   })
 
-  it('throws ConflictError when the menu item is sold out', async () => {
+  it('throws SoldOutError (a distinguishable ConflictError subtype) when the menu item is sold out', async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue({ id: 'o1', branchId: 'b1', fulfillmentStatus: 'Pending', items: [] } as never)
     vi.mocked(findMenuItemsByIds).mockResolvedValue([
       { id: 'm1', name: 'Fries', price: new Prisma.Decimal('4.00'), archived: false, createdAt: new Date() },
     ] as never)
     vi.mocked(listSoldOutMenuItemIds).mockResolvedValue(new Set(['m1']))
 
-    await expect(addOrderItem('o1', 'm1', 1, 'staff')).rejects.toThrow(ConflictError)
+    await expect(addOrderItem('o1', 'm1', 1, 'staff')).rejects.toThrow(SoldOutError)
     expect(prisma.orderItem.create).not.toHaveBeenCalled()
   })
 
@@ -667,6 +698,59 @@ describe('orderService.addOrderItem', () => {
     expect(prisma.orderItem.create).toHaveBeenCalled()
     expect(result.fulfillmentStatus).toBe('Confirmed')
   })
+
+  it('throws ConflictError when a staff actor adds an item to a Paid Pending order (INV-16)', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o1',
+      branchId: 'b1',
+      fulfillmentStatus: 'Pending',
+      paymentStatus: 'Paid',
+      items: [],
+    } as never)
+
+    await expect(addOrderItem('o1', 'm1', 1, 'staff')).rejects.toThrow(ConflictError)
+    expect(prisma.orderItem.create).not.toHaveBeenCalled()
+  })
+
+  it('allows an admin to add an item to a Paid order (INV-16 exception)', async () => {
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({ id: 'o1', branchId: 'b1', fulfillmentStatus: 'Pending', paymentStatus: 'Paid', items: [] } as never)
+      .mockResolvedValueOnce({
+        id: 'o1',
+        branchId: 'b1',
+        fulfillmentStatus: 'Pending',
+        paymentStatus: 'Paid',
+        items: [{ id: 'oi1', menuItemId: 'm1', quantity: 1 }],
+      } as never)
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), archived: false, createdAt: new Date() },
+    ] as never)
+
+    const result = await addOrderItem('o1', 'm1', 1, 'admin')
+
+    expect(prisma.orderItem.create).toHaveBeenCalled()
+    expect(result.items).toEqual([{ id: 'oi1', menuItemId: 'm1', quantity: 1 }])
+  })
+
+  it('allows a staff actor to add an item to an Unpaid Pending order (regression)', async () => {
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({ id: 'o1', branchId: 'b1', fulfillmentStatus: 'Pending', paymentStatus: 'Unpaid', items: [] } as never)
+      .mockResolvedValueOnce({
+        id: 'o1',
+        branchId: 'b1',
+        fulfillmentStatus: 'Pending',
+        paymentStatus: 'Unpaid',
+        items: [{ id: 'oi1', menuItemId: 'm1', quantity: 1 }],
+      } as never)
+    vi.mocked(findMenuItemsByIds).mockResolvedValue([
+      { id: 'm1', name: 'Burger', price: new Prisma.Decimal('12.50'), archived: false, createdAt: new Date() },
+    ] as never)
+
+    const result = await addOrderItem('o1', 'm1', 1, 'staff')
+
+    expect(prisma.orderItem.create).toHaveBeenCalled()
+    expect(result.items).toEqual([{ id: 'oi1', menuItemId: 'm1', quantity: 1 }])
+  })
 })
 
 describe('orderService.updateOrderItemQuantity', () => {
@@ -728,6 +812,51 @@ describe('orderService.updateOrderItemQuantity', () => {
     expect(prisma.orderItem.update).toHaveBeenCalledWith({ where: { id: 'oi1' }, data: { quantity: 2 } })
     expect(result.items[0].quantity).toBe(2)
   })
+
+  it('re-fetches items ordered by sequence, not Prisma\'s unordered default (ISSUE-32)', async () => {
+    // OrderItem has no field reflecting insertion order except sequence -- id is a random UUID
+    // (not time-ordered), and a DateTime default(now()) was tried first and doesn't work either:
+    // createOrder inserts every line in one batch inside a single transaction, so they all get
+    // the identical millisecond timestamp, leaving ties broken by Prisma's unordered default
+    // result order, which was observed live to reshuffle -- specifically, whichever item's row
+    // was just UPDATEd moved to the end -- on every quantity change. `sequence` is a DB-assigned
+    // autoincrement, guaranteed strictly increasing per row even within the same batch insert.
+    // This pins the query shape so a regression back to `items: true` (or back to ordering by a
+    // batch-tied timestamp) fails here, not just in a live browser.
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', items: [{ id: 'oi1', quantity: 1 }] } as never)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', items: [{ id: 'oi1', quantity: 3 }] } as never)
+
+    await updateOrderItemQuantity('o1', 'oi1', 3, 'staff')
+
+    expect(prisma.order.findUnique).toHaveBeenNthCalledWith(2, {
+      where: { id: 'o1' },
+      include: { items: { orderBy: { sequence: 'asc' } } },
+    })
+  })
+
+  it('throws ConflictError when a staff actor adjusts quantity on a Paid Pending order (INV-16)', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'o1',
+      fulfillmentStatus: 'Pending',
+      paymentStatus: 'Paid',
+      items: [{ id: 'oi1', quantity: 1 }],
+    } as never)
+
+    await expect(updateOrderItemQuantity('o1', 'oi1', 2, 'staff')).rejects.toThrow(ConflictError)
+    expect(prisma.orderItem.update).not.toHaveBeenCalled()
+  })
+
+  it('allows an admin to adjust quantity on a Paid order (INV-16 exception)', async () => {
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', paymentStatus: 'Paid', items: [{ id: 'oi1', quantity: 1 }] } as never)
+      .mockResolvedValueOnce({ id: 'o1', fulfillmentStatus: 'Pending', paymentStatus: 'Paid', items: [{ id: 'oi1', quantity: 2 }] } as never)
+
+    const result = await updateOrderItemQuantity('o1', 'oi1', 2, 'admin')
+
+    expect(prisma.orderItem.update).toHaveBeenCalledWith({ where: { id: 'oi1' }, data: { quantity: 2 } })
+    expect(result.items[0].quantity).toBe(2)
+  })
 })
 
 describe('orderService.setPaymentChoiceCounter', () => {
@@ -747,7 +876,7 @@ describe('orderService.setPaymentChoiceCounter', () => {
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { id: 'o1' },
       data: { paymentChoice: 'Counter' },
-      include: { items: true },
+      include: { items: { orderBy: { sequence: 'asc' } } },
     })
   })
 
@@ -797,7 +926,7 @@ describe('orderService.setPaymentChoiceOnline', () => {
         paymentMethodNameSnapshot: 'GCash',
         paymentReference: 'TXN123',
       },
-      include: { items: true },
+      include: { items: { orderBy: { sequence: 'asc' } } },
     })
   })
 

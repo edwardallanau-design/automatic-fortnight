@@ -4,6 +4,7 @@ import {
   ValidationError,
   NotFoundError,
   ConflictError,
+  SoldOutError,
   ForbiddenError,
   InvalidCredentialError,
 } from './errors'
@@ -22,6 +23,9 @@ function codeFor(error: DomainError): string {
   if (error instanceof InvalidCredentialError) return 'INVALID_CREDENTIAL'
   if (error instanceof ForbiddenError) return 'FORBIDDEN'
   if (error instanceof NotFoundError) return 'NOT_FOUND'
+  // SoldOutError extends ConflictError, so this check must come first -- the more specific
+  // subclass wins, otherwise `instanceof ConflictError` would swallow it.
+  if (error instanceof SoldOutError) return 'SOLD_OUT'
   if (error instanceof ConflictError) return 'CONFLICT'
   return 'DOMAIN_ERROR'
 }

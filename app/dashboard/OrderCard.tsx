@@ -1,6 +1,6 @@
 'use client'
 
-export type OrderCardItem = { id: string; nameSnapshot: string; priceSnapshot: string; quantity: number }
+export type OrderCardItem = { id: string; menuItemId: string; nameSnapshot: string; priceSnapshot: string; quantity: number }
 
 export type OrderCardOrder = {
   id: string
