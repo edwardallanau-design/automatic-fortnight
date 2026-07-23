@@ -55,6 +55,8 @@
 - `INV-14` An OrderingPoint's `label` must be unique within its branch (not globally — two branches may each have a "Table 1").
 - `INV-15` A branch's staff password must not match any other credential's password in the system (admin's, or any other branch's). `login()` matches by trying every credential's bcrypt hash via an unordered `findMany` and returning the first hit, so a collision would silently route staff into the wrong branch's dashboard. This must be enforced at branch-password-write time (comparing the candidate plaintext against every existing hash before saving); that write path doesn't exist yet — branch creation/password management is Plan 2. Until then only the two seeded credentials exist, each from a distinct env var, so no collision is possible.
 
+- `INV-16` An Order's OrderItems may not be added, removed, or have their quantity changed while `paymentStatus = Paid`, **except by Owner/Admin**. Staff must first revert `paymentStatus` to `Unpaid` (permitted by `INV-9`) before changing a Paid order's contents. This gate is independent of `INV-4`/`INV-5`'s fulfillment gate — **both** must pass. Added 2026-07-23 to close a silent money hole: `addOrderItem` previously had no `paymentStatus` guard, and `INV-8` makes `Paid + Pending` legal, so staff could raise an order's total above what was collected — and `Print receipt`, gated only on Paid, would then attest to the higher figure (Receipt is deliberately proof-of-payment). The Owner/Admin exception mirrors `INV-5`: admin is this system's correction path, and `Paid + Confirmed` is precisely the state in which a mistake is most likely to be discovered. See `docs/superpowers/specs/2026-07-23-counter-add-items-design.md`.
+
 **State machines.**
 
 *Order — `fulfillmentStatus`*
