@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiError } from '@/lib/apiClient'
+import { groupByCategory } from '@/lib/groupByCategory'
+import { MenuGroups } from '@/app/components/MenuGroups'
 import { OrderReviewModal } from './OrderReviewModal'
 import { readOrderName, saveOrderName } from './orderNameStorage'
 
@@ -11,6 +13,7 @@ type MenuItemProps = {
   name: string
   price: string
   available: boolean
+  category?: { id: string; name: string; sortOrder: number } | null
 }
 
 type CartLine = {
@@ -20,31 +23,19 @@ type CartLine = {
   quantity: number
 }
 
-const CATEGORIES: { label: string; match: RegExp }[] = [
-  { label: 'Brewed & Tea', match: /drip coffee|cold brew|chai|matcha|tea/i },
-  { label: 'Espresso Drinks', match: /espresso|americano|cappuccino|latte|flat white|mocha|macchiato/i },
-  { label: 'Pastries', match: /croissant|muffin|cinnamon roll|cookie|banana bread|scone|pain au chocolat/i },
-  { label: 'Light Bites', match: /toast|sandwich|parfait|bagel/i },
-]
-const OTHER_CATEGORY = 'More'
-
 const TOAST_AUTO_DISMISS_MS = 4000
 const TOAST_EXIT_MS = 200
 const REVIEW_EXIT_MS = 200
 const LINE_EXIT_MS = 200
 
-function categorize(items: MenuItemProps[]) {
-  const groups = new Map<string, MenuItemProps[]>()
+function deriveCategories(items: MenuItemProps[]): { id: string; name: string; sortOrder: number }[] {
+  const seen = new Map<string, { id: string; name: string; sortOrder: number }>()
   for (const item of items) {
-    const category = CATEGORIES.find((c) => c.match.test(item.name))?.label ?? OTHER_CATEGORY
-    const group = groups.get(category) ?? []
-    group.push(item)
-    groups.set(category, group)
+    if (item.category && !seen.has(item.category.id)) {
+      seen.set(item.category.id, item.category)
+    }
   }
-  const order = [...CATEGORIES.map((c) => c.label), OTHER_CATEGORY]
-  return order
-    .filter((label) => groups.has(label))
-    .map((label) => ({ label, items: groups.get(label)! }))
+  return [...seen.values()].sort((a, b) => a.sortOrder - b.sortOrder)
 }
 
 function cartStorageKey(tableId: string) {
@@ -215,7 +206,8 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
     }
   }
 
-  const categories = categorize(items)
+  const normalizedItems = items.map((item) => ({ ...item, category: item.category ?? null }))
+  const groups = groupByCategory(normalizedItems, deriveCategories(items))
   const cartCount = lines.reduce((sum, line) => sum + line.quantity, 0)
   const cartTotal = lines.reduce((sum, line) => sum + Number(line.price) * line.quantity, 0)
 
@@ -232,39 +224,27 @@ export function Cart({ tableId, items }: { tableId: string; items: MenuItemProps
           </button>
         </div>
       )}
-      <div className="menu-categories">
-        {(() => {
-          let staggerIndex = 0
-          return categories.map((category) => (
-            <div key={category.label} className="menu-category">
-              <h2 className="menu-category__title">{category.label}</h2>
-              <ul className="menu-list">
-                {category.items.map((item) => {
-                  const staggerDelay = `${Math.min(staggerIndex * 30, 300)}ms`
-                  staggerIndex += 1
-                  return (
-                    <li key={item.id}>
-                      <button
-                        type="button"
-                        className="menu-item-button"
-                        style={{ '--stagger-delay': staggerDelay } as React.CSSProperties}
-                        disabled={!item.available}
-                        onClick={() => addItem(item)}
-                      >
-                        <span>
-                          <span className="menu-item-button__name">{item.name}</span>
-                          {!item.available && <span className="menu-item-button__sold-out">Sold out</span>}
-                        </span>
-                        <span className="menu-item-button__price">${item.price}</span>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))
-        })()}
-      </div>
+      <MenuGroups
+        groups={groups}
+        renderHeading={(group) => (
+          <h2 className="menu-category__title">{group.id === 'uncategorized' ? 'Other' : group.name}</h2>
+        )}
+        renderItem={(item, index) => (
+          <button
+            type="button"
+            className="menu-item-button"
+            style={{ '--stagger-delay': `${Math.min(index * 30, 300)}ms` } as React.CSSProperties}
+            disabled={!item.available}
+            onClick={() => addItem(item)}
+          >
+            <span>
+              <span className="menu-item-button__name">{item.name}</span>
+              {!item.available && <span className="menu-item-button__sold-out">Sold out</span>}
+            </span>
+            <span className="menu-item-button__price">${item.price}</span>
+          </button>
+        )}
+      />
 
       <section aria-label="Your order" className="cart-rail">
         <button

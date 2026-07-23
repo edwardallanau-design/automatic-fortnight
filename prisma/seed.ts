@@ -36,39 +36,55 @@ const MAIN_BRANCH_ID = '00000000-0000-0000-0000-000000000001'
 // a fresh production DB starts clean rather than carrying sample tables.
 const SEED_TABLES = [0]
 
-const SEED_MENU_ITEMS = [
-  // Espresso drinks
-  { name: 'Espresso', price: 3.0 },
-  { name: 'Americano', price: 3.5 },
-  { name: 'Cappuccino', price: 4.75 },
-  { name: 'Latte', price: 5.0 },
-  { name: 'Flat White', price: 5.0 },
-  { name: 'Mocha', price: 5.5 },
-  { name: 'Caramel Macchiato', price: 5.5 },
-
-  // Brewed & tea
-  { name: 'Drip Coffee', price: 3.0 },
-  { name: 'Cold Brew', price: 4.5 },
-  { name: 'Chai Latte', price: 4.75 },
-  { name: 'Matcha Latte', price: 5.25 },
-  { name: 'Hot Tea', price: 3.25 },
-  { name: 'Iced Tea', price: 3.25 },
-
-  // Pastries
-  { name: 'Croissant', price: 3.75 },
-  { name: 'Almond Croissant', price: 4.25 },
-  { name: 'Pain au Chocolat', price: 4.25 },
-  { name: 'Blueberry Muffin', price: 3.95 },
-  { name: 'Cinnamon Roll', price: 4.5 },
-  { name: 'Chocolate Chip Cookie', price: 2.75 },
-  { name: 'Banana Bread', price: 3.95 },
-  { name: 'Scone', price: 3.5 },
-
-  // Light bites
-  { name: 'Avocado Toast', price: 8.5 },
-  { name: 'Breakfast Sandwich', price: 7.25 },
-  { name: 'Yogurt Parfait', price: 5.75 },
-  { name: 'Bagel with Cream Cheese', price: 4.5 },
+// Grouped by the same categories the old regex-based customer-menu grouping
+// hack used to fake (deleted in the menu-categories feature) -- now seeded as
+// real Category rows so the category feature has real test data out of the box.
+const SEED_CATEGORIES = [
+  {
+    name: 'Espresso Drinks',
+    items: [
+      { name: 'Espresso', price: 3.0 },
+      { name: 'Americano', price: 3.5 },
+      { name: 'Cappuccino', price: 4.75 },
+      { name: 'Latte', price: 5.0 },
+      { name: 'Flat White', price: 5.0 },
+      { name: 'Mocha', price: 5.5 },
+      { name: 'Caramel Macchiato', price: 5.5 },
+    ],
+  },
+  {
+    name: 'Brewed & Tea',
+    items: [
+      { name: 'Drip Coffee', price: 3.0 },
+      { name: 'Cold Brew', price: 4.5 },
+      { name: 'Chai Latte', price: 4.75 },
+      { name: 'Matcha Latte', price: 5.25 },
+      { name: 'Hot Tea', price: 3.25 },
+      { name: 'Iced Tea', price: 3.25 },
+    ],
+  },
+  {
+    name: 'Pastries',
+    items: [
+      { name: 'Croissant', price: 3.75 },
+      { name: 'Almond Croissant', price: 4.25 },
+      { name: 'Pain au Chocolat', price: 4.25 },
+      { name: 'Blueberry Muffin', price: 3.95 },
+      { name: 'Cinnamon Roll', price: 4.5 },
+      { name: 'Chocolate Chip Cookie', price: 2.75 },
+      { name: 'Banana Bread', price: 3.95 },
+      { name: 'Scone', price: 3.5 },
+    ],
+  },
+  {
+    name: 'Light Bites',
+    items: [
+      { name: 'Avocado Toast', price: 8.5 },
+      { name: 'Breakfast Sandwich', price: 7.25 },
+      { name: 'Yogurt Parfait', price: 5.75 },
+      { name: 'Bagel with Cream Cheese', price: 4.5 },
+    ],
+  },
 ]
 
 async function main() {
@@ -144,20 +160,37 @@ async function main() {
   }
   console.log('Seeded ordering points for Main branch:', seededLabels.join(', '))
 
-  // Menu items are create-once: seed a missing item, but never overwrite one that
-  // already exists. The menu is managed through the admin UI on a live database,
-  // so re-running the seed on every deploy must not revert admin edits (renamed
-  // items, price changes, removals). Adding a new item to SEED_MENU_ITEMS later
-  // still works — it's created wherever it's missing without touching the rest.
-  let createdCount = 0
-  for (const { name, price } of SEED_MENU_ITEMS) {
-    const existing = await prisma.menuItem.findFirst({ where: { name } })
-    if (!existing) {
-      await prisma.menuItem.create({ data: { name, price } })
-      createdCount += 1
+  // Categories and menu items are both create-once, matched by name: seed a
+  // missing row, but never overwrite one that already exists. The menu is
+  // managed through the admin UI on a live database, so re-running the seed on
+  // every deploy must not revert admin edits (renamed/reordered/deleted
+  // categories, renamed items, price changes, removals). Adding a new category
+  // or item to SEED_CATEGORIES later still works — it's created wherever it's
+  // missing without touching the rest. categoryId is only ever set at item
+  // *creation* time, matching how item creation itself already has no
+  // categoryId in the real admin flow (assignment happens afterward) — an
+  // existing item's category is never touched by re-seeding.
+  let createdCategoryCount = 0
+  let createdItemCount = 0
+  let totalItemCount = 0
+  for (const [index, { name: categoryName, items }] of SEED_CATEGORIES.entries()) {
+    let category = await prisma.category.findFirst({ where: { name: categoryName } })
+    if (!category) {
+      category = await prisma.category.create({ data: { name: categoryName, sortOrder: index } })
+      createdCategoryCount += 1
+    }
+
+    for (const { name, price } of items) {
+      totalItemCount += 1
+      const existing = await prisma.menuItem.findFirst({ where: { name } })
+      if (!existing) {
+        await prisma.menuItem.create({ data: { name, price, categoryId: category.id } })
+        createdItemCount += 1
+      }
     }
   }
-  console.log(`Seeded menu items: ${createdCount} created, ${SEED_MENU_ITEMS.length - createdCount} already present (create-once)`)
+  console.log(`Seeded categories: ${createdCategoryCount} created, ${SEED_CATEGORIES.length - createdCategoryCount} already present (create-once)`)
+  console.log(`Seeded menu items: ${createdItemCount} created, ${totalItemCount - createdItemCount} already present (create-once)`)
 }
 
 main()

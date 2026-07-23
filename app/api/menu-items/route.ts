@@ -6,10 +6,11 @@ import { handleApiError } from '@/lib/handleApiError'
 import { requireApiRole } from '@/lib/authGuard'
 import { ValidationError } from '@/lib/errors'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await requireApiRole('staff')
-    const branchId = await resolveBranchId(session)
+    const { searchParams } = new URL(request.url)
+    const branchId = await resolveBranchId(session, searchParams.get('branchId') ?? undefined)
     const items = await listMenuItemsWithAvailability(branchId)
     return NextResponse.json(items, { status: 200 })
   } catch (error) {

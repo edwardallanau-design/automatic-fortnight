@@ -70,6 +70,9 @@ export default async function OrderPage({
             name: item.name,
             price: item.price.toString(),
             available: item.available,
+            category: item.category
+              ? { id: item.category.id, name: item.category.name, sortOrder: item.category.sortOrder }
+              : null,
           }))}
         />
       )}

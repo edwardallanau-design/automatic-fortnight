@@ -119,6 +119,32 @@ describe('StaffBar', () => {
   })
 })
 
+describe('StaffBar route visibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    mockSearchParams = new URLSearchParams()
+  })
+
+  it('renders nothing on the login page', () => {
+    mockPathname = '/login'
+    const { container } = render(<StaffBar role="staff" />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders nothing on the root page', () => {
+    mockPathname = '/'
+    const { container } = render(<StaffBar role="admin" />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('still renders on other routes such as /order/new', () => {
+    mockPathname = '/order/new'
+    render(<StaffBar role="staff" />)
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument()
+  })
+})
+
 describe('StaffBar menu (hamburger)', () => {
   beforeEach(() => {
     vi.clearAllMocks()

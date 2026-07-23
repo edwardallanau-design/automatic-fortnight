@@ -4,6 +4,7 @@
 - **Table** → **Ordering Point** — anywhere an order can originate: a physical table, a counter, or a virtual "Online" entry. Identified by a free-text `label`, unique within its branch (not globally).
 - **Branch** (new) — a location, physical or virtual, that owns its own ordering points, its own `acceptingOrders` state, and its own shared staff password. Everything else (menu items, pricing) is shared across all branches.
 - **Menu Item** — a single item available for order, with a name, price, and availability status.
+- **Category** — an admin-managed grouping for menu items (e.g. "Drinks", "Mains"), with a manually-controlled display order. Global, not branch-scoped, matching Menu Item's own scope. A Menu Item may belong to at most one Category, or none.
 - **Order** — a set of items submitted by a customer at a specific table, tracked through fulfillment and payment independently.
 - **Order Item** — one line within an order: a reference to a menu item, a quantity, and a **price snapshot** captured at the moment it was added.
 - **Fulfillment status** — where an order stands in the kitchen/staff workflow: Pending → Confirmed, or Pending → Cancelled.
@@ -11,6 +12,7 @@
 - **Venue Settings** — a vestigial venue-wide singleton; its `acceptingOrders` flag is no longer read by any code path (see `INV-10`) and no UI exposes it. Kept in the schema only to avoid a destructive migration.
 - **Payment Method** — an admin-managed way a customer can pay online (e.g. an e-wallet or bank transfer), each with a name and either a QR image, an account/wallet number, or both.
 - **Payment Choice** — how a customer said they'd pay for their own order: unset, at the counter, or online (with a chosen Payment Method + a self-reported reference number). Independent of, and never a substitute for, staff's own `paymentStatus` determination.
+- **Receipt** (new, 2026-07-22) — a printable, on-demand view of an Order for Staff/Admin, not a persisted entity: no schema, no `printedAt`/print count, unlimited reprints. Available only once `paymentStatus = Paid` (independent of `fulfillmentStatus`, same axis-independence as `INV-8`) — deliberately proof-of-payment, which is why it's called Receipt and not Invoice. This gate is enforced client-side only (a disabled button), since printing involves no API call or persisted state for a server to guard. Narrower than the "end-of-day transaction printout / invoices / receipts for accounting" item `07-epic-map.md`'s backlog previously rejected — this is a per-order slip with no tax computation or fiscal numbering, not an accounting feature. See `docs/superpowers/specs/2026-07-22-receipt-printing-design.md`.
 
 **High-level flow.**
 
@@ -23,7 +25,8 @@
 **Entities.**
 - **Branch** — `name`, `acceptingOrders` (boolean, default true).
 - **OrderingPoint** (was Table) — `label`, `branch` (ref) — identifies where an order originated; no lifecycle of its own, same as Table had none.
-- **MenuItem** — `name`, `price` — the sellable item; `available` (boolean, global) is **removed**. Sold-out is now purely a per-branch fact (see MenuItemSoldOut below); price changes and sold-out toggles apply only to *future* order items, never retroactively.
+- **MenuItem** — `name`, `price`, `categoryId` (optional, ref to Category) — the sellable item; `available` (boolean, global) is **removed**. Sold-out is now purely a per-branch fact (see MenuItemSoldOut below); price changes and sold-out toggles apply only to *future* order items, never retroactively.
+- **Category** (new) — `name`, `sortOrder` (integer, manually reordered by admin). Deleting a Category unassigns it from any Menu Item referencing it (`onDelete: SetNull`) rather than being blocked.
 - **MenuItemSoldOut** (new) — `menuItem` (ref), `branch` (ref), unique per pair. Presence of a row means that item is sold out in that branch; absence means available. A newly created branch starts with everything available with no rows to create.
 - **Order** — `orderingPoint` (ref), `branch` (ref, captured from `orderingPoint.branch` at the moment of creation), `fulfillmentStatus`, `paymentStatus`, `paymentChoice`, `paymentMethod` (ref, optional), `paymentMethodNameSnapshot` (optional), `paymentReference` (optional), `orderNumber`, `customerName` (optional, captured at submission, immutable afterward), `createdAt`, `confirmedAt` — the aggregate root for a customer's visit.
 - **OrderItem** — `menuItem` (ref), `nameSnapshot`, `priceSnapshot`, `quantity` — a line item belonging to exactly one Order.
@@ -51,6 +54,8 @@
 - `INV-13` An Order's `branchId` is captured once, from its OrderingPoint's branch, at creation time, and never changes afterward — even if that OrderingPoint is later reassigned to a different branch or deleted. Mirrors the existing snapshot precedent in `INV-3`.
 - `INV-14` An OrderingPoint's `label` must be unique within its branch (not globally — two branches may each have a "Table 1").
 - `INV-15` A branch's staff password must not match any other credential's password in the system (admin's, or any other branch's). `login()` matches by trying every credential's bcrypt hash via an unordered `findMany` and returning the first hit, so a collision would silently route staff into the wrong branch's dashboard. This must be enforced at branch-password-write time (comparing the candidate plaintext against every existing hash before saving); that write path doesn't exist yet — branch creation/password management is Plan 2. Until then only the two seeded credentials exist, each from a distinct env var, so no collision is possible.
+
+- `INV-16` An Order's OrderItems may not be added, removed, or have their quantity changed while `paymentStatus = Paid`, **except by Owner/Admin**. Staff must first revert `paymentStatus` to `Unpaid` (permitted by `INV-9`) before changing a Paid order's contents. This gate is independent of `INV-4`/`INV-5`'s fulfillment gate — **both** must pass. Added 2026-07-23 to close a silent money hole: `addOrderItem` previously had no `paymentStatus` guard, and `INV-8` makes `Paid + Pending` legal, so staff could raise an order's total above what was collected — and `Print receipt`, gated only on Paid, would then attest to the higher figure (Receipt is deliberately proof-of-payment). The Owner/Admin exception mirrors `INV-5`: admin is this system's correction path, and `Paid + Confirmed` is precisely the state in which a mistake is most likely to be discovered. See `docs/superpowers/specs/2026-07-23-counter-add-items-design.md`.
 
 **State machines.**
 

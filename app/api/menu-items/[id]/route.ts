@@ -14,7 +14,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params
     const body = await request.json()
 
-    const data: { name?: string; price?: Prisma.Decimal } = {}
+    const data: { name?: string; price?: Prisma.Decimal; categoryId?: string | null } = {}
 
     if (body.name !== undefined) {
       if (typeof body.name !== 'string' || body.name.trim() === '') {
@@ -27,6 +27,12 @@ export async function PATCH(request: Request, context: RouteContext) {
         throw new ValidationError('price must be a positive number')
       }
       data.price = new Prisma.Decimal(body.price)
+    }
+    if (body.categoryId !== undefined) {
+      if (body.categoryId !== null && typeof body.categoryId !== 'string') {
+        throw new ValidationError('categoryId must be a string or null')
+      }
+      data.categoryId = body.categoryId
     }
 
     const item = await updateMenuItem(id, data)

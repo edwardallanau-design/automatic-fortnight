@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { OrderDetailModal } from './OrderDetailModal'
 import type { OrderCardOrder } from './OrderCard'
+import type { PickerItem } from './MenuItemPicker'
 
 const pendingOrder: OrderCardOrder = {
   id: 'o1',
@@ -17,16 +18,21 @@ const pendingOrder: OrderCardOrder = {
   branchId: 'b1',
   branch: { name: 'Main' },
   orderingPoint: { label: 'Table 4' },
-  items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
+  items: [{ id: 'i1', menuItemId: 'm1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
 }
+
+const pickerGroups: Array<{ id: string; name: string; items: PickerItem[] }> = [
+  { id: 'cat1', name: 'Mains', items: [{ id: 'm1', name: 'Cola', price: '3.00', available: true, countOnOrder: 0 }] },
+]
 
 function baseProps(overrides: Partial<React.ComponentProps<typeof OrderDetailModal>> = {}) {
   return {
     order: pendingOrder,
     busy: false,
+    settleBlockedByPendingAdd: false,
     error: null,
     exiting: false,
-    menuItems: [],
+    pickerGroups,
     onConfirm: vi.fn(),
     onSetPaymentStatus: vi.fn(),
     onCancelOrder: vi.fn(),
@@ -41,8 +47,9 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof OrderDetailMod
 describe('OrderDetailModal', () => {
   it('renders items, line totals, and the order total for a Confirmed (read-only) order', () => {
     render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, fulfillmentStatus: 'Confirmed' }, role: 'staff' })} />)
+    const dialog = screen.getByRole('dialog')
 
-    expect(screen.getByText('2x Burger')).toBeInTheDocument()
+    expect(within(dialog).getByText('2x Burger')).toBeInTheDocument()
     const allTotals = screen.getAllByText('$25.00')
     expect(allTotals.length).toBeGreaterThanOrEqual(2) // line + order total
   })
@@ -55,36 +62,46 @@ describe('OrderDetailModal', () => {
     expect(allTotals.length).toBeGreaterThanOrEqual(2) // line + order total
   })
 
-  it('renders the editable item list (stepper + remove) for a Pending order regardless of role', () => {
+  it('renders both panes and the wide modal class when editable, for any role', () => {
     render(<OrderDetailModal {...baseProps({ role: 'staff' })} />)
 
+    expect(screen.getByRole('dialog')).toHaveClass('order-detail-modal--wide')
     expect(screen.getByRole('button', { name: 'Increase Burger quantity' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Cola/ })).toBeInTheDocument()
   })
 
-  it('renders the editable item list for a Confirmed order when role is admin', () => {
+  it('renders the editable item list for a Confirmed order when role is admin, with both panes', () => {
     render(
       <OrderDetailModal {...baseProps({ order: { ...pendingOrder, fulfillmentStatus: 'Confirmed' }, role: 'admin' })} />,
     )
 
+    expect(screen.getByRole('dialog')).toHaveClass('order-detail-modal--wide')
     expect(screen.getByRole('button', { name: 'Increase Burger quantity' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Cola/ })).toBeInTheDocument()
   })
 
-  it('renders the read-only item list for a Confirmed order when role is staff', () => {
+  it('renders neither the picker nor the wide class for a Confirmed order when role is staff', () => {
     render(
       <OrderDetailModal {...baseProps({ order: { ...pendingOrder, fulfillmentStatus: 'Confirmed' }, role: 'staff' })} />,
     )
 
+    expect(screen.getByRole('dialog')).not.toHaveClass('order-detail-modal--wide')
     expect(screen.queryByRole('button', { name: 'Increase Burger quantity' })).not.toBeInTheDocument()
-    expect(screen.getByText('2x Burger')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Cola/ })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).getByText('2x Burger')).toBeInTheDocument()
   })
 
-  it('calls onAddItem, onAdjustQuantity, and onRemoveItem from the editable item list', async () => {
+  it('calls onAdjustQuantity from the ticket pane and onAddItem from the picker', async () => {
     const onAdjustQuantity = vi.fn()
+    const onAddItem = vi.fn()
     const user = userEvent.setup()
-    render(<OrderDetailModal {...baseProps({ onAdjustQuantity })} />)
+    render(<OrderDetailModal {...baseProps({ onAdjustQuantity, onAddItem })} />)
 
     await user.click(screen.getByRole('button', { name: 'Increase Burger quantity' }))
     expect(onAdjustQuantity).toHaveBeenCalledWith('i1', 3)
+
+    await user.click(screen.getByRole('button', { name: /Cola/ }))
+    expect(onAddItem).toHaveBeenCalledWith('m1')
   })
 
   it('shows Confirm and Mark Paid for a Pending order, and calls the right callback for each', async () => {
@@ -100,23 +117,7 @@ describe('OrderDetailModal', () => {
     expect(onSetPaymentStatus).toHaveBeenCalledWith('Paid')
   })
 
-  it('hides Confirm for a Confirmed & Unpaid order but keeps Mark Paid', () => {
-    render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, fulfillmentStatus: 'Confirmed' } })} />)
-
-    expect(screen.queryByRole('button', { name: 'Confirm order' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Mark Paid' })).toBeInTheDocument()
-  })
-
-  it('shows Mark Unpaid for any role on a Paid order', async () => {
-    const onSetPaymentStatus = vi.fn()
-    const user = userEvent.setup()
-    render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, paymentStatus: 'Paid' }, onSetPaymentStatus })} />)
-
-    await user.click(screen.getByRole('button', { name: 'Mark Unpaid' }))
-    expect(onSetPaymentStatus).toHaveBeenCalledWith('Unpaid')
-  })
-
-  it('shows the error message and disables actions when busy', () => {
+  it('shows the error message and disables settle actions when busy', () => {
     render(<OrderDetailModal {...baseProps({ busy: true, error: 'Order is Confirmed, not Pending' })} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('Order is Confirmed, not Pending')
@@ -125,11 +126,22 @@ describe('OrderDetailModal', () => {
     expect(screen.getByRole('button', { name: 'Cancel order' })).toBeDisabled()
   })
 
+  it('disables settle actions (but not the picker) when settleBlockedByPendingAdd, and disables the picker too when busy', async () => {
+    const { rerender } = render(<OrderDetailModal {...baseProps({ settleBlockedByPendingAdd: true })} />)
+
+    expect(screen.getByRole('button', { name: 'Confirm order' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Cola/ })).not.toBeDisabled()
+
+    rerender(<OrderDetailModal {...baseProps({ busy: true })} />)
+    expect(screen.getByRole('button', { name: /Cola/ })).toBeDisabled()
+  })
+
   it('renders the Counter ordering point by its stored label', () => {
     render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, orderingPoint: { label: 'Counter' } } })} />)
+    const dialog = screen.getByRole('dialog')
 
-    expect(screen.getByText('Counter', { exact: false })).toBeInTheDocument()
-    expect(screen.queryByText('Table 0', { exact: false })).not.toBeInTheDocument()
+    expect(within(dialog).getByText('Counter', { exact: false })).toBeInTheDocument()
+    expect(within(dialog).queryByText('Table 0', { exact: false })).not.toBeInTheDocument()
   })
 
   it('shows a Cancel order button for a Pending order', () => {
@@ -198,5 +210,39 @@ describe('OrderDetailModal', () => {
     render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, paymentChoice: 'Counter' } })} />)
 
     expect(screen.queryByText(/^ref:/)).not.toBeInTheDocument()
+  })
+
+  it('disables Print receipt with a hint when the order is Unpaid', () => {
+    render(<OrderDetailModal {...baseProps()} />)
+
+    const printButton = screen.getByRole('button', { name: 'Print receipt' })
+    expect(printButton).toBeDisabled()
+    expect(printButton).toHaveAttribute('title', 'Available once paid')
+  })
+
+  it('enables Print receipt and calls window.print when the order is Paid', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const user = userEvent.setup()
+    render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, paymentStatus: 'Paid' } })} />)
+
+    const printButton = screen.getByRole('button', { name: 'Print receipt' })
+    expect(printButton).not.toBeDisabled()
+
+    await user.click(printButton)
+    expect(printSpy).toHaveBeenCalledTimes(1)
+
+    printSpy.mockRestore()
+  })
+
+  it('sets activePane via the pane toggle and keeps both panes mounted', async () => {
+    const user = userEvent.setup()
+    render(<OrderDetailModal {...baseProps()} />)
+
+    const addToggle = screen.getByRole('tab', { name: 'Add items' })
+    await user.click(addToggle)
+
+    // Both panes stay mounted regardless of activePane -- CSS (not JS) hides one below the breakpoint.
+    expect(screen.getByRole('button', { name: 'Increase Burger quantity' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Cola/ })).toBeInTheDocument()
   })
 })

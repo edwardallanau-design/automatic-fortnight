@@ -17,11 +17,14 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }))
 
-type Tabs = { pending?: unknown[]; confirmed?: unknown[]; menuItems?: unknown[] }
+type Tabs = { pending?: unknown[]; confirmed?: unknown[]; menuByBranch?: Record<string, unknown[]> }
 
-function mockTabs({ pending = [], confirmed = [], menuItems = [] }: Tabs = {}) {
+function mockTabs({ pending = [], confirmed = [], menuByBranch = {} }: Tabs = {}) {
   vi.mocked(apiClient.get).mockImplementation((path: string) => {
-    if (path.includes('/api/menu-items')) return Promise.resolve(menuItems)
+    if (path.includes('/api/menu-items')) {
+      const branchId = new URL(path, 'http://localhost').searchParams.get('branchId')
+      return Promise.resolve((branchId && menuByBranch[branchId]) ?? [])
+    }
     if (path.includes('status=confirmed')) return Promise.resolve(confirmed)
     return Promise.resolve(pending)
   })
@@ -37,7 +40,7 @@ const orderA = {
   branchId: 'b1',
   branch: { name: 'Main' },
   orderingPoint: { label: 'Table 4' },
-  items: [{ id: 'i1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
+  items: [{ id: 'i1', menuItemId: 'm1', nameSnapshot: 'Burger', priceSnapshot: '12.50', quantity: 2 }],
 }
 
 const orderB = {
@@ -50,7 +53,7 @@ const orderB = {
   branchId: 'b2',
   branch: { name: 'Downtown' },
   orderingPoint: { label: 'Table 7' },
-  items: [{ id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
+  items: [{ id: 'i2', menuItemId: 'm2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
 }
 
 describe('PendingOrdersDashboard', () => {
@@ -385,27 +388,214 @@ describe('PendingOrdersDashboard', () => {
     expect(screen.queryByRole('button', { name: 'Cancel order' })).not.toBeInTheDocument()
   })
 
-  it('adds an item from the picker, calling POST and refreshing the tabs', async () => {
-    mockTabs({ pending: [orderA], menuItems: [{ id: 'm2', name: 'Fries', price: '4.00', available: true }] })
-    vi.mocked(apiClient.post).mockResolvedValue({})
+  it('fetches the menu for the order\'s own branch when the modal opens, and caches it per branch', async () => {
+    mockTabs({
+      pending: [orderA, orderB],
+      menuByBranch: {
+        b1: [{ id: 'm3', name: 'Cola', price: '3.00', available: true, category: null }],
+        b2: [{ id: 'm4', name: 'Water', price: '2.00', available: true, category: null }],
+      },
+    })
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(apiClient.get).toHaveBeenCalledWith('/api/menu-items?branchId=b1')
+    expect(screen.getByRole('button', { name: /Cola/ })).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('order-detail-modal-backdrop'))
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    // Reopening order A must not refetch b1's menu -- it's already cached.
+    vi.mocked(apiClient.get).mockClear()
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(apiClient.get).not.toHaveBeenCalledWith(expect.stringContaining('/api/menu-items'))
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('order-detail-modal-backdrop'))
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    // Order B is on a different branch -- must fetch b2's menu, not reuse b1's cache.
+    fireEvent.click(screen.getByRole('button', { name: /Order 102/ }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(apiClient.get).toHaveBeenCalledWith('/api/menu-items?branchId=b2')
+    expect(screen.getByRole('button', { name: /Water/ })).toBeInTheDocument()
+  })
+
+  it('adds an item from the picker optimistically, splicing the POST response instead of refetching the tabs', async () => {
+    mockTabs({
+      pending: [orderA],
+      menuByBranch: { b1: [{ id: 'm2', name: 'Fries', price: '4.00', available: true, category: null }] },
+    })
+    // POST /items only returns lib/orderService's OrderWithItems (id + items, no orderingPoint/
+    // branch) -- deliberately narrow so a regression back to spliceOrder(response) (which crashes
+    // OrderDetailModal on order.orderingPoint.label, caught live via Docker Compose smoke test) fails
+    // this test instead of passing on an over-generous mock.
+    vi.mocked(apiClient.post).mockResolvedValue({
+      id: orderA.id,
+      items: [...orderA.items, { id: 'i2', menuItemId: 'm2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
+    })
     render(<PendingOrdersDashboard />)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
     fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
-
-    fireEvent.change(screen.getByRole('combobox', { name: 'Add an item' }), { target: { value: 'm2' } })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    vi.mocked(apiClient.get).mockClear()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Fries/ }))
     })
 
     expect(apiClient.post).toHaveBeenCalledWith('/api/orders/o1/items', { menuItemId: 'm2', quantity: 1 })
+    // The line and total update from the POST response alone -- refreshTabs (a GET) is not called.
+    expect(apiClient.get).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Increase Fries quantity' })).toBeInTheDocument()
   })
 
-  it('adjusts a line item quantity with the stepper, calling PATCH', async () => {
+  it('shows the new line immediately, before the POST resolves (optimistic)', async () => {
+    mockTabs({
+      pending: [orderA],
+      menuByBranch: { b1: [{ id: 'm2', name: 'Fries', price: '4.00', available: true, category: null }] },
+    })
+    let resolvePost!: (value: unknown) => void
+    vi.mocked(apiClient.post).mockReturnValue(new Promise((resolve) => { resolvePost = resolve }))
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Fries/ }))
+
+    expect(screen.getByRole('button', { name: 'Increase Fries quantity' })).toBeInTheDocument()
+
+    await act(async () => {
+      resolvePost({
+        id: orderA.id,
+        items: [...orderA.items, { id: 'i2', menuItemId: 'm2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
+      })
+    })
+  })
+
+  it('rolls back an optimistic add and shows the error when the POST is rejected with SOLD_OUT', async () => {
+    mockTabs({
+      pending: [orderA],
+      menuByBranch: { b1: [{ id: 'm2', name: 'Fries', price: '4.00', available: true, category: null }] },
+    })
+    vi.mocked(apiClient.post).mockRejectedValue(new ApiError('SOLD_OUT', 'Fries is no longer available'))
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Fries/ }))
+    })
+
+    expect(screen.queryByRole('button', { name: 'Increase Fries quantity' })).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Fries is no longer available')
+    // The row itself is marked unavailable so a re-tap doesn't repeat the same failed request.
+    expect(screen.getByRole('button', { name: /Fries/ })).toBeDisabled()
+  })
+
+  it('rolls back a rejected add WITHOUT marking the item unavailable when the conflict is not SOLD_OUT (ISSUE-28)', async () => {
+    // A generic CONFLICT -- e.g. INV-16 ("order is marked Paid") or a stale non-Pending order --
+    // must not be treated as "this item is sold out". Regression: an earlier version keyed this
+    // off the broad CONFLICT code, so ANY 409 on an add greyed out a perfectly available item for
+    // the rest of the dashboard session, live-reproduced via a real Docker Compose smoke test.
+    mockTabs({
+      pending: [orderA],
+      menuByBranch: { b1: [{ id: 'm2', name: 'Fries', price: '4.00', available: true, category: null }] },
+    })
+    vi.mocked(apiClient.post).mockRejectedValue(
+      new ApiError('CONFLICT', 'This order is marked Paid. Revert it to Unpaid to change items.'),
+    )
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Fries/ }))
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('This order is marked Paid')
+    // Fries is still genuinely available -- the row must not be disabled by this unrelated conflict.
+    expect(screen.getByRole('button', { name: /Fries/ })).not.toBeDisabled()
+  })
+
+  it('disables Confirm/Cancel/Mark Paid/Print while an add is in flight, and re-enables once it settles', async () => {
+    mockTabs({
+      pending: [orderA],
+      menuByBranch: { b1: [{ id: 'm2', name: 'Fries', price: '4.00', available: true, category: null }] },
+    })
+    let resolvePost!: (value: unknown) => void
+    vi.mocked(apiClient.post).mockReturnValue(new Promise((resolve) => { resolvePost = resolve }))
+    render(<PendingOrdersDashboard />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Fries/ }))
+
+    expect(screen.getByRole('button', { name: 'Confirm order' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Mark Paid' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel order' })).toBeDisabled()
+    // Steppers stay usable -- only settle actions are guarded.
+    expect(screen.getByRole('button', { name: 'Increase Burger quantity' })).not.toBeDisabled()
+
+    await act(async () => {
+      resolvePost({
+        id: orderA.id,
+        items: [...orderA.items, { id: 'i2', menuItemId: 'm2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
+      })
+    })
+
+    expect(screen.getByRole('button', { name: 'Confirm order' })).not.toBeDisabled()
+  })
+
+  it('adjusts a line item quantity with the stepper, calling PATCH and splicing the response', async () => {
     mockTabs({ pending: [orderA] })
-    vi.mocked(apiClient.patch).mockResolvedValue({})
+    // PATCH /items/:id returns the same narrow OrderWithItems shape as POST /items -- see the
+    // comment on the optimistic-add test above.
+    vi.mocked(apiClient.patch).mockResolvedValue({ id: orderA.id, items: [{ ...orderA.items[0], quantity: 3 }] })
     render(<PendingOrdersDashboard />)
 
     await act(async () => {
@@ -413,17 +603,19 @@ describe('PendingOrdersDashboard', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
 
+    vi.mocked(apiClient.get).mockClear()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Increase Burger quantity' }))
     })
 
     expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/items/i1', { quantity: 3 })
+    expect(apiClient.get).not.toHaveBeenCalled()
   })
 
-  it('removes a line item after confirming, calling DELETE', async () => {
+  it('removes a line item after confirming, calling DELETE and splicing the response', async () => {
     const twoItemOrder = {
       ...orderA,
-      items: [...orderA.items, { id: 'i2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
+      items: [...orderA.items, { id: 'i2', menuItemId: 'm2', nameSnapshot: 'Fries', priceSnapshot: '4.00', quantity: 1 }],
     }
     mockTabs({ pending: [twoItemOrder] })
     vi.mocked(apiClient.del).mockResolvedValue(undefined)
@@ -435,11 +627,14 @@ describe('PendingOrdersDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove Fries' }))
+    vi.mocked(apiClient.get).mockClear()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
     })
 
     expect(apiClient.del).toHaveBeenCalledWith('/api/orders/o1/items/i2')
+    expect(apiClient.get).not.toHaveBeenCalled()
+    expect(screen.queryByText('Fries')).not.toBeInTheDocument()
   })
 
   it('does not render editable item controls for a Confirmed order when the session role is staff', async () => {

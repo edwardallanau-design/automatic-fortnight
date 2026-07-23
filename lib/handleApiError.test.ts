@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { handleApiError } from './handleApiError'
-import { ValidationError, InvalidCredentialError, NotFoundError, ConflictError, ForbiddenError } from './errors'
+import { ValidationError, InvalidCredentialError, NotFoundError, ConflictError, SoldOutError, ForbiddenError } from './errors'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -40,6 +40,13 @@ describe('handleApiError', () => {
     const res = handleApiError(new ConflictError('conflict'))
     const body = await res.json()
     expect(body).toEqual({ error: 'CONFLICT', message: 'conflict' })
+  })
+
+  it('maps SoldOutError to 409 and the SOLD_OUT code, not the generic CONFLICT code', async () => {
+    const res = handleApiError(new SoldOutError('Latte is no longer available'))
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body).toEqual({ error: 'SOLD_OUT', message: 'Latte is no longer available' })
   })
 
   it('maps NotFoundError to the NOT_FOUND code', async () => {
