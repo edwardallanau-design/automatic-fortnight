@@ -80,6 +80,19 @@ Live at `https://automatic-fortnight-lyart.vercel.app/`. Deployment design/plan:
 
 All three are publicly viewable (Vercel Deployment Protection/SSO disabled for Preview) — this also applies to every future feature-branch preview, not just `dev`/`preprod`. `dev`/`preprod`/feature-branch previews share the production Neon database — per-environment DB isolation is deferred, tracked in the pipeline design's Backlog note. Combined, this widens where `ISSUE-12`'s accepted weak-credential/no-rate-limit surface (above) is reachable: any PR's preview now exposes the same weak-password admin login against the same production database, with no login wall in front of it. No new credential or data is exposed that production didn't already expose — but revisit this alongside rotating `ISSUE-12`'s credentials before a real pilot. Promotion workflow and rationale: `docs/superpowers/specs/2026-07-08-dev-preprod-prod-pipeline-design.md`.
 
+## Product-mode reconcile — post-pilot-deploy backlog (2026-07-25)
+
+The dial-to-Full work the Product re-declaration makes due (source: the updated design playbook, reconciled 2026-07-25; ordered by its irreversibility × likelihood rule — security/data-loss first, friction last). None of it blocks the pilot deploy:
+
+1. [ ] Rate limiting/lockout on `POST /api/auth/login` (the un-fixed half of `ISSUE-12`) + verify Neon backup/restore actually works (tested, not assumed)
+2. [ ] Observability first — basic metrics/error visibility on the client instance, so every later scale decision is signal-triggered, never calendar-triggered
+3. [ ] `04-architecture.md`: record the now-named decisions — repository layout, containerization scope (full-stack local Docker), environment data lifecycle — honestly recording the shared-dev/preprod/prod-DB deviation from the playbook's per-env model, and the whole-branch-merge promotion deviation from its cherry-pick default (deliberate, kept)
+4. [ ] `06b` test section checked against the operational-depth bar: file location/naming, seam pattern, fixtures, one exemplar — an agent should write a suite-matching test without opening other test files
+5. [ ] Seed `08-ui-conventions.md` from the existing café-ticket visual language (tokens, component patterns, repeat patterns) — kills per-story styling rediscovery
+6. [ ] `07-epic-map.md`: add the **Ideas — unsorted** tier + CLAUDE.md's park-ideas rule; first residents: richer fulfillment lifecycle (`Preparing`/`Served` — decide from pilot `OrderEvent` data, not speculation), per-person attribution (named PINs / user accounts — ADR-006's trigger), payment-gateway auto-confirm (verified-webhook trigger on the existing machine)
+7. [ ] `BUILD_STATUS.md`: add the off-epic ledger (a line per unplanned change)
+8. [ ] `CLAUDE.md`: restructure toward the playbook template — explicit no-secrets-in-commits rule (gitignore-first + staged-diff scan), workflow-agnostic phrasing
+
 ## Adoption signal (fill in once the pilot is live — iteration signal, not a go/kill gate; see `01`)
 
 - **Pilot restaurant:** `<name, committed 2026-07-25 — fill in>`
