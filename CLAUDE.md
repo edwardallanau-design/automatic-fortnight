@@ -4,7 +4,7 @@
 
 **Context-package index.**
 
-- Intent & constraints (mode, hypothesis, kill criteria) → `01-intent-and-constraints.md`
+- Intent & constraints (mode: Product, committed pilot client, adoption-as-iteration-signal) → `01-intent-and-constraints.md`
 - Domain model (entities, invariants, state machines) → `02-domain-model.md`
 - Tenancy → `03-tenancy-model.md`
 - Architecture & ADRs → `04-architecture.md`
@@ -48,7 +48,7 @@ New work branches off `dev` and merges back into `dev` (not `main`) — **every 
 
 ### Issue tracker
 
-Local markdown, not GitHub Issues — bugs in `ISSUES.md`, specs in `docs/superpowers/specs/`, plans in `docs/superpowers/plans/`. See `docs/agents/issue-tracker.md`.
+Local markdown, not GitHub Issues — bugs in `ISSUES.md`, specs in `docs/specs/`, plans in `docs/plans/` (authored via `/to-spec` → `/to-tickets` → `/implement` as of 2026-07-25; everything under `docs/superpowers/` is a frozen pre-2026-07-25 archive — link targets only, never add/edit there). See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

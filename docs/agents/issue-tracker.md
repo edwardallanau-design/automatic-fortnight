@@ -11,8 +11,9 @@ authenticated here and the project has never used GitHub Issues. The tracker of 
 | Artifact | Location | Format |
 |---|---|---|
 | **Bug / issue** | `ISSUES.md` (repo root) | One row in the `## Open` or `## Resolved` table, id `ISSUE-<N>` |
-| **Spec** (a.k.a. PRD / design doc) | `docs/superpowers/specs/<YYYY-MM-DD>-<slug>-design.md` | One file per feature |
-| **Plan** (implementation tickets) | `docs/superpowers/plans/<YYYY-MM-DD>-<slug>.md` | One file per feature, numbered `Task N` sections |
+| **Spec** (a.k.a. PRD / design doc) | `docs/specs/<YYYY-MM-DD>-<slug>-design.md` | One file per feature |
+| **Plan** (implementation tickets) | `docs/plans/<YYYY-MM-DD>-<slug>.md` | One file per feature, numbered `Task N` sections |
+| **Archived specs/plans (pre-2026-07-25)** | `docs/superpowers/specs/` · `docs/superpowers/plans/` | **Frozen archive** — link targets for BUILD_STATUS/domain docs; never add new files, never move or edit existing ones |
 | **Story board** | `BUILD_STATUS.md` (repo root) | Story status: `Backlog → Building → Done` / `Blocked` |
 | **Epic/story backlog** | `docs/design/07-epic-map.md` | Numbered stories |
 | **Wayfinder maps** | `.scratch/<effort>/` | Ephemeral working state only — see below |
@@ -26,11 +27,14 @@ Match the existing date-prefixed naming exactly; don't invent a new scheme.
   free `ISSUE-<N>`. Never delete rows; resolving one means moving it to `## Resolved` with root cause
   and fix/commit filled in. `ISSUES.md` also carries a longer per-entry template at the bottom — use it
   when the one-row summary can't hold the detail.
-- **A spec** → write `docs/superpowers/specs/<date>-<slug>-design.md`.
+- **A spec** → write `docs/specs/<date>-<slug>-design.md`.
 - **A set of implementation tickets** → write them as numbered `Task N` sections inside a single
-  `docs/superpowers/plans/<date>-<slug>.md`, **not** as one file per ticket. This deviates from the
+  `docs/plans/<date>-<slug>.md`, **not** as one file per ticket. This deviates from the
   skills' default "one file per ticket" rule; this repo's convention wins, because `CLAUDE.md`'s
   operating loop and every existing plan already assume one plan file per vertical slice.
+
+(Until 2026-07-25 both lived under `docs/superpowers/` — that tree is now a frozen archive; see the
+location table above.)
 
 Per `CLAUDE.md`, spec and plan docs are written, shown to the user, and committed only **after**
 approval — not committed immediately.

@@ -2,7 +2,7 @@
 
 **Board.** `Backlog → Building → Done`, WIP limit of **one** story at a time (per playbook Section 0). Update this file as stories move.
 
-**Lifecycle stage.** FOUNDATION complete → **MVP** (in progress) → VALIDATE → SCALE
+**Lifecycle stage.** FOUNDATION complete → MVP complete → **PRODUCT (committed v1)** — re-declared 2026-07-25 on a committed pilot client (see `01-intent-and-constraints.md`); the VALIDATE gate was retired by the graduation, its adoption metric survives as an iteration signal. Product-mode reconcile (decide deferred scale calls, dial to Full) is post-pilot-deploy work, priority-ordered security/data-loss first.
 
 ---
 
@@ -13,10 +13,10 @@
 - [x] CLAUDE.md seeded
 - [x] MVP epic broken into agent-ready stories
 - [x] Walking skeleton (= the MVP) deployed end-to-end to production
-- [ ] Validation gate reached and decided: go / pivot / kill
-- [ ] If go: scale path begun, signal-driven
+- [x] Validation gate resolved — not by measurement but by graduation: a pilot client committed (2026-07-25), mode re-declared MVP → Product, kill criteria retired (adoption stays as an iteration signal)
+- [ ] Product-mode scale path begun, signal-driven (post-pilot-deploy; security/data-loss items first)
 
-**Open risk.** No pilot restaurant confirmed yet — the kill criteria in `01-intent-and-constraints.md` are unmeasurable without one. Resolve before/alongside the build.
+**Open risk (updated 2026-07-25).** ~~No pilot restaurant confirmed yet~~ — resolved: a pilot client has committed. Current pre-deploy blockers instead: (1) the Unconfirm + order-audit-journal feature (`docs/specs/`, first `/to-spec` run), (2) the client's dedicated instance (own Vercel project + Neon DB + rotated strong credentials — closes `ISSUE-12` for the client instance; the internal shared-DB pipeline stays internal-only).
 
 ---
 
@@ -80,12 +80,12 @@ Live at `https://automatic-fortnight-lyart.vercel.app/`. Deployment design/plan:
 
 All three are publicly viewable (Vercel Deployment Protection/SSO disabled for Preview) — this also applies to every future feature-branch preview, not just `dev`/`preprod`. `dev`/`preprod`/feature-branch previews share the production Neon database — per-environment DB isolation is deferred, tracked in the pipeline design's Backlog note. Combined, this widens where `ISSUE-12`'s accepted weak-credential/no-rate-limit surface (above) is reachable: any PR's preview now exposes the same weak-password admin login against the same production database, with no login wall in front of it. No new credential or data is exposed that production didn't already expose — but revisit this alongside rotating `ISSUE-12`'s credentials before a real pilot. Promotion workflow and rationale: `docs/superpowers/specs/2026-07-08-dev-preprod-prod-pipeline-design.md`.
 
-## Validation gate (fill in once the pilot is live)
+## Adoption signal (fill in once the pilot is live — iteration signal, not a go/kill gate; see `01`)
 
-- **Pilot restaurant:** `<name, TBD>`
+- **Pilot restaurant:** `<name, committed 2026-07-25 — fill in>`
 - **Measurement window start:** `<date>`
 - **Measurement window end (1 month later):** `<date>`
-- **Result:** `<% of orders via digital menu>` → **Decision:** `<Go / Pivot / Kill>`
+- **Result:** `<% of orders via digital menu>` → **Action:** `<iterate ordering flow/UX if low; note what the order-audit journal shows about real staff workflow>`
 
 ## Gotchas log
 

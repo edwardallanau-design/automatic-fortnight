@@ -1,14 +1,11 @@
 # Intent & Constraints
 
-**Build mode.** Product (MVP / POC)
+**Build mode.** Product (committed v1) — re-declared 2026-07-25 from the original bundled "Product (MVP / POC)" declaration. The trigger: a pilot client committed, so the bet is made and there is no stop decision left. The Product-mode reconcile (settle assumed decisions, decide deferred scale calls, dial to Full — forward-only) is tracked in `BUILD_STATUS.md`.
 
 **Why this exists (success condition).**
-Hypothesis: We believe customers at a restaurant/cafe will place their own orders through a digital menu (instead of relying on staff to take verbal orders), resulting in fewer order errors and reduced staff load.
+Committed scope: a digital menu & ordering system operated by a committed pilot restaurant/cafe client, deployed as that client's own dedicated instance. Done = it ships and is maintained.
 
-Kill criteria: Measured over one month of live operation at the pilot restaurant, tracking the % of total orders placed through the digital menu vs. taken verbally by staff:
-- **< 20%** → Kill. Adoption too low to justify continuing.
-- **20–50%** → Pivot. Improve the ordering flow/UX before re-measuring (does not validate as-is, but signal is real enough to iterate).
-- **> 50%** → Go. Continue building against the same foundation.
+**Adoption signal (retired kill criteria).** The original MVP hypothesis — customers will place their own orders through a digital menu instead of relying on staff to take verbal orders, resulting in fewer order errors and reduced staff load — graduated to a committed bet when the client signed. Its kill criteria (kill < 20% / pivot 20–50% / go > 50% share of orders placed digitally over one live month) are **retired as a stop decision**. The same metric is still measured over the first live month, but as an **iteration signal only**: low digital-order share triggers ordering-flow/UX improvement, never a kill.
 
 **Actors.**
 - **Customer** — browses menu, places order, receives an order number
@@ -23,7 +20,7 @@ Kill criteria: Measured over one month of live operation at the pilot restaurant
 
 **— Product mode only —**
 
-**Who pays / primary user.** A specific restaurant/cafe client (pilot). The system is built for that client to operate; a live pilot is required for the kill criteria to be measurable — building this without a committed pilot restaurant invalidates the validation gate.
+**Who pays / primary user.** A specific restaurant/cafe client (pilot) — committed as of 2026-07-25. The system is built for that client to operate, on a dedicated instance (own Vercel project + database); the vendor's existing dev/preprod/prod pipeline stays internal.
 
 **Scale assumptions.**
 - Up to 20 tables

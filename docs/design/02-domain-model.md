@@ -7,7 +7,9 @@
 - **Category** — an admin-managed grouping for menu items (e.g. "Drinks", "Mains"), with a manually-controlled display order. Global, not branch-scoped, matching Menu Item's own scope. A Menu Item may belong to at most one Category, or none.
 - **Order** — a set of items submitted by a customer at a specific table, tracked through fulfillment and payment independently.
 - **Order Item** — one line within an order: a reference to a menu item, a quantity, and a **price snapshot** captured at the moment it was added.
-- **Fulfillment status** — where an order stands in the kitchen/staff workflow: Pending → Confirmed, or Pending → Cancelled.
+- **Fulfillment status** — where an order stands in the kitchen/staff workflow: Pending → Confirmed (reversible only via the admin-only Unconfirm), or Pending → Cancelled.
+- **Unconfirm** (new, 2026-07-25) — the supervisor override: Owner/Admin returns a Confirmed order to Pending so its contents can be corrected under the normal Pending rules (`INV-4`), then re-confirmed. This is the **only** path to changing a confirmed order — in-place edits on Confirmed orders no longer exist for any role (`INV-5`). Every unconfirm is journaled as an Order Event. Deliberately *not* called "void": voiding (killing) an order is **Cancel**, reachable only from Pending. Unconfirm is a bookkeeping correction, not a food recall — it corrects the record, it does not un-make what the kitchen already made.
+- **Order Event** (new, 2026-07-25) — one append-only journal row per Order mutation (creation; confirm/unconfirm/cancel; paid/unpaid; payment choice; item add/remove/adjust), recording the action, the actor's **role**, and a timestamp (`INV-17`). Attribution is role-level by design (shared credentials, ADR-003); revisit if more than ~2 people hold the admin password, or the client needs "who?" answered beyond what the shift roster can resolve (ADR-006).
 - **Payment status** — whether an order has been paid: Unpaid → Paid. Tracked independently of fulfillment status, because the restaurant supports both pay-as-you-order and pay-at-the-end.
 - **Venue Settings** — a vestigial venue-wide singleton; its `acceptingOrders` flag is no longer read by any code path (see `INV-10`) and no UI exposes it. Kept in the schema only to avoid a destructive migration.
 - **Payment Method** — an admin-managed way a customer can pay online (e.g. an e-wallet or bank transfer), each with a name and either a QR image, an account/wallet number, or both.
@@ -20,7 +22,7 @@
 
 *Staff:* watches a real-time dashboard of incoming Pending orders → reviews an order → confirms it (Pending → Confirmed), after which the customer/staff can no longer add or remove items → independently marks the order Paid once payment is received (this can happen before or after confirmation) → cannot modify a Confirmed order's contents.
 
-*Owner/Admin:* manages the menu — adds/removes menu items, sets prices, toggles an item Available ↔ Sold Out → has all Staff capabilities → is the **only** actor who may modify a Confirmed order (correcting a staff/customer mistake after the fact) → is the **only** actor who may open or close the venue for new orders (`acceptingOrders`).
+*Owner/Admin:* manages the menu — adds/removes menu items, sets prices, toggles an item Available ↔ Sold Out → has all Staff capabilities → is the **only** actor who may **unconfirm** a Confirmed order back to Pending (the supervisor override for correcting a mistake after the fact; contents are then edited under the normal Pending rules and the order re-confirmed — there is no in-place editing of Confirmed orders, for any role) → is the **only** actor who may open or close the venue for new orders (`acceptingOrders`).
 
 **Entities.**
 - **Branch** — `name`, `acceptingOrders` (boolean, default true).
@@ -30,6 +32,7 @@
 - **MenuItemSoldOut** (new) — `menuItem` (ref), `branch` (ref), unique per pair. Presence of a row means that item is sold out in that branch; absence means available. A newly created branch starts with everything available with no rows to create.
 - **Order** — `orderingPoint` (ref), `branch` (ref, captured from `orderingPoint.branch` at the moment of creation), `fulfillmentStatus`, `paymentStatus`, `paymentChoice`, `paymentMethod` (ref, optional), `paymentMethodNameSnapshot` (optional), `paymentReference` (optional), `orderNumber`, `customerName` (optional, captured at submission, immutable afterward), `createdAt`, `confirmedAt` — the aggregate root for a customer's visit.
 - **OrderItem** — `menuItem` (ref), `nameSnapshot`, `priceSnapshot`, `quantity` — a line item belonging to exactly one Order.
+- **OrderEvent** (new, 2026-07-25) — `order` (ref), `action`, `actorRole`, `payload` (detail of the change), `createdAt` — an append-only journal row (`INV-17`); the application exposes no update or delete path for it, to any role.
 - **VenueSettings** — a singleton, `acceptingOrders` (boolean) — vestigial: no code reads or writes it after 2026-07-11's branch-context redesign (see `INV-10`); retained in the schema only to avoid a destructive migration.
 - **PaymentMethod** — `name`, `active` (boolean), `qrImageUrl` (optional), `accountInfo` (optional) — admin-managed; deactivated (not deleted) once an Order references it, to preserve history.
 
@@ -37,13 +40,14 @@
 - **Order** (root) → contains its OrderItems. Everything inside — item list, quantities, fulfillment status, payment status — is consistent together and mutated only through the Order. OrderItems never exist independent of an Order and are never shared across orders.
 - **MenuItem** (root, standalone) — its own aggregate. Menu changes (price, availability) are eventually consistent with respect to existing orders: an Order's OrderItems hold their own price/name snapshot and are never rewritten by a later MenuItem change. This is *why* MenuItem and Order are separate aggregates rather than one — they must be free to evolve independently.
 - **OrderingPoint** — a simple reference value, not an aggregate; no invariants beyond uniqueness of `label` within its branch (`INV-14`).
+- **OrderEvent** — not part of the Order aggregate's mutable state: journal rows are written in the same transaction as the mutation they record (`INV-17`) and never mutated afterward.
 
 **Invariants.**
 - `INV-1` An Order must reference exactly one existing OrderingPoint.
 - `INV-2` An Order must contain at least one OrderItem to be submitted — empty orders cannot be created.
 - `INV-3` An OrderItem's `priceSnapshot` and `nameSnapshot` are captured at the moment it is added to the Order and never change afterward, regardless of subsequent MenuItem price or name edits.
 - `INV-4` OrderItems may be added, removed, or have their quantity changed **only by Staff or Owner/Admin**, and **only while** the parent Order's `fulfillmentStatus = Pending`. The customer's only self-service action on their own order after submission is cancellation (`INV-6`).
-- `INV-5` Once an Order's `fulfillmentStatus = Confirmed`, its OrderItems are immutable to Customer and Staff. Only Owner/Admin may modify a Confirmed order.
+- `INV-5` Once an Order's `fulfillmentStatus = Confirmed`, its OrderItems are immutable to **every** actor — Customer, Staff, and Owner/Admin alike. The only path to changing a Confirmed order's contents is Unconfirm (`Confirmed → Pending`, Owner/Admin only, journaled), edit under `INV-4`'s Pending rules, then re-confirm. (Until 2026-07-25 Owner/Admin held an in-place content-override exception, built as Story 12 — removed so that every post-confirmation change is an explicit, journaled state transition rather than a silent edit.)
 - `INV-6` An Order may be cancelled only while `fulfillmentStatus = Pending`.
 - `INV-7` A MenuItem sold out **in the branch of the order's OrderingPoint** cannot be added as a new OrderItem to that order. (Was: sold out globally blocks it everywhere — now the same rule, scoped per branch.) Existing OrderItems referencing it are unaffected (their snapshot already exists — see `INV-3`).
 - `INV-8` `paymentStatus` transitions independently of `fulfillmentStatus` — an order can be marked Paid while Pending or while Confirmed. There is no rule tying payment timing to confirmation.
@@ -55,23 +59,26 @@
 - `INV-14` An OrderingPoint's `label` must be unique within its branch (not globally — two branches may each have a "Table 1").
 - `INV-15` A branch's staff password must not match any other credential's password in the system (admin's, or any other branch's). `login()` matches by trying every credential's bcrypt hash via an unordered `findMany` and returning the first hit, so a collision would silently route staff into the wrong branch's dashboard. This must be enforced at branch-password-write time (comparing the candidate plaintext against every existing hash before saving); that write path doesn't exist yet — branch creation/password management is Plan 2. Until then only the two seeded credentials exist, each from a distinct env var, so no collision is possible.
 
-- `INV-16` An Order's OrderItems may not be added, removed, or have their quantity changed while `paymentStatus = Paid`, **except by Owner/Admin**. Staff must first revert `paymentStatus` to `Unpaid` (permitted by `INV-9`) before changing a Paid order's contents. This gate is independent of `INV-4`/`INV-5`'s fulfillment gate — **both** must pass. Added 2026-07-23 to close a silent money hole: `addOrderItem` previously had no `paymentStatus` guard, and `INV-8` makes `Paid + Pending` legal, so staff could raise an order's total above what was collected — and `Print receipt`, gated only on Paid, would then attest to the higher figure (Receipt is deliberately proof-of-payment). The Owner/Admin exception mirrors `INV-5`: admin is this system's correction path, and `Paid + Confirmed` is precisely the state in which a mistake is most likely to be discovered. See `docs/superpowers/specs/2026-07-23-counter-add-items-design.md`.
+- `INV-16` An Order's OrderItems may not be added, removed, or have their quantity changed while `paymentStatus = Paid` — **no role exception**. The correction path is explicit and journaled: revert `paymentStatus` to `Unpaid` (`INV-9`), change the items, re-mark Paid. This gate is independent of `INV-4`/`INV-5`'s fulfillment gate — **both** must pass. Added 2026-07-23 to close a silent money hole: `addOrderItem` previously had no `paymentStatus` guard, and `INV-8` makes `Paid + Pending` legal, so staff could raise an order's total above what was collected — and `Print receipt`, gated only on Paid, would then attest to the higher figure (Receipt is deliberately proof-of-payment). (Originally carried an Owner/Admin exception mirroring `INV-5`'s content-override; both exceptions were removed together 2026-07-25 — no silent edits on settled orders. Original context: `docs/superpowers/specs/2026-07-23-counter-add-items-design.md`.)
+
+- `INV-17` Every Order mutation — creation, fulfillment/payment/payment-choice transitions, item add/remove/adjust — writes an OrderEvent row **in the same database transaction** as the mutation itself. OrderEvent is append-only: the application exposes no update or delete path for journal rows, to any role. (Added 2026-07-25 alongside Unconfirm; see ADR-006.)
 
 **State machines.**
 
 *Order — `fulfillmentStatus`*
 - States: `Pending`, `Confirmed`, `Cancelled`
 - `Pending → Confirmed` (trigger: Staff or Owner/Admin confirms)
+- `Confirmed → Pending` (trigger: **Owner/Admin only** — Unconfirm, the supervisor override; journaled. Added 2026-07-25.)
 - `Pending → Cancelled` (trigger: Customer or Staff cancels)
-- `Confirmed` and `Cancelled` are terminal — no transitions out of either.
-- **Illegal:** `Confirmed → Cancelled`, `Confirmed → Pending`, `Cancelled → anything`.
-- **Exception path (not a state transition):** Owner/Admin may edit the *contents* (OrderItems) of a Confirmed order without changing its status — this is a content override, not a fulfillment-state change.
+- `Cancelled` is terminal — no transitions out.
+- **Illegal:** `Confirmed → Cancelled` (a dead confirmed order is Unconfirm → Cancel — two journaled steps), Staff or Customer performing `Confirmed → Pending`, `Cancelled → anything`.
+- (The former Owner/Admin content-override exception path is removed as of 2026-07-25 — see `INV-5`. Contents change only while `Pending`.)
 
 *Order — `paymentStatus`* (independent axis)
 - States: `Unpaid`, `Paid`
 - `Unpaid → Paid` (trigger: Staff or Owner/Admin marks paid) — valid regardless of `fulfillmentStatus`.
-- `Paid → Unpaid` (trigger: Owner/Admin only — correction).
-- **Illegal:** Staff performing `Paid → Unpaid`.
+- `Paid → Unpaid` (trigger: any authenticated Staff or Owner/Admin session — correction, per `INV-9`).
+- *(Doc fix 2026-07-25, ISSUE-33: this machine previously said `Paid → Unpaid` was Owner/Admin-only and staff-illegal — stale text contradicting `INV-9` as relaxed 2026-07-08 and the shipped code, `setPaymentStatus` in `lib/orderService.ts` having no role gate.)*
 
 *MenuItem — sold-out state, per branch (via `MenuItemSoldOut` row presence)*
 - States: `Available` (no row), `SoldOut` (row exists for that MenuItem + Branch pair)
