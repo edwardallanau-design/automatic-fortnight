@@ -9,10 +9,11 @@ vi.mock('@/lib/orderService', () => ({
 
 vi.mock('@/lib/authGuard', () => ({
   requireApiRole: vi.fn(),
+  peekSession: vi.fn(),
 }))
 
 import { createOrder, listOrders } from '@/lib/orderService'
-import { requireApiRole } from '@/lib/authGuard'
+import { requireApiRole, peekSession } from '@/lib/authGuard'
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/orders', {
@@ -28,9 +29,10 @@ function makeGetRequest(query = ''): Request {
 describe('POST /api/orders', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(peekSession).mockResolvedValue(null)
   })
 
-  it('returns 201 with the created order on success', async () => {
+  it('returns 201 with the created order on success, attributing an anonymous caller as customer', async () => {
     const created = { id: 'o1', orderNumber: 1, tableId: 't1', fulfillmentStatus: 'Pending', paymentStatus: 'Unpaid', items: [] }
     vi.mocked(createOrder).mockResolvedValue(created as never)
 
@@ -39,7 +41,17 @@ describe('POST /api/orders', () => {
     expect(res.status).toBe(201)
     const body = await res.json()
     expect(body.orderNumber).toBe(1)
-    expect(createOrder).toHaveBeenCalledWith('t1', [{ menuItemId: 'm1', quantity: 2 }], undefined)
+    expect(createOrder).toHaveBeenCalledWith('t1', [{ menuItemId: 'm1', quantity: 2 }], undefined, 'customer')
+  })
+
+  it('attributes a staff-assisted order to the staff session role', async () => {
+    vi.mocked(peekSession).mockResolvedValue({ role: 'staff' })
+    vi.mocked(createOrder).mockResolvedValue({ id: 'o1' } as never)
+
+    const res = await POST(makeRequest({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }] }))
+
+    expect(res.status).toBe(201)
+    expect(createOrder).toHaveBeenCalledWith('t1', [{ menuItemId: 'm1', quantity: 1 }], undefined, 'staff')
   })
 
   it('forwards a trimmed customerName to the service', async () => {
@@ -50,7 +62,7 @@ describe('POST /api/orders', () => {
     )
 
     expect(res.status).toBe(201)
-    expect(createOrder).toHaveBeenCalledWith('t1', [{ menuItemId: 'm1', quantity: 1 }], 'Edward')
+    expect(createOrder).toHaveBeenCalledWith('t1', [{ menuItemId: 'm1', quantity: 1 }], 'Edward', 'customer')
   })
 
   it('returns 400 when customerName exceeds 50 characters after trimming', async () => {

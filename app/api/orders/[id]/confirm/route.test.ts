@@ -36,7 +36,7 @@ describe('PATCH /api/orders/[id]/confirm', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.fulfillmentStatus).toBe('Confirmed')
-    expect(confirmOrder).toHaveBeenCalledWith('o1')
+    expect(confirmOrder).toHaveBeenCalledWith('o1', 'staff')
   })
 
   it('returns 404 when the order does not exist', async () => {

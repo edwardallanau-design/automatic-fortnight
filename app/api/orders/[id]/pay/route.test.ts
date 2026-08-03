@@ -39,7 +39,7 @@ describe('PATCH /api/orders/[id]/pay', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.paymentStatus).toBe('Paid')
-    expect(setPaymentStatus).toHaveBeenCalledWith('o1', 'Paid')
+    expect(setPaymentStatus).toHaveBeenCalledWith('o1', 'Paid', 'staff')
   })
 
   it('returns 400 when paymentStatus is missing', async () => {
@@ -71,7 +71,7 @@ describe('PATCH /api/orders/[id]/pay', () => {
     const res = await PATCH(makeRequest({ paymentStatus: 'Unpaid' }), makeContext('o1'))
 
     expect(res.status).toBe(200)
-    expect(setPaymentStatus).toHaveBeenCalledWith('o1', 'Unpaid')
+    expect(setPaymentStatus).toHaveBeenCalledWith('o1', 'Unpaid', 'staff')
   })
 
   it('returns 403 when the caller is not staff or admin at all', async () => {

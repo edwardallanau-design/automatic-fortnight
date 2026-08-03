@@ -650,7 +650,7 @@ describe('PendingOrdersDashboard', () => {
     expect(screen.queryByRole('button', { name: 'Increase Burger quantity' })).not.toBeInTheDocument()
   })
 
-  it('renders editable item controls for a Confirmed order when the session role is admin', async () => {
+  it('does not render editable item controls for a Confirmed order when the session role is admin (INV-5 binds everyone)', async () => {
     mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed' }] })
     render(<PendingOrdersDashboard role="admin" />)
 
@@ -660,7 +660,28 @@ describe('PendingOrdersDashboard', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (1)' }))
     fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
 
-    expect(screen.getByRole('button', { name: 'Increase Burger quantity' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Increase Burger quantity' })).not.toBeInTheDocument()
+  })
+
+  it('shows Unconfirm for a Confirmed order when the session role is admin, and it disappears once unconfirmed', async () => {
+    mockTabs({ confirmed: [{ ...orderA, fulfillmentStatus: 'Confirmed' }] })
+    vi.mocked(apiClient.patch).mockResolvedValue({ ...orderA, fulfillmentStatus: 'Pending', confirmedAt: null })
+    render(<PendingOrdersDashboard role="admin" />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Confirmed (1)' }))
+    fireEvent.click(screen.getByRole('button', { name: /Order 101/ }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unconfirm' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, unconfirm' }))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    expect(apiClient.patch).toHaveBeenCalledWith('/api/orders/o1/unconfirm', {})
   })
 
   it('does not let a stale close timer from order A clobber a modal reopened for order B', async () => {

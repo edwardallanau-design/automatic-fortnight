@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { FulfillmentStatus, PaymentStatus } from '@prisma/client'
 import { createOrder, listOrders } from '@/lib/orderService'
-import { requireApiRole } from '@/lib/authGuard'
+import { requireApiRole, peekSession } from '@/lib/authGuard'
 import { handleApiError } from '@/lib/handleApiError'
 import { ValidationError } from '@/lib/errors'
 
@@ -90,7 +90,8 @@ export async function POST(request: Request) {
       customerName = trimmedName
     }
 
-    const order = await createOrder(body.tableId, body.items, customerName)
+    const session = await peekSession()
+    const order = await createOrder(body.tableId, body.items, customerName, session?.role ?? 'customer')
     return NextResponse.json(order, { status: 201 })
   } catch (error) {
     return handleApiError(error)
