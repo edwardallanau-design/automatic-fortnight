@@ -32,6 +32,8 @@ New work branches off `dev` and merges back into `dev` (not `main`) — **every 
 
 `dev`, `preprod`, and feature-branch previews all share the single production Neon database (per-environment DB isolation is a known, deliberately deferred gap — see that spec's "Backlog" note). Don't treat data on `dev`/`preprod` as disposable-and-isolated; it's the same database production reads from. This also means concurrent deploys across branches can transiently fail on a Postgres advisory-lock timeout in `prisma migrate deploy` (`Error: P1002`) — the fix is just to redeploy once the colliding build finishes, not a real bug.
 
+**Client instances (separate from the three branches above).** Each real client runs their own dedicated Vercel project + Neon database + long-lived `client/<name>` branch — no shared database, no shared deployment. First one: `client/kapeadri` (pilot, provisioned 2026-08-03). A client branch is cut from `main`, **never** from `dev`, and **never merges back into `main`**. Releasing to a client is an explicit `git checkout client/<name> && git merge main && git push` run as an extra step alongside each `preprod → main` promotion — deliberately manual, because that decision point (does this client get this release, today, mid-service?) is the whole reason the branch exists. Decisions: `03-tenancy-model.md` + `docs/specs/2026-08-03-client-branch-pipeline-amendment-design.md`. **Step-by-step provisioning runbook (real commands, and the two steps that can't be automated): `docs/agents/client-instance-provisioning.md` — read it before provisioning any new client instance.**
+
 **Stop rules (ask before doing).**
 
 - Touching anything in `02-domain-model.md`'s invariants or state machines — these are one-way doors.
@@ -57,3 +59,7 @@ The five canonical roles, written as a bold prefix in the `Status` column of `IS
 ### Domain docs
 
 Single-context, but housed in the numbered `docs/design/` context package — no root `CONTEXT.md`, no `docs/adr/`. See `docs/agents/domain.md`.
+
+### Client instance provisioning
+
+Standing up a new client's dedicated Vercel project + Neon database + `client/<name>` branch, headless via CLI/API. Includes the two steps that genuinely can't be automated (creating the Neon project; setting Vercel's Production Branch) and the Framework-Preset trap that silently 404s the whole app despite a clean build log. See `docs/agents/client-instance-provisioning.md`.
