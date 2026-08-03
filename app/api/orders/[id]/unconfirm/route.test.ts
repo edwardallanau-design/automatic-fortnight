@@ -3,14 +3,14 @@ import { PATCH } from './route'
 import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/errors'
 
 vi.mock('@/lib/orderService', () => ({
-  confirmOrder: vi.fn(),
+  unconfirmOrder: vi.fn(),
 }))
 
 vi.mock('@/lib/authGuard', () => ({
   requireApiRole: vi.fn(),
 }))
 
-import { confirmOrder } from '@/lib/orderService'
+import { unconfirmOrder } from '@/lib/orderService'
 import { requireApiRole } from '@/lib/authGuard'
 
 function makeContext(id: string) {
@@ -18,49 +18,50 @@ function makeContext(id: string) {
 }
 
 function makeRequest(): Request {
-  return new Request('http://localhost/api/orders/o1/confirm', { method: 'PATCH' })
+  return new Request('http://localhost/api/orders/o1/unconfirm', { method: 'PATCH' })
 }
 
-describe('PATCH /api/orders/[id]/confirm', () => {
+describe('PATCH /api/orders/[id]/unconfirm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(requireApiRole).mockResolvedValue({ role: 'staff' })
+    vi.mocked(requireApiRole).mockResolvedValue({ role: 'admin' })
   })
 
-  it('returns 200 with the confirmed order on success', async () => {
-    const confirmed = { id: 'o1', fulfillmentStatus: 'Confirmed', paymentStatus: 'Unpaid', items: [] }
-    vi.mocked(confirmOrder).mockResolvedValue(confirmed as never)
+  it('returns 200 with the unconfirmed order on success', async () => {
+    const unconfirmed = { id: 'o1', fulfillmentStatus: 'Pending', confirmedAt: null, items: [] }
+    vi.mocked(unconfirmOrder).mockResolvedValue(unconfirmed as never)
 
     const res = await PATCH(makeRequest(), makeContext('o1'))
 
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.fulfillmentStatus).toBe('Confirmed')
-    expect(confirmOrder).toHaveBeenCalledWith('o1', 'staff')
+    expect(body.fulfillmentStatus).toBe('Pending')
+    expect(unconfirmOrder).toHaveBeenCalledWith('o1', 'admin')
   })
 
   it('returns 404 when the order does not exist', async () => {
-    vi.mocked(confirmOrder).mockRejectedValue(new NotFoundError('Order not found'))
+    vi.mocked(unconfirmOrder).mockRejectedValue(new NotFoundError('Order not found'))
 
     const res = await PATCH(makeRequest(), makeContext('missing'))
 
     expect(res.status).toBe(404)
   })
 
-  it('returns 409 when the order is not Pending', async () => {
-    vi.mocked(confirmOrder).mockRejectedValue(new ConflictError('Order is Confirmed, not Pending'))
+  it('returns 409 when the order is not Confirmed', async () => {
+    vi.mocked(unconfirmOrder).mockRejectedValue(new ConflictError('Order is Pending, not Confirmed'))
 
     const res = await PATCH(makeRequest(), makeContext('o1'))
 
     expect(res.status).toBe(409)
   })
 
-  it('returns 403 when the caller is not staff or admin', async () => {
+  it('returns 403 when the caller is staff, not admin', async () => {
     vi.mocked(requireApiRole).mockRejectedValue(new ForbiddenError('Insufficient role for this action'))
 
     const res = await PATCH(makeRequest(), makeContext('o1'))
 
     expect(res.status).toBe(403)
-    expect(confirmOrder).not.toHaveBeenCalled()
+    expect(unconfirmOrder).not.toHaveBeenCalled()
+    expect(requireApiRole).toHaveBeenCalledWith('admin')
   })
 })

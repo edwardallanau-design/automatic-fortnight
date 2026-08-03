@@ -96,6 +96,7 @@ model Order {
   createdAt                  DateTime          @default(now())
   confirmedAt                DateTime?
   items                      OrderItem[]
+  events                     OrderEvent[]
 }
 
 model OrderItem {
@@ -108,6 +109,38 @@ model OrderItem {
   priceSnapshot Decimal  @db.Decimal(10, 2)
   quantity      Int
   sequence      Int      @default(autoincrement())
+}
+
+enum OrderEventAction {
+  created
+  confirmed
+  unconfirmed
+  cancelled
+  marked_paid
+  marked_unpaid
+  payment_choice_set
+  item_added
+  item_removed
+  item_quantity_changed
+}
+
+// A separate enum from `Role`: Credential/session roles are staff-or-admin only, but journal
+// attribution also needs to record customer-initiated mutations (create, cancel, payment choice).
+enum OrderEventActorRole {
+  customer
+  staff
+  admin
+}
+
+model OrderEvent {
+  id        String              @id @default(uuid())
+  orderId   String
+  order     Order               @relation(fields: [orderId], references: [id])
+  action    OrderEventAction
+  actorRole OrderEventActorRole
+  payload   Json?
+  createdAt DateTime            @default(now())
+  sequence  Int                 @default(autoincrement())
 }
 
 model VenueSettings {

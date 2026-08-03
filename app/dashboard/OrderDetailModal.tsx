@@ -8,6 +8,7 @@ import type { OrderCardOrder } from './OrderCard'
 import { MenuItemPicker } from './MenuItemPicker'
 import type { PickerItem } from './MenuItemPicker'
 import { OrderTicketPane } from './OrderTicketPane'
+import { OrderHistory } from './OrderHistory'
 import { Receipt } from './Receipt'
 
 const RECEIPT_PAGE_WIDTH_MM = 80
@@ -74,6 +75,7 @@ export function OrderDetailModal({
   onAddItem,
   onAdjustQuantity,
   onRemoveItem,
+  onUnconfirm,
   onClose,
 }: {
   order: OrderCardOrder
@@ -89,13 +91,17 @@ export function OrderDetailModal({
   onAddItem: (menuItemId: string) => void
   onAdjustQuantity: (itemId: string, quantity: number) => void
   onRemoveItem: (itemId: string) => void
+  onUnconfirm: () => void
   onClose: () => void
 }) {
   const [activePane, setActivePane] = useState<'order' | 'add'>('order')
   const printTarget = useReceiptPrintTarget()
   useReceiptPageSize(printTarget)
 
-  const editable = order.fulfillmentStatus === 'Pending' || (order.fulfillmentStatus === 'Confirmed' && role === 'admin')
+  // INV-5: Confirmed orders are locked for every role, admin included -- the Story 12/13 in-place
+  // item editor on Confirmed orders is retired. The only path to changing a Confirmed order's
+  // contents is Unconfirm (see showUnconfirm below), edit under the Pending rules, then re-confirm.
+  const editable = order.fulfillmentStatus === 'Pending'
 
   return (
     <>
@@ -151,6 +157,7 @@ export function OrderDetailModal({
           <OrderTicketPane
             order={order}
             editable={editable}
+            showUnconfirm={role === 'admin'}
             busy={busy}
             settleBlockedByPendingAdd={settleBlockedByPendingAdd}
             error={error}
@@ -159,9 +166,12 @@ export function OrderDetailModal({
             onConfirm={onConfirm}
             onCancelOrder={onCancelOrder}
             onSetPaymentStatus={onSetPaymentStatus}
+            onUnconfirm={onUnconfirm}
             onPrint={() => window.print()}
           />
         </div>
+
+        <OrderHistory orderId={order.id} />
       </Modal>
 
       {printTarget &&

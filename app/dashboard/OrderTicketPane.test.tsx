@@ -142,6 +142,35 @@ describe('OrderTicketPane', () => {
     expect(screen.queryByRole('button', { name: 'Cancel order' })).not.toBeInTheDocument()
   })
 
+  it('shows Unconfirm on a Confirmed order only when showUnconfirm is true, guarded by a confirm dialog', async () => {
+    const onUnconfirm = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OrderTicketPane
+        {...baseProps({ order: { ...pendingOrder, fulfillmentStatus: 'Confirmed' }, showUnconfirm: true, onUnconfirm })}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Unconfirm' }))
+    expect(onUnconfirm).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Unconfirm this order?' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Yes, unconfirm' }))
+    expect(onUnconfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides Unconfirm when showUnconfirm is false, even on a Confirmed order', () => {
+    render(<OrderTicketPane {...baseProps({ order: { ...pendingOrder, fulfillmentStatus: 'Confirmed' }, showUnconfirm: false })} />)
+
+    expect(screen.queryByRole('button', { name: 'Unconfirm' })).not.toBeInTheDocument()
+  })
+
+  it('hides Unconfirm on a Pending order even when showUnconfirm is true', () => {
+    render(<OrderTicketPane {...baseProps({ showUnconfirm: true })} />)
+
+    expect(screen.queryByRole('button', { name: 'Unconfirm' })).not.toBeInTheDocument()
+  })
+
   it('disables Print receipt with a hint when the order is Unpaid, and calls onPrint when Paid', async () => {
     const onPrint = vi.fn()
     const user = userEvent.setup()

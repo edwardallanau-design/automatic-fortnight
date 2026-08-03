@@ -11,7 +11,7 @@ const VALID_PAYMENT_STATUSES: PaymentStatus[] = ['Unpaid', 'Paid']
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireApiRole('staff')
+    const session = await requireApiRole('staff')
 
     const { id } = await context.params
     const body = await request.json()
@@ -20,7 +20,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       throw new ValidationError('paymentStatus must be "Unpaid" or "Paid"')
     }
 
-    const order = await setPaymentStatus(id, body.paymentStatus)
+    const order = await setPaymentStatus(id, body.paymentStatus, session.role)
     return NextResponse.json(order, { status: 200 })
   } catch (error) {
     return handleApiError(error)
