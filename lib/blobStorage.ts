@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob'
+import { put, BlobError } from '@vercel/blob'
 import { ValidationError } from './errors'
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
@@ -19,10 +19,17 @@ export async function uploadQrImage(paymentMethodId: string, dataUrl: string): P
     throw new ValidationError('QR image upload is not configured in this environment')
   }
 
-  const blob = await put(`payment-methods/${paymentMethodId}.${extension}`, buffer, {
-    access: 'public',
-    contentType: `image/${extension}`,
-    addRandomSuffix: true,
-  })
-  return blob.url
+  try {
+    const blob = await put(`payment-methods/${paymentMethodId}.${extension}`, buffer, {
+      access: 'public',
+      contentType: `image/${extension}`,
+      addRandomSuffix: true,
+    })
+    return blob.url
+  } catch (error) {
+    if (error instanceof BlobError) {
+      throw new ValidationError(`QR image upload is not configured in this environment: ${error.message}`)
+    }
+    throw error
+  }
 }
