@@ -2451,6 +2451,34 @@ button.menu-add-row:focus-visible {
   color: var(--paper);
 }
 
+.order-detail-modal__unconfirm {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 10px;
+  font-family: var(--font-body), Arial, sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: 1px solid var(--clay-faint);
+  background: transparent;
+  color: var(--clay);
+}
+
+.order-detail-modal__unconfirm:hover:not(:disabled) {
+  background: var(--clay);
+  color: var(--paper);
+}
+
+.order-detail-modal__unconfirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.order-detail-modal__unconfirm:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 2px;
+}
+
 .order-detail-modal__print {
   flex: 1;
   min-height: 48px;
@@ -2515,6 +2543,64 @@ button.menu-add-row:focus-visible {
   font-size: 1.15rem;
   font-weight: 700;
   color: var(--espresso);
+}
+
+.order-detail-modal__history {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--clay-faint);
+}
+
+.order-detail-modal__history-title {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--clay);
+  margin: 0 0 0.5rem;
+}
+
+.order-detail-modal__history-empty {
+  font-size: 0.85rem;
+  color: var(--clay);
+}
+
+.order-detail-modal__history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.order-detail-modal__history-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.order-detail-modal__history-action {
+  font-weight: 600;
+  color: var(--espresso);
+}
+
+.order-detail-modal__history-actor {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--copper);
+}
+
+.order-detail-modal__history-time {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--clay);
 }
 
 /* Dashboard tabs */

@@ -186,6 +186,28 @@ export function PendingOrdersDashboard({
     }
   }
 
+  async function handleUnconfirm(order: DashboardOrder) {
+    setModal((current) => (current ? { ...current, busy: true, error: null } : current))
+    try {
+      await apiClient.patch<DashboardOrder>(`/api/orders/${order.id}/unconfirm`, {})
+      setExitingIds((current) => new Set(current).add(order.id))
+      setModal((current) => (current ? { ...current, closing: true } : current))
+      const timerId: ReturnType<typeof setTimeout> = setTimeout(() => {
+        closeTimersRef.current.delete(timerId)
+        setConfirmedOrders((current) => current.filter((o) => o.id !== order.id))
+        setExitingIds((current) => {
+          const next = new Set(current)
+          next.delete(order.id)
+          return next
+        })
+        setModal((current) => (current && current.orderId === order.id && current.closing ? null : current))
+      }, EXIT_MS)
+      closeTimersRef.current.add(timerId)
+    } catch (err) {
+      setModal((current) => (current ? { ...current, busy: false, error: errorMessage(err) } : current))
+    }
+  }
+
   async function handleSetPaymentStatus(order: DashboardOrder, paymentStatus: 'Paid' | 'Unpaid') {
     setModal((current) => (current ? { ...current, busy: true, error: null } : current))
     try {
@@ -372,6 +394,7 @@ export function PendingOrdersDashboard({
           onAddItem={(menuItemId) => handleAddItem(selectedOrder, menuItemId)}
           onAdjustQuantity={(itemId, quantity) => handleAdjustQuantity(selectedOrder, itemId, quantity)}
           onRemoveItem={(itemId) => handleRemoveItem(selectedOrder, itemId)}
+          onUnconfirm={() => handleUnconfirm(selectedOrder)}
           onClose={closeModal}
         />
       )}

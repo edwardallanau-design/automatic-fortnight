@@ -13,6 +13,7 @@ function lineTotal(item: OrderCardItem): number {
 export function OrderTicketPane({
   order,
   editable,
+  showUnconfirm = false,
   busy,
   settleBlockedByPendingAdd,
   error,
@@ -21,10 +22,12 @@ export function OrderTicketPane({
   onConfirm,
   onCancelOrder,
   onSetPaymentStatus,
+  onUnconfirm,
   onPrint,
 }: {
   order: OrderCardOrder
   editable: boolean
+  showUnconfirm?: boolean
   busy: boolean
   settleBlockedByPendingAdd: boolean
   error: string | null
@@ -33,10 +36,12 @@ export function OrderTicketPane({
   onConfirm: () => void
   onCancelOrder: () => void
   onSetPaymentStatus: (paymentStatus: 'Paid' | 'Unpaid') => void
+  onUnconfirm?: () => void
   onPrint: () => void
 }) {
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null)
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [unconfirmConfirmOpen, setUnconfirmConfirmOpen] = useState(false)
   const singleLine = order.items.length === 1
   const settleActionsDisabled = busy || settleBlockedByPendingAdd
 
@@ -63,6 +68,11 @@ export function OrderTicketPane({
   function handleCancelConfirm() {
     setCancelConfirmOpen(false)
     onCancelOrder()
+  }
+
+  function handleUnconfirmConfirm() {
+    setUnconfirmConfirmOpen(false)
+    onUnconfirm?.()
   }
 
   return (
@@ -148,6 +158,16 @@ export function OrderTicketPane({
             Cancel order
           </button>
         )}
+        {showUnconfirm && order.fulfillmentStatus === 'Confirmed' && (
+          <button
+            type="button"
+            className="order-detail-modal__unconfirm"
+            disabled={settleActionsDisabled}
+            onClick={() => setUnconfirmConfirmOpen(true)}
+          >
+            Unconfirm
+          </button>
+        )}
         {order.paymentStatus === 'Unpaid' ? (
           <button
             type="button"
@@ -199,6 +219,18 @@ export function OrderTicketPane({
           exiting={false}
           onConfirm={handleCancelConfirm}
           onClose={() => setCancelConfirmOpen(false)}
+        />
+      )}
+
+      {unconfirmConfirmOpen && (
+        <ConfirmDialog
+          title="Unconfirm this order?"
+          message="It returns to Pending so you can correct it, then re-confirm."
+          confirmLabel="Yes, unconfirm"
+          busy={busy}
+          exiting={false}
+          onConfirm={handleUnconfirmConfirm}
+          onClose={() => setUnconfirmConfirmOpen(false)}
         />
       )}
     </div>

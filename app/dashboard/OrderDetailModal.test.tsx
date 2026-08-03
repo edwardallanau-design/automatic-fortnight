@@ -5,6 +5,16 @@ import { OrderDetailModal } from './OrderDetailModal'
 import type { OrderCardOrder } from './OrderCard'
 import type { PickerItem } from './MenuItemPicker'
 
+// OrderDetailModal renders OrderHistory, which fetches its own data -- stub apiClient.get so these
+// tests don't make a real network call; individual tests override the resolved value as needed.
+vi.mock('@/lib/apiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/apiClient')>()
+  return {
+    ...actual,
+    apiClient: { get: vi.fn().mockResolvedValue([]), post: vi.fn(), patch: vi.fn(), del: vi.fn() },
+  }
+})
+
 const pendingOrder: OrderCardOrder = {
   id: 'o1',
   orderNumber: 101,
@@ -39,6 +49,7 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof OrderDetailMod
     onAddItem: vi.fn(),
     onAdjustQuantity: vi.fn(),
     onRemoveItem: vi.fn(),
+    onUnconfirm: vi.fn(),
     onClose: vi.fn(),
     ...overrides,
   }
@@ -70,14 +81,15 @@ describe('OrderDetailModal', () => {
     expect(screen.getByRole('button', { name: /Cola/ })).toBeInTheDocument()
   })
 
-  it('renders the editable item list for a Confirmed order when role is admin, with both panes', () => {
+  it('renders neither the picker nor the wide class for a Confirmed order when role is admin (INV-5 binds everyone)', () => {
     render(
       <OrderDetailModal {...baseProps({ order: { ...pendingOrder, fulfillmentStatus: 'Confirmed' }, role: 'admin' })} />,
     )
 
-    expect(screen.getByRole('dialog')).toHaveClass('order-detail-modal--wide')
-    expect(screen.getByRole('button', { name: 'Increase Burger quantity' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Cola/ })).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).not.toHaveClass('order-detail-modal--wide')
+    expect(screen.queryByRole('button', { name: 'Increase Burger quantity' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Cola/ })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).getByText('2x Burger')).toBeInTheDocument()
   })
 
   it('renders neither the picker nor the wide class for a Confirmed order when role is staff', () => {
@@ -179,6 +191,26 @@ describe('OrderDetailModal', () => {
 
     expect(onCancelOrder).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: 'Cancel this order?' })).not.toBeInTheDocument()
+  })
+
+  it('shows Unconfirm on a Confirmed order for an admin session, and calls onUnconfirm after confirming', async () => {
+    const onUnconfirm = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OrderDetailModal
+        {...baseProps({ order: { ...pendingOrder, fulfillmentStatus: 'Confirmed' }, role: 'admin', onUnconfirm })}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Unconfirm' }))
+    await user.click(screen.getByRole('button', { name: 'Yes, unconfirm' }))
+    expect(onUnconfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides Unconfirm on a Confirmed order for a staff session', () => {
+    render(<OrderDetailModal {...baseProps({ order: { ...pendingOrder, fulfillmentStatus: 'Confirmed' }, role: 'staff' })} />)
+
+    expect(screen.queryByRole('button', { name: 'Unconfirm' })).not.toBeInTheDocument()
   })
 
   it('shows an Awaiting payment line for a Counter choice', () => {
