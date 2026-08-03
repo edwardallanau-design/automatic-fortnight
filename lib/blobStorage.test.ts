@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { uploadQrImage } from './blobStorage'
 import { ValidationError } from './errors'
-import { put } from '@vercel/blob'
+import { put, BlobError } from '@vercel/blob'
 
 vi.mock('@vercel/blob', () => ({
   put: vi.fn(),
+  BlobError: class BlobError extends Error {},
 }))
 
 const ONE_PIXEL_PNG_BASE64 =
@@ -54,5 +55,15 @@ describe('blobStorage.uploadQrImage', () => {
 
     await expect(uploadQrImage('p1', `data:image/png;base64,${bigBase64}`)).rejects.toThrow(ValidationError)
     expect(put).not.toHaveBeenCalled()
+  })
+
+  it('wraps a BlobError (e.g. a misconfigured private store) as an actionable ValidationError', async () => {
+    vi.mocked(put).mockRejectedValue(
+      new BlobError('Cannot use public access on a private store. The store is configured with private access.'),
+    )
+
+    const call = uploadQrImage('p1', `data:image/png;base64,${ONE_PIXEL_PNG_BASE64}`)
+    await expect(call).rejects.toThrow(ValidationError)
+    await expect(call).rejects.toThrow(/Cannot use public access on a private store/)
   })
 })

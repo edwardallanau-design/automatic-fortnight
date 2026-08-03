@@ -109,8 +109,16 @@ Blob store (for menu/QR image uploads, ADR-005). This one call creates it, links
 **and** sets `BLOB_READ_WRITE_TOKEN` across all three scopes — no separate `env add` needed:
 
 ```bash
-npx vercel blob create-store <name> --access private --yes
+npx vercel blob create-store <name> --access public --yes
 ```
+
+**Must be `--access public`, not `--access private`.** `lib/blobStorage.ts` calls `put(..., { access:
+'public' })` unconditionally (matching ADR-005 and the shared `digitalmenu` store dev/preprod/main
+already use) — a store created `--access private` rejects every upload with `BlobError: Cannot use
+public access on a private store`, and access can't be changed after creation (`create-store`/
+`delete-store` only; no update path). This bit the `kapeadri` pilot: its store was created private,
+QR uploads 500'd, `ISSUE-34`. Fix for an already-provisioned instance is `delete-store` (safe once
+`list-stores`/`get-store` confirms 0 blobs) then re-run `create-store` with `--access public`.
 
 Connect Git, then fix the two settings that are wrong by default:
 
