@@ -48,7 +48,40 @@ See `05-api-conventions.md` — status-code table, flat error envelope `{ error,
 - Hard rule confirmed: no inline authority checks in service or persistence code.
 - Role set: `staff` (confirm orders, mark paid, toggle menu item availability), `admin` (all staff permissions + edit menu items/prices + modify Confirmed orders). No customer-side auth — the customer flow is unauthenticated by design (no accounts, per Artifact 01 non-goals).
 
-## 9. Pointers
+## 9. Schema migrations — additive only
+
+**Rule (adopted 2026-08-04): a migration may only add. Never `DROP COLUMN`, `DROP TABLE`, or narrow a
+type/nullability in the same release that stops using the thing.**
+
+Why this is a rule rather than a preference: `vercel-build` runs `prisma migrate deploy` on every
+deploy, and Prisma Migrate is **forward-only** — it generates no down-migrations and has no
+`migrate down`. So a destructive migration cannot be undone by rolling code back to a previous tag;
+the old code's client then expects a schema the database no longer has. The only recovery is a Neon
+point-in-time restore, and the 2026-08-04 drill established that path is **6 hours wide and fails
+silently** when asked for a time outside that window (`docs/agents/releasing.md`). Additive
+migrations keep every release code-rollback-safe; destructive ones stake the client's data on a
+6-hour timer.
+
+**Removing a column/table — expand/contract, across at least two releases:**
+
+1. *Expand.* Stop reading and writing the field in code; leave the column in place. Ship it. This
+   release is fully rollback-safe.
+2. *Wait.* At minimum until that release has run in the client's real service long enough to trust.
+3. *Contract.* A later release drops the column, once nothing has referenced it for a while.
+
+The same shape covers renames (add new → backfill → dual-write → stop reading old → drop later) and
+type changes (add new column, migrate values, switch reads, drop later).
+
+Precedent in this repo — both predate the rule and are exactly what it now prevents:
+`20260710113554_multi_branch_ordering_points` (`DROP COLUMN "number"`, plus two `SET NOT NULL`) and
+`20260710112208_add_branch_and_menu_item_sold_out` (`DROP COLUMN "available"`).
+
+Adding a column is unrestricted, and a `NOT NULL` addition is fine **with a default** (a bare
+`SET NOT NULL` on an existing column is a narrowing and falls under the rule). `CLAUDE.md`'s stop
+rules already require asking before any migration that changes existing columns/types — this section
+is the reasoning behind that rule, and additive migrations remain fine to proceed with.
+
+## 10. Pointers
 - **Tenancy / isolation:** single-tenant → see `03-tenancy-model.md`.
 - **Architecture topology & module boundaries:** → see `04-architecture.md`.
 - **Domain model & invariants:** → see `02-domain-model.md`.

@@ -18,7 +18,7 @@
 | ID | Item | Size | Status | Next step | Detail |
 |---|---|---|---|---|---|
 | B-01 | Rate limiting/lockout on `POST /api/auth/login` + rotate the internal pipeline's weak seed credentials (both Production and Preview env scopes) | S | Ready | implement | `ISSUE-12` |
-| B-02 | Verify Neon backup/restore actually works — tested, not assumed | S | Ready | run a restore drill against a scratch DB | reconcile item 1 |
+| B-28 | Extend Neon history retention beyond the Free plan's **6 hours** on the `kapeadri` client project (`ISSUE-36`). A bad migration or data loss on a Friday evening is unrecoverable by Saturday morning — 6h is the entire backup story for a paying client's data. Either upgrade the plan for a longer PITR window, or add a scheduled logical dump (`pg_dump`) to durable storage | S | Ready | decide plan-upgrade vs scheduled `pg_dump`; the drill in `docs/agents/releasing.md` documents what restore can/can't do today | `ISSUE-36` · `docs/agents/releasing.md` |
 | B-03 | Hand kapeadri login credentials to the client, then rotate the bootstrap values | S | Ready | user action + redeploy | `BUILD_STATUS.md` → Client instances checklist |
 
 ## Tier 1 — build now

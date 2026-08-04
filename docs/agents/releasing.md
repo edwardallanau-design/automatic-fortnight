@@ -100,10 +100,85 @@ and Prisma migrations are **forward-only** — this project generates no down-mi
   no longer has, which fails in worse ways than the bug being escaped. In that case the real recovery
   is Vercel rollback (above) to stop the bleeding, then a **fix-forward** patch release — not a code
   rollback.
-- Restoring the database to an earlier point is a **Neon** operation, not a git one, and this
-  project's restore path is **untested** (`B-02`). Do not assume it works until that drill is run.
+- Restoring the database to an earlier point is a **Neon** operation, not a git one. It was drilled
+  on 2026-08-04 and **it does not work the way you would assume** — read the next section before
+  relying on it.
 
 A tag is an honest rollback target for *code*. It says nothing about *data*.
+
+## Database restore: what the 2026-08-04 drill actually found
+
+Drilled against the live `kapeadri` project using throwaway Neon branches (production was never
+touched; all branches deleted afterwards). Three findings, in order of how much they should worry you.
+
+### 1. The restore window is 6 hours, not days
+
+```bash
+npx neonctl projects get <project-id> --org-id <org-id> --output json \
+  | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).history_retention_seconds))"
+# 21600 = 6 hours   (Neon Free plan default)
+```
+
+**A bad migration on Friday evening that nobody notices until Saturday morning is unrecoverable.**
+There is no earlier copy — Neon's history is the only backup this project has. Everything below is
+irrelevant outside that 6-hour window.
+
+### 2. A point-in-time restore can silently return a *different* time than requested
+
+This is the dangerous one. Asking for a timestamp outside available history does **not** error:
+
+```
+requested:                   2026-08-04T00:50:00Z
+parent_timestamp actually used: 2026-08-04T03:18:03Z    ← 2.5 hours later, reported as success
+```
+
+The branch is created, the CLI prints success, and the data is from the wrong moment. **Always verify
+what you actually got** before trusting a restore:
+
+```bash
+npx neonctl branches get <new-branch-id> --project-id <id> --org-id <org> --output json \
+  | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const b=JSON.parse(d);console.log('parent_timestamp:',b.parent_timestamp)})"
+```
+
+If `parent_timestamp` isn't what you asked for, the restore did not do what you wanted — regardless
+of what the CLI said.
+
+### 3. A child branch has no history before its own creation
+
+Restoring branch `X` to a timestamp before `X` existed silently yields `X`'s earliest state. Always
+restore **from the branch that actually holds the history** (`production`), not from a copy.
+
+### Running the drill
+
+```bash
+# 1. branch production at a chosen point (this is the restore)
+npx neonctl branches create --project-id <id> --org-id <org> \
+  --name drill-restore --parent production --timestamp <ISO8601>
+
+# 2. VERIFY the timestamp you actually got (finding 2)
+npx neonctl branches get <branch-id> --project-id <id> --org-id <org> --output json
+
+# 3. compare against production: schema, row counts, credential hashes
+#    (query both connection strings and diff — see deployment-audit.md §6)
+
+# 4. clean up
+npx neonctl branches delete drill-restore --project-id <id> --org-id <org>
+```
+
+Restoring for real means repeating step 1 and then repointing the client's `DATABASE_URL` at the
+recovered branch (or promoting it to default), followed by a redeploy.
+
+### What this means for release safety
+
+Restore *works*, but the window is short and the tooling fails quietly. So the operational rule is
+**avoid needing it**:
+
+- Additive-only migrations (see `06b-engineering-decisions.md`) — never drop a column in the same
+  release that stops using it.
+- Prefer fix-forward over rollback for anything touching schema.
+- If a destructive change is genuinely necessary, take a Neon branch as a manual restore point
+  *immediately before deploying* and verify its `parent_timestamp`. That branch is your only
+  safety net, and it expires in 6 hours unless you keep it.
 
 ## After releasing
 
