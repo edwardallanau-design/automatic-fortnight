@@ -99,12 +99,21 @@ done
 Want: internal project BUILDs everything **except** `client/*`; a client project BUILDs **only**
 `client/<its own name>` — including skipping *other* clients' branches.
 
-**Run both checks, and treat the first as the real one.** The truth-table proves the logic; the
-presence loop proves it is *deployed*. They disagree whenever the gate is committed but not yet
-promoted, which is the normal state right after a fix lands on `dev` — on 2026-08-04 the table read
-perfectly while `main` and `client/kapeadri` both reported `NO GATE`, meaning a push to either would
-still have built into the client project. A green truth table on `dev` says nothing about branches
-`dev` hasn't reached yet.
+**Run both checks — they answer different questions.** The truth table proves the *logic*; the
+presence loop proves the file has *reached* a given branch.
+
+**Which branch's `vercel.json` gets used:** the one in **the commit being built**, not the one on the
+target project's production branch. This is subtler than it looks and was initially got wrong on
+2026-08-04. A push to `main` builds `main`'s tree *in every project subscribed to the repo*, so once
+`main` carries the gate, that push self-rejects inside client projects — even while those client
+branches are still ungated. Verified: promoting `dev → main` produced `● Building Production` on
+`automatic-fortnight` and `Canceled 2s` on `kapeadri`.
+
+The practical consequence: **an ungated `client/<name>` branch is only a risk for pushes to that
+branch itself**, which are supposed to build anyway. It does *not* leave the client exposed to
+`dev`/`main` pushes once those branches carry the gate. Where it still matters is client-to-client
+isolation — a second client's branch push would build its own ungated tree and could land in the
+wrong project — so promote the gate to every client branch regardless.
 
 Two traps in that command:
 - **Exit codes are inverted: `exit 1` = build, `exit 0` = skip** (it mirrors `git diff --quiet`).
