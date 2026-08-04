@@ -20,6 +20,7 @@
 | B-01 | Rate limiting/lockout on `POST /api/auth/login` + rotate the internal pipeline's weak seed credentials (both Production and Preview env scopes) | S | Ready | implement | `ISSUE-12` |
 | B-02 | Verify Neon backup/restore actually works — tested, not assumed | S | Ready | run a restore drill against a scratch DB | reconcile item 1 |
 | B-03 | Hand kapeadri login credentials to the client, then rotate the bootstrap values | S | Ready | user action + redeploy | `BUILD_STATUS.md` → Client instances checklist |
+| B-27 | Promote `main` → `client/kapeadri` to deliver `vercel.json`'s build gate to the client branch (also catches it up — it sits a release behind at `2a56c51`). Until then that branch carries the pre-`ISSUE-35` config: `dev`/`main` pushes are already gated (they're evaluated against *their own* branch's `vercel.json`), but a **second** client's branch would still build into `kapeadri`, so client-to-client isolation isn't active yet. Deliberately deferred 2026-08-04 — user picks the timing, since promoting rebuilds a live restaurant's instance | S | Ready | `git checkout client/kapeadri && git merge main && git push` — at a time the pilot isn't mid-service | `ISSUE-35` · `2026-08-04-retire-preprod-environment-design.md` |
 
 ## Tier 1 — build now
 
