@@ -1,6 +1,9 @@
 # Client-branch deployment pipeline — amendment to the dev/preprod/prod design
 
-**Date:** 2026-08-03 · **Status:** Decided, in effect
+**Date:** 2026-08-03 · **Status:** Decided, in effect — **except the `preprod` stage, retired 2026-08-04**
+
+> **Partially superseded.** The client-branch decisions below (branch-per-tenant, db-per-tenant, manual `main → client/<name>` promotion, never merging back) all still hold. Only the *internal* pipeline shown in this doc's diagram has changed: `preprod` was retired, so it now reads `dev → main`, and every "alongside each `preprod → main` promotion" below means "alongside each promotion to `main`". See `docs/specs/2026-08-04-retire-preprod-environment-design.md`.
+
 **Amends:** `docs/superpowers/specs/2026-07-08-dev-preprod-prod-pipeline-design.md` §4 ("Multi-client (recorded, not built)") — that file is a frozen archive per `CLAUDE.md` and is not edited directly; this doc supersedes its §4 for the multi-client shape.
 **Related:** `docs/design/03-tenancy-model.md` (rewritten 2026-08-03, same trigger) · `BUILD_STATUS.md`.
 

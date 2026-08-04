@@ -51,7 +51,7 @@
 | B-17 | Order-ahead / takeaway channel (+ dine-in-vs-takeaway splash) — requires amending `01`'s non-goal first | Core dine-in loop validated by the pilot month | L | epic-map entries (two) |
 | B-18 | Multi-language menu | Client confirms their clientele needs it | M | epic-map entry · survey |
 | B-19 | Discounts / promotions | Post-validation client pull | M | epic-map entry |
-| B-20 | Per-environment DB isolation for `dev`/`preprod` | Before adding collaborators, or the first shared-DB near-miss | M | pipeline spec's Backlog note |
+| B-20 | Per-environment DB isolation for `dev` (and feature previews) vs `main` | Before adding collaborators, or the first shared-DB near-miss | M | pipeline spec's Backlog note · `2026-08-04-retire-preprod-environment-design.md` |
 
 ## Tier 4 — docs/process chores (from the product-mode reconcile list)
 

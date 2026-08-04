@@ -40,8 +40,9 @@ git push -u origin client/<name>
 ```
 
 Branch off `main`, never off `dev` — a client only ever receives code that already went through
-`dev → preprod → main`. If `main` is behind, promote it *first* (see CLAUDE.md's pipeline section);
-don't branch a client off unreleased work.
+`dev → main`. If `main` is behind, promote it *first* (see CLAUDE.md's pipeline section);
+don't branch a client off unreleased work. (`preprod` was retired 2026-08-04 —
+`docs/specs/2026-08-04-retire-preprod-environment-design.md`.)
 
 ## 2. Neon database
 
@@ -113,7 +114,7 @@ npx vercel blob create-store <name> --access public --yes
 ```
 
 **Must be `--access public`, not `--access private`.** `lib/blobStorage.ts` calls `put(..., { access:
-'public' })` unconditionally (matching ADR-005 and the shared `digitalmenu` store dev/preprod/main
+'public' })` unconditionally (matching ADR-005 and the shared `digitalmenu` store dev/main
 already use) — a store created `--access private` rejects every upload with `BlobError: Cannot use
 public access on a private store`, and access can't be changed after creation (`create-store`/
 `delete-store` only; no update path). This bit the `kapeadri` pilot: its store was created private,
@@ -145,6 +146,44 @@ never an alias or DNS problem. Check Framework Preset first. (On the pilot run t
 as an alias-ownership issue and a whole false root cause was built around `vercel domains ls` not
 listing the alias — it never lists auto-generated `.vercel.app` aliases, so its absence proves
 nothing. The alias was working the entire time.)
+
+### Trap: the new project builds EVERY branch, including internal ones (`ISSUE-35`)
+
+`vercel git connect` subscribes the project to the **whole repository**, not to one branch. Setting
+the Production Branch (next section) only decides which branch is *labelled* Production — every other
+branch, `dev`/`main`/any `feature/*`, still builds as a **Preview** inside this client's project.
+
+That is not cosmetic here. `vercel-build` runs `prisma migrate deploy && tsx prisma/seed.ts`, and a
+client instance sets `DATABASE_URL` identically on both the Production and Preview scopes (there is
+only one Neon DB per client — see the env-var step above and `ISSUE-11`). So an unguarded internal
+push **runs migrations and the seed against this client's live production database.** On the pilot
+this really happened twice before it was caught.
+
+The guard is already in `vercel.json` and needs no per-client edit:
+
+```json
+"ignoreCommand": "bash -c 'if [ \"$VERCEL_PROJECT_NAME\" = \"automatic-fortnight\" ]; then case \"$VERCEL_GIT_COMMIT_REF\" in client/*) exit 0;; *) exit 1;; esac; else [ \"$VERCEL_GIT_COMMIT_REF\" = \"client/$VERCEL_PROJECT_NAME\" ] && exit 1 || exit 0; fi'"
+```
+
+It builds only when the branch is `client/$VERCEL_PROJECT_NAME`, so **the Vercel project name must
+exactly match the branch suffix** — project `foo` ↔ branch `client/foo`. If you name them
+differently, this client will never build at all. That naming coupling is the price of not having to
+edit the gate per client.
+
+Note `ignoreCommand`'s inverted exit codes: **exit 1 = build, exit 0 = skip.** Getting it backwards
+silently disables every deploy rather than erroring, so verify against a real push (below) rather
+than trusting the config. Verify the gate before trusting it:
+
+```bash
+CMD=$(node -e "console.log(require('./vercel.json').ignoreCommand)")
+VERCEL_PROJECT_NAME=<name> VERCEL_GIT_COMMIT_REF=dev bash -c "$CMD"; echo "dev → $? (want 0 = skip)"
+VERCEL_PROJECT_NAME=<name> VERCEL_GIT_COMMIT_REF=client/<name> bash -c "$CMD"; echo "own → $? (want 1 = build)"
+```
+
+**The gate is in the repo, so it only takes effect once `vercel.json` is present on the client's
+branch.** A branch cut from a `main` that already contains it is fine. Confirm with
+`git show client/<name>:vercel.json | grep ignoreCommand` before the first internal push after
+provisioning.
 
 ### Function region — match it to the database
 
@@ -212,8 +251,10 @@ git merge main
 git push origin client/<name>      # this is the client's production deploy
 ```
 
-Run it as an explicit step alongside each `preprod → main` promotion. It is deliberately manual —
-that decision point is the entire reason the client branch exists, so resist automating it away. A
+Run it as an explicit step alongside each promotion to `main`. It is deliberately manual —
+that decision point is the entire reason the client branch exists, so resist automating it away.
+Since `preprod` was retired (2026-08-04) this is also the pipeline's **last human gate** before a
+real restaurant sees a change, which makes automating it strictly worse than it was before. A
 client branch **never** merges back into `main`.
 
 ## Passwords, afterwards

@@ -20,7 +20,7 @@ Committed scope: a digital menu & ordering system operated by a committed pilot 
 
 **— Product mode only —**
 
-**Who pays / primary user.** A specific restaurant/cafe client (pilot) — committed as of 2026-07-25. The system is built for that client to operate, on a dedicated instance (own Vercel project + database); the vendor's existing dev/preprod/prod pipeline stays internal.
+**Who pays / primary user.** A specific restaurant/cafe client (pilot) — committed as of 2026-07-25. The system is built for that client to operate, on a dedicated instance (own Vercel project + database); the vendor's existing dev → main pipeline stays internal.
 
 **Scale assumptions.**
 - Up to 20 tables

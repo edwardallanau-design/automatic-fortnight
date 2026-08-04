@@ -1,3 +1,4 @@
 {
-  "buildCommand": "npm run vercel-build"
+  "buildCommand": "npm run vercel-build",
+  "ignoreCommand": "bash -c 'if [ \"$VERCEL_PROJECT_NAME\" = \"automatic-fortnight\" ]; then case \"$VERCEL_GIT_COMMIT_REF\" in client/*) exit 0;; *) exit 1;; esac; else [ \"$VERCEL_GIT_COMMIT_REF\" = \"client/$VERCEL_PROJECT_NAME\" ] && exit 1 || exit 0; fi'"
 }
