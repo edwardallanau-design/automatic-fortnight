@@ -15,7 +15,8 @@ authenticated here and the project has never used GitHub Issues. The tracker of 
 | **Plan** (implementation tickets) | `docs/plans/<YYYY-MM-DD>-<slug>.md` | One file per feature, numbered `Task N` sections |
 | **Archived specs/plans (pre-2026-07-25)** | `docs/superpowers/specs/` · `docs/superpowers/plans/` | **Frozen archive** — link targets for BUILD_STATUS/domain docs; never add new files, never move or edit existing ones |
 | **Story board** | `BUILD_STATUS.md` (repo root) | Story status: `Backlog → Building → Done` / `Blocked` |
-| **Epic/story backlog** | `docs/design/07-epic-map.md` | Numbered stories |
+| **Live backlog** (pick next work here) | `BACKLOG.md` (repo root) | Tiered `B-<n>` rows; shipped rows are deleted (BUILD_STATUS is the record) |
+| **Epic/story specs (history)** | `docs/design/07-epic-map.md` | Numbered MVP stories + frozen backlog provenance — don't add items here (2026-08-04) |
 | **Wayfinder maps** | `.scratch/<effort>/` | Ephemeral working state only — see below |
 
 The spec and plan filenames pair up: a spec's slug plus `-design` is the spec, without it is the plan.

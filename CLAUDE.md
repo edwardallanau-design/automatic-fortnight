@@ -1,6 +1,6 @@
 # Digital Menu & Ordering — CLAUDE.md
 
-**Operating loop.** Pull the next story from `07-epic-map.md` → mark it `Building` in `BUILD_STATUS.md` → load the context-package docs it references → design an implementation plan for that one vertical slice → implement the plan → verify against its acceptance criteria → mark it `Done` in `BUILD_STATUS.md` (or `Blocked` with a note if stuck) → stop.
+**Operating loop.** Pick the next item from `BACKLOG.md` (lowest tier first, prefer `Ready`) → mark it `Building` there and log the story in `BUILD_STATUS.md` → load the context-package docs it references → design an implementation plan for that one vertical slice → implement the plan → verify against its acceptance criteria → mark it `Done` in `BUILD_STATUS.md` and delete its `BACKLOG.md` row (or mark it `Blocked` with a note if stuck) → stop. (The original MVP epic's story specs live in `07-epic-map.md` — all shipped; that file is now reference/history.)
 
 **Context-package index.**
 
@@ -11,7 +11,8 @@
 - API conventions → `05-api-conventions.md`
 - Engineering principles (universal, never edited) → `06a-engineering-principles.md`
 - Engineering decisions (this system's stack/contract choices) → `06b-engineering-decisions.md`
-- Epic map & stories → `07-epic-map.md`
+- Epic map & stories (MVP epic history; backlog section frozen) → `07-epic-map.md`
+- **Live backlog — pick all new work here** → `BACKLOG.md`
 - Build status / story board → `BUILD_STATUS.md`
 - Bug / issue tracker → `ISSUES.md`
 
@@ -22,6 +23,8 @@
 - The gotchas log gets a line whenever something non-obvious in this codebase costs real debugging time.
 
 **Maintaining ISSUES.md.** Any bug or unexpected behaviour found — whether you caused it, found it while building something else, or the user reports it — gets logged before or alongside the fix, not skipped because it was quick to fix. Closed issues stay in the file (moved to a Resolved section), not deleted — they're a record of what already bit this project once.
+
+**Maintaining BACKLOG.md.** The single live backlog: every schedulable feature/fix/chore is one tiered `B-<n>` row, and it is the only place to pick next work from. New ideas get a row there (right tier, or Parked) — never new entries in `07-epic-map.md`'s frozen backlog section. A shipped row is deleted, not archived — `BUILD_STATUS.md` is the record. Bugs still get their `ISSUES.md` row first; an issue also appears in `BACKLOG.md` only when it becomes scheduled work, referenced by its `ISSUE-<N>` id.
 
 **Deployment pipeline.** Three long-lived branches, each with a stable Vercel domain, publicly viewable (Deployment Protection is disabled for Preview):
 - `main` (production) → `https://automatic-fortnight-lyart.vercel.app/`

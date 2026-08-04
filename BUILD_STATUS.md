@@ -271,16 +271,9 @@ Separate from the internal pipeline above — each real client gets its own dedi
 
 ## Product-mode reconcile — post-pilot-deploy backlog (2026-07-25)
 
-The dial-to-Full work the Product re-declaration makes due (source: the updated design playbook, reconciled 2026-07-25; ordered by its irreversibility × likelihood rule — security/data-loss first, friction last). None of it blocks the pilot deploy:
+The dial-to-Full work the Product re-declaration makes due (source: the updated design playbook, reconciled 2026-07-25; ordered by its irreversibility × likelihood rule — security/data-loss first, friction last). None of it blocks the pilot deploy.
 
-1. [ ] Rate limiting/lockout on `POST /api/auth/login` (the un-fixed half of `ISSUE-12`) + verify Neon backup/restore actually works (tested, not assumed)
-2. [ ] Observability first — basic metrics/error visibility on the client instance, so every later scale decision is signal-triggered, never calendar-triggered
-3. [ ] `04-architecture.md`: record the now-named decisions — repository layout, containerization scope (full-stack local Docker), environment data lifecycle — honestly recording the shared-dev/preprod/prod-DB deviation from the playbook's per-env model, and the whole-branch-merge promotion deviation from its cherry-pick default (deliberate, kept)
-4. [ ] `06b` test section checked against the operational-depth bar: file location/naming, seam pattern, fixtures, one exemplar — an agent should write a suite-matching test without opening other test files
-5. [ ] Seed `08-ui-conventions.md` from the existing café-ticket visual language (tokens, component patterns, repeat patterns) — kills per-story styling rediscovery
-6. [ ] `07-epic-map.md`: add the **Ideas — unsorted** tier + CLAUDE.md's park-ideas rule; first residents: richer fulfillment lifecycle (`Preparing`/`Served` — decide from pilot `OrderEvent` data, not speculation), per-person attribution (named PINs / user accounts — ADR-006's trigger), payment-gateway auto-confirm (verified-webhook trigger on the existing machine)
-7. [ ] `BUILD_STATUS.md`: add the off-epic ledger (a line per unplanned change)
-8. [ ] `CLAUDE.md`: restructure toward the playbook template — explicit no-secrets-in-commits rule (gitignore-first + staged-diff scan), workflow-agnostic phrasing
+**Moved to `BACKLOG.md` (2026-08-04)** — the single live backlog now tracks these as: item 1 → B-01 + B-02 · item 2 → B-10 · item 3 → B-21 · item 4 → B-22 · item 5 → B-23 · item 7 → B-24 · item 8 → B-25. Item 6 (the "Ideas — unsorted" tier + park-ideas rule) is satisfied by `BACKLOG.md` itself; its three named residents are B-14 (richer fulfillment lifecycle), B-16 (per-person attribution), and B-15 (payment-gateway auto-confirm).
 
 ## Adoption signal (fill in once the pilot is live — iteration signal, not a go/kill gate; see `01`)
 
