@@ -188,8 +188,26 @@ npx vercel ls <client-project>    | head -3     # want: Canceled, ~3s
 ```
 
 **A skipped build appears as `Canceled`, not as an absent deployment** — Vercel still records it and
-still lists it. **Duration is what distinguishes them: ~3s skipped vs ~1m built.** A `Canceled` entry
-that took 57s is a real build that was cancelled, which is a different thing entirely.
+still lists it. Duration is a quick tell (~3s skipped vs ~1m built), but it is only circumstantial:
+`Canceled` is also what a *manual* cancel or a Vercel-side auto-cancel looks like. **To actually
+prove the gate caused it, read the build log:**
+
+```bash
+npx vercel inspect --logs <deployment-url> | tail -20
+```
+
+A gate-skipped build ends exactly like this — note it stops *before* `vercel-build`, so no
+`prisma migrate deploy`, no seed, no DB connection:
+
+```
+Cloning github.com/<org>/<repo> (Branch: main, Commit: 817ce12)
+Running "bash -c 'if [ "$VERCEL_PROJECT_NAME" = ... '"
+The Deployment has been canceled as a result of running the command defined in the "Ignored Build Step" setting.
+```
+
+That log line is the only unambiguous evidence. It also reveals **which branch's tree was cloned**,
+which is how the commit-being-built resolution above was confirmed: a `main` push into the *client's*
+project clones `main` and evaluates `main`'s `vercel.json`.
 
 Then re-run step 6 and compare **`passwordHash` prefixes before and after**. This is the decisive
 check: bcrypt generates a fresh salt on every run, so if the seed had executed the hashes would
