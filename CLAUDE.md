@@ -72,6 +72,10 @@ Single-context, but housed in the numbered `docs/design/` context package — no
 
 Standing up a new client's dedicated Vercel project + Neon database + `client/<name>` branch, headless via CLI/API. Includes the two steps that genuinely can't be automated (creating the Neon project; setting Vercel's Production Branch) and the Framework-Preset trap that silently 404s the whole app despite a clean build log. See `docs/agents/client-instance-provisioning.md`.
 
+### Releasing
+
+SemVer tags on `main` (started at `v1.0.0`, 2026-08-04 — the first version in real service with the pilot). How to cut a release, how to tell what a client is running (`git describe --tags origin/client/<name>`), and the two rollback mechanisms — Vercel's instant build rollback for a live incident vs. a git revert — plus the forward-only-migration constraint that decides which one is safe. See `docs/agents/releasing.md`.
+
 ### Deployment audit
 
 Checking what the Vercel/Neon/Git fleet is *actually* doing versus what these docs claim — branch→project wiring, build gates, env scopes, the repo's own Vercel link, and a read-only client-DB integrity check. Trigger-based, not scheduled: run it before changing deployment config, before provisioning/decommissioning a client, or when an unexplained deployment or alias shows up. Exists because `ISSUE-35` was invisible to documentation and only surfaced by enumerating live infrastructure. See `docs/agents/deployment-audit.md`.
