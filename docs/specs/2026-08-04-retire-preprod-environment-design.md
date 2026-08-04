@@ -46,6 +46,8 @@ Fix: an `ignoreCommand` in `vercel.json` that gates builds on branch/project agr
 
 **Known limitation:** the gate lives in the repo, so it only protects a client instance once `vercel.json` has reached that client's branch — from the next `main → client/<name>` promotion onward.
 
+**Verified live, not just in theory.** The `dev` push carrying this change produced `● Ready 57s` on `automatic-fortnight` and `Canceled 3s` on `kapeadri`, and the client DB's latest migration timestamp plus both `Credential.passwordHash` values were byte-identical before and after. The unchanged hashes are the decisive check: bcrypt generates a fresh salt on every run, so an executed seed would necessarily have changed them. Note that a gated build still appears in `vercel ls` as a `Canceled` deployment rather than being absent — duration (~3s vs ~1m) is what distinguishes "skipped" from "built".
+
 ## What would invalidate this
 
 - **A second client, or a team.** With more than one client branch or more than one person merging, `main` doing double duty as both "pristine reference" and "the thing every client is cut from" may warrant a real staging environment again — but per-environment *databases* (`B-20`) would be the prerequisite for that to mean anything, since the missing isolation was always the DB, not the branch.

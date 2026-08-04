@@ -185,6 +185,21 @@ branch.** A branch cut from a `main` that already contains it is fine. Confirm w
 `git show client/<name>:vercel.json | grep ignoreCommand` before the first internal push after
 provisioning.
 
+**Reading the result: a skipped build shows up as `Canceled`, not as "no deployment".** Vercel still
+creates a deployment record and still shows it in `vercel ls`; `ignoreCommand` only stops the build
+from running. Tell the two apart by **duration** — a skipped build is ~3s, a real one ~1m:
+
+```
+kapeadri   …fulsb2vvn…   Canceled   Preview   3s     ← gate worked, no migrate/seed ran
+kapeadri   …dzigohigo…   ● Ready    Preview   1m     ← a real build (this one wrote to the DB)
+```
+
+Verified live on 2026-08-04: a `dev` push produced `● Ready 57s` on `automatic-fortnight` and
+`Canceled 3s` on `kapeadri`, with the client DB's latest migration timestamp and both
+`Credential.passwordHash` values byte-identical before and after. Unchanged hashes are the strongest
+check available here — bcrypt salts differ on every run, so if the seed had executed, the hashes
+would necessarily have changed.
+
 ### Function region — match it to the database
 
 A new project defaults to `iad1` (Washington DC). If the Neon project is in
